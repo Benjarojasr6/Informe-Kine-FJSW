@@ -1,0 +1,467 @@
+/* Páginas del informe: tamaño carta, marco blanco tipo revista (cabe en cualquier impresora). */
+.pagina {
+  width: 8.5in; height: 11in; padding: .22in; box-sizing: border-box; position: relative; overflow: hidden;
+  background: #fff; color: #fff; font-family: Inter, system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+  break-after: page; page-break-after: always; line-height: 1.25;
+}
+.pagina .panel {
+  position: relative; width: 100%; height: 100%; overflow: hidden; box-sizing: border-box;
+  padding: .5in .55in .66in; color: #fff;
+  background: linear-gradient(165deg, #17502a 0%, #11411f 55%, #0e371b 100%);
+}
+.pagina .panel::before {
+  content: ""; position: absolute; right: -1.7in; bottom: -1.3in; width: 6.4in; height: 10.2in;
+  background: url(../img/escudo-sw-blanco.png) center / contain no-repeat; opacity: .075; transform: rotate(-9deg); pointer-events: none;
+}
+.pagina .panel > * { position: relative; }
+.pagina h2 { font-family: Caladea, Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 37px; line-height: 1.05; margin: 0 0 .2in; letter-spacing: -.01em; }
+.pagina h2 small { font-family: Inter, sans-serif; font-size: 15px; font-weight: 400; opacity: .72; letter-spacing: 0; }
+.sub-periodo { margin: -.1in 0 .24in; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; opacity: .78; }
+.pie { position: absolute !important; left: .55in; right: .55in; bottom: .26in; display: flex; justify-content: space-between; font-size: 10px; letter-spacing: .04em; opacity: .62; }
+
+/* ---------- Portada ---------- */
+.pagina.portada .panel { padding: 0; background: #0a0a0a; overflow: visible; }
+.pagina.portada .panel::before { display: none; }
+.pagina.portada .panel > * { position: absolute; }
+.p-fondo { inset: 0; overflow: hidden;
+  background: radial-gradient(ellipse 75% 60% at 70% 62%, #232323 0%, #151515 50%, #0a0a0a 100%); }
+.p-escudo { left: -1.3in; top: 2.45in; width: 8.2in; transform: rotate(14deg); transform-origin: 50% 40%;
+  filter: drop-shadow(.14in .12in 0 rgba(255,255,255,.10)); }
+.p-barra-sup { left: .58in; top: -.22in; width: 6.34in; height: .22in; background: #2c5f39; }
+.p-titulo { left: .58in; top: 0; width: 6.34in; box-sizing: border-box; background: #12401e; padding: .3in .32in .22in; }
+.p-titulo h1 { margin: 0; font-family: Caladea, Georgia, serif; font-weight: 700; font-size: 66px; line-height: .98; letter-spacing: -.015em; }
+.p-cat { margin: .22in 0 0; text-align: right; font-size: 23px; font-weight: 400; }
+.p-per { margin: .04in 0 0; text-align: right; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; opacity: .72; }
+.p-barra-inf { left: 2.05in; bottom: -.22in; width: 3.4in; height: .42in; background: #2c5f39; }
+
+/* ---------- Calendario y cuerpo técnico ---------- */
+.cal { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: .35in; }
+.partido { background: #d9d9d9; color: #111; border-radius: 3px; padding: 8px; height: 102px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
+.partido > img, .partido .sin-logo { width: 44px; height: 46px; object-fit: contain; object-position: left top; align-self: flex-start; }
+.partido .sin-logo { display: grid; place-items: center; background: #154c2b; color: #fff; border-radius: 50%; width: 38px; height: 38px; font-weight: 700; }
+.partido .p-txt { text-align: right; font-size: 11.5px; line-height: 1.3; font-weight: 700; }
+.partido .p-txt b { display: block; text-transform: uppercase; font-weight: 700; }
+.partido .p-txt span { display: block; }
+.partido .p-txt small { display: block; font-weight: 500; font-size: 10px; color: #555; }
+.partido.pendiente { opacity: .62; }
+.staff { display: flex; flex-direction: column; gap: 10px; }
+.staff-fila { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+.staff-nombres, .staff-cargo { background: #d9d9d9; color: #111; border-radius: 3px; padding: 8px 12px; min-height: 44px; box-sizing: border-box; display: flex; align-items: center; font-weight: 700; font-size: 13.5px; }
+.staff-nombres { flex-wrap: wrap; gap: 3px 22px; }
+.staff-cargo { justify-content: center; text-align: center; }
+.pers em { font-weight: 500; color: #555; font-size: 11px; }
+.pers.ocasional { font-weight: 600; }
+
+/* ---------- Resumen ---------- */
+.ind-lista { display: flex; flex-direction: column; gap: 14px; }
+.ind-fila { display: flex; align-items: center; gap: 20px; min-height: 74px; }
+.ind-fila .et { font-family: Caladea, Georgia, serif; font-size: 27px; line-height: 1.1; }
+.ind-fila b { font-size: 46px; font-weight: 800; margin-left: 4px; line-height: 1; }
+.ico { display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.ico svg, img.ico { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ico.ico-l { width: 68px; height: 68px; }
+.ico.ico-t { width: 92px; height: 92px; }
+.ico.emoji { font-size: 44px; line-height: 1; }
+.trat-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; row-gap: 14px; }
+.trat-celda { display: flex; align-items: center; gap: 14px; height: 108px; }
+.trat-celda.der { flex-direction: row-reverse; }
+.trat-txt { flex: 1; text-align: center; }
+.trat-txt b { display: block; font-size: 30px; font-weight: 800; line-height: 1.1; }
+.trat-txt span { display: block; font-size: 16px; font-weight: 700; line-height: 1.2; }
+
+/* ---------- Ficha del jugador ---------- */
+.pagina.p-ficha .panel { padding: .36in .42in .52in; }
+.f-cab { display: flex; justify-content: space-between; align-items: center; height: 1.3in; }
+.f-id h2 { margin: 0 0 4px; font-size: 34px; }
+.f-sub, .f-pos { margin: 0; font-size: 20px; font-weight: 300; line-height: 1.25; }
+.f-foto { width: 1.2in; height: 1.2in; border-radius: 50%; overflow: hidden; background: #e7ece8; color: #154c2b; display: grid; place-items: center; flex: none; }
+.f-foto img { width: 100%; height: 100%; object-fit: cover; }
+.f-foto span { font-family: Caladea, serif; font-weight: 700; font-size: 44px; }
+.f-linea { border: 0; height: 3px; background: #fff; margin: .1in 0 .15in; }
+.f-cols { display: grid; grid-template-columns: 1.12fr 1fr; gap: .16in; height: 3.6in; }
+.f-col { display: flex; flex-direction: column; gap: .12in; min-height: 0; }
+.tarjeta { background: #d9d9d9; color: #4d4d4d; border-radius: 8px; padding: 9px 14px; box-sizing: border-box; }
+.tarjeta.flex { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.tarjeta h3 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: #0b5a24; letter-spacing: -.005em; }
+.tarjeta p { margin: 0; font-size: 13px; line-height: 1.32; }
+.tarjeta ul { margin: 0; padding: 0; list-style: none; }
+.tarjeta li { font-size: 13.5px; line-height: 1.3; padding: 1.5px 0 1.5px 14px; position: relative; }
+.tarjeta ul.denso li { font-size: 12px; padding: 1px 0 1px 13px; }
+.tarjeta ul.muy-denso li { font-size: 10.5px; padding: 0 0 0 12px; line-height: 1.22; }
+.tarjeta li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 5px; height: 5px; border-radius: 50%; background: #666; }
+.tarjeta li .dot { display: none; }
+.tarjeta li:has(.dot)::before { display: none; }
+.tarjeta li .dot { display: block; position: absolute; left: 1px; top: .5em; width: 8px; height: 8px; border-radius: 50%; }
+.dot.g-minima { background: #8fd3a8; } .dot.g-pordefinir { background: #9aa4a9; } .dot.g-leve { background: #3fbf6a; } .dot.g-moderada { background: #f5c518; } .dot.g-grave { background: #e8353d; }
+.tarjeta .vacio { color: #8a8a8a; font-size: 12px; font-style: italic; }
+.tarjeta.stat p { font-size: 18px; font-weight: 600; color: #0b5a24; line-height: 1.3; }
+.tarjeta.stat b { font-size: 22px; font-weight: 800; }
+.tarjeta .grande { font-size: 28px; font-weight: 800; color: #0b5a24; }
+.f-pie { display: grid; grid-template-columns: 1fr 1fr; gap: .1in; margin-top: .12in; height: 3.8in; }
+.f-tot { text-align: center; font-size: 19px; font-weight: 300; line-height: 1.2; margin-bottom: 2px; }
+.f-tot b { color: #cfe8d5; font-weight: 800; font-size: 22px; margin-left: 4px; }
+.f-mapa .mapa-corporal { display: block; margin: 0 auto; height: 2.5in; width: auto; max-width: 100%; }
+.f-mapa .leyenda-grav { margin-top: 2px; }
+.callouts { display: flex; flex-direction: column; gap: 3px; margin: 4px .1in 0; }
+.callout { display: flex; align-items: center; gap: 6px; background: #fff; color: #222; border-radius: 4px; padding: 2px 6px; font-size: 9.5px; line-height: 1.25; }
+.callout i { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.callout b { font-weight: 700; }
+.callout.mas { color: #666; font-style: italic; justify-content: center; }
+.f-donut .donut { display: block; width: 100%; height: auto; max-height: 3.2in; }
+.mapa-corporal .mapa-rotulo { font: 600 14px Inter, sans-serif; fill: rgba(255,255,255,.72); }
+.mapa-corporal .mapa-lado { font: 500 14px Inter, sans-serif; fill: rgba(255,255,255,.8); }
+.leyenda-grav { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; font-size: 11px; }
+.leyenda-grav small { opacity: .7; font-size: .85em; text-transform: none; letter-spacing: 0; }
+.leyenda-grav span { display: inline-flex; align-items: center; gap: 5px; }
+.leyenda-grav i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.donut text { font-family: Inter, sans-serif; fill: #fff; }
+.donut .d-et { font-size: 11px; font-weight: 500; }
+.donut .d-n { font-size: 12px; font-weight: 700; }
+.donut .d-total { font-size: 44px; font-weight: 800; }
+.donut .d-vacio { font-size: 12px; font-weight: 400; opacity: .7; }
+.extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .14in; }
+
+/* ---------- Impresión (sin la interfaz de la app) ---------- */
+#print-root { display: none; }
+#print-root.preparando { display: block; position: fixed; left: -20000px; top: 0; }
+@page { size: letter portrait; margin: 0; }
+@media print {
+  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  #app, #modal-root, #toast { display: none !important; }
+  #print-root { display: block !important; position: static !important; left: auto !important; }
+  #print-root .pagina { margin: 0; box-shadow: none; zoom: 1; }
+  #print-root .pagina:last-child { break-after: auto; page-break-after: auto; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+.tarjeta li.mas { font-style: italic; color: #777; }
+.tarjeta li.mas::before { display: none; }
+.detalle-casos { display: grid; grid-template-columns: 1fr 1fr; gap: .12in; }
+.tarjeta.caso { display: flex; gap: 10px; align-items: flex-start; }
+.tarjeta.caso .dot { display: block; flex: none; width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; }
+.tarjeta.caso b { display: block; color: #0b5a24; font-size: 14.5px; font-weight: 600; }
+.tarjeta.caso span { display: block; font-size: 11.5px; line-height: 1.35; }
+
+/* ================= Estilo formal (v1.2) ================= */
+.pagina h2 { font-family: Caladea, Georgia, serif; font-weight: 700; font-size: 31px; letter-spacing: .005em; margin: 0 0 .22in; padding-bottom: .09in; border-bottom: 1px solid rgba(255,255,255,.38); }
+.pagina h2 small { font-family: Inter, sans-serif; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; opacity: .7; margin-left: 6px; }
+.sub-periodo { margin: -.12in 0 .22in; font-size: 10.5px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; opacity: .72; }
+.pagina.portada h1, .p-titulo h1 { font-family: Caladea, Georgia, serif; font-weight: 700; font-size: 58px; line-height: 1.02; letter-spacing: .005em; }
+.p-cat { font-size: 17px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+.p-per { font-size: 11px; letter-spacing: .2em; }
+.pie { font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; opacity: .6; border-top: 1px solid rgba(255,255,255,.25); padding-top: 5px; }
+.pagina .ico.ico-linea { color: #dbe9df; }
+.ico.ico-l { width: 40px; height: 40px; }
+.ico.ico-t { width: 44px; height: 44px; }
+.ico svg { stroke-width: 1.4; }
+/* Resumen */
+.ind-lista { gap: 0; }
+.ind-fila { gap: 18px; min-height: 0; padding: .17in 0; border-bottom: 1px solid rgba(255,255,255,.18); }
+.ind-fila .et { flex: 1; font-family: Caladea, Georgia, serif; font-size: 21px; font-weight: 400; }
+.ind-fila b { font-family: Caladea, Georgia, serif; font-size: 36px; font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.trat-grid { gap: 10px 14px; }
+.trat-celda, .trat-celda.der { flex-direction: row; height: auto; min-height: .98in; gap: 14px; padding: 10px 16px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.2); border-radius: 3px; }
+.trat-txt { text-align: left; }
+.trat-txt b { font-family: Caladea, Georgia, serif; font-size: 30px; font-weight: 700; line-height: 1; }
+.trat-txt span { font-size: 10.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; margin-top: 4px; opacity: .85; }
+/* Tarjetas */
+.partido { background: #eef1ef; border-radius: 2px; border-top: 2px solid #1d5a33; }
+.partido .p-txt { font-size: 10px; letter-spacing: .04em; }
+.staff-nombres, .staff-cargo { background: #eef1ef; border-radius: 2px; font-size: 12px; }
+.staff-cargo { background: #dfe6e1; color: #154c2b; text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; }
+.tarjeta { padding: 8px 13px; }
+.tarjeta h3 { font-family: Inter, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #1d5a33; margin: 0 0 5px; }
+.tarjeta.stat p { font-family: Caladea, Georgia, serif; font-size: 17px; font-weight: 400; color: #1d3a2a; }
+.tarjeta.stat b { font-size: 21px; font-weight: 700; }
+.tarjeta .grande { font-family: Caladea, serif; color: #1d5a33; }
+.tarjeta.caso b { font-family: Caladea, Georgia, serif; font-size: 15px; font-weight: 700; color: #1d3a2a; }
+.f-id h2 { font-size: 31px; border: 0; padding: 0; margin: 0 0 4px; }
+.f-sub, .f-pos { font-size: 14px; font-weight: 400; letter-spacing: .03em; opacity: .9; }
+.f-pos { text-transform: uppercase; letter-spacing: .14em; font-size: 11px; opacity: .75; }
+.f-linea { height: 1px; background: rgba(255,255,255,.4); }
+.f-foto { border: 2px solid rgba(255,255,255,.7); }
+.f-tot { font-family: Caladea, Georgia, serif; font-size: 15px; font-weight: 400; }
+.f-tot b { font-size: 22px; font-weight: 700; }
+.donut .d-total { font-family: Caladea, Georgia, serif; font-size: 42px; font-weight: 700; }
+.donut .d-et { font-size: 10.5px; font-weight: 500; letter-spacing: .02em; }
+.leyenda-grav { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; }
+.callout { border-radius: 2px; font-size: 9px; border-left: 3px solid #1d5a33; }
+.f-cols { height: 3.7in; }
+.f-pie { height: 4.5in; }
+.f-mapa .mapa-corporal { height: 3in; width: auto; max-width: 100%; }
+.f-donut .donut { max-height: 3.7in; }
+.ind-fila { padding: .23in 0; }
+.ind-fila .et { font-size: 23px; }
+.trat-celda, .trat-celda.der { min-height: 1.1in; }
+
+.pagina { --ib: #e6efe9; --ig: #154c2b; }
+.ico.ico-pack svg { stroke: none; }
+
+.partido { height: 118px; padding: 8px 9px; overflow: hidden; }
+.partido > img, .partido .sin-logo { width: 40px; height: 40px; }
+.partido .p-txt { font-size: 9.5px; line-height: 1.2; letter-spacing: .03em; width: 100%; overflow: hidden; }
+.partido .p-txt b { font-size: 9.5px; line-height: 1.15; overflow-wrap: anywhere; }
+.partido .p-txt small { font-size: 9.5px; font-weight: 600; color: #3b4640; }
+
+/* ================= Ficha v1.4 ================= */
+.f-cols { height: 3.5in; }
+.f-pie { height: 3.35in; margin-top: .1in; }
+.f-mapa .mapa-corporal { height: 2.75in; }
+.tarjeta.con-num { display: flex; gap: 8px; align-items: stretch; }
+.con-num .cn-izq { flex: 1; min-width: 0; }
+.con-num .cn-der { width: .62in; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; flex: none; }
+.con-num .tri { width: .36in; height: .36in; }
+.con-num .cn-der b { font-family: Caladea, Georgia, serif; font-size: 25px; font-weight: 700; color: #1d3a2a; line-height: 1; }
+.tarjeta.carga { padding: 7px 12px 6px; }
+.cg-nums { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+.cg-nums div { text-align: center; flex: 1; }
+.cg-nums b { display: block; font-family: Caladea, Georgia, serif; font-size: 21px; line-height: 1; color: #1d3a2a; }
+.cg-nums span { font-size: 7.5px; letter-spacing: .1em; text-transform: uppercase; color: #5a665f; }
+.mb-tit { font-size: 7.5px; letter-spacing: .1em; text-transform: uppercase; color: #5a665f; margin: 2px 0 2px; }
+.mb { display: flex; align-items: flex-end; gap: 3px; padding-top: 9px; position: relative; }
+.mb-c { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
+.mb-c em { font-style: normal; font-size: 6.5px; color: #1d3a2a; line-height: 1; margin-bottom: 1px; }
+.mb-b { width: 100%; background: #2f7a4a; min-height: 1px; border-radius: 1px 1px 0 0; }
+.mb-c span { position: absolute; bottom: -9px; font-size: 6px; color: #5a665f; letter-spacing: .02em; }
+.tarjeta.carga { padding-bottom: 14px; }
+.f-coment { margin-top: .1in; background: #eef1ef; color: #2e3833; border-radius: 3px; border-top: 2px solid #1d5a33; padding: 7px 14px; height: .98in; box-sizing: border-box; overflow: hidden; }
+.f-coment h3 { margin: 0 0 4px; text-align: center; font-family: Inter, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #1d5a33; }
+.f-coment p { margin: 0; font-size: 11.5px; line-height: 1.35; }
+.f-coment .vacio { color: #8a8a8a; font-style: italic; }
+
+/* ================= Páginas del equipo ================= */
+.eq-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: .16in; }
+.eq-kpi { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.2); border-radius: 3px; padding: 10px 12px; text-align: center; }
+.eq-kpi b { display: block; font-family: Caladea, Georgia, serif; font-size: 32px; line-height: 1; }
+.eq-kpi span { display: block; margin-top: 5px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.eq-panel { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.2); border-radius: 3px; padding: 10px 14px 12px; margin-bottom: .14in; }
+.eq-panel h3 { margin: 0 0 8px; font-family: Inter, sans-serif; font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .9; }
+.eq-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .14in; align-items: start; }
+.eq-2 > .eq-panel { margin-bottom: .14in; }
+.bh { display: flex; flex-direction: column; gap: 6px; }
+.bh-f { display: grid; grid-template-columns: 1.15in 1fr .3in; align-items: center; gap: 8px; font-size: 10.5px; }
+.bh-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-t { height: 9px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
+.bh-t i { display: block; height: 100%; border-radius: 2px; }
+.bh-f b { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mes-graf { display: flex; align-items: flex-end; gap: 8px; height: 1.9in; padding-top: 14px; }
+.mes-c { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.mes-bs { flex: 1; width: 100%; display: flex; align-items: flex-end; gap: 2px; }
+.mes-b { flex: 1; position: relative; min-height: 1px; border-radius: 2px 2px 0 0; }
+.mes-b em { position: absolute; top: -11px; left: 0; right: 0; text-align: center; font-style: normal; font-size: 8.5px; }
+.mes-b.les, .mes-leyenda .les { background: #fff; } .mes-b.mol, .mes-leyenda .mol { background: #8fbf9f; }
+.mes-c > span { font-size: 9px; opacity: .85; }
+.mes-leyenda { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.mes-leyenda i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+.eq-mapa-fig .mapa-corporal { display: block; width: 100%; height: auto; }
+.calor-leyenda { display: flex; align-items: center; gap: 8px; font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase; margin-top: 6px; }
+.calor-leyenda i { flex: 1; height: 7px; border-radius: 3px; }
+.eq-col .eq-panel:last-child { margin-bottom: 0; }
+.eq-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 10.5px; }
+.eq-lista li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid rgba(255,255,255,.14); padding-bottom: 4px; }
+.vacio-eq { margin: 0; font-size: 10.5px; font-style: italic; opacity: .65; }
+.eq-texto { margin-bottom: .2in; }
+.eq-texto h3 { margin: 0 0 6px; font-family: Inter, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .9; }
+.eq-papel { background: #eef1ef; color: #2e3833; border-radius: 3px; padding: 12px 16px; height: 3.2in; overflow: hidden; box-sizing: border-box; }
+.eq-papel p { margin: 0; font-size: 12.5px; line-height: 1.5; } .eq-papel .vacio-eq { color: #7a857f; }
+.eq-firma { margin-top: .5in; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.eq-firma div { width: 2.6in; border-bottom: 1px solid rgba(255,255,255,.6); height: .3in; }
+.eq-firma span { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+
+.mes-graf { height: 3.1in; }
+.bh { gap: 10px; } .bh-f { font-size: 11.5px; } .bh-t { height: 11px; }
+.eq-kpi b { font-size: 38px; } .eq-kpi { padding: 14px 12px; }
+.eq-panel { padding: 14px 18px 16px; margin-bottom: .2in; }
+.eq-2.eq-mapa { align-items: stretch; }
+.eq-mapa-fig .mapa-corporal { max-height: 5.4in; }
+.eq-lista { font-size: 11.5px; gap: 8px; } .eq-lista li { padding-bottom: 6px; }
+.eq-papel { height: 3.6in; }
+
+.eq-mapa-fig .mapa-corporal { height: 3.55in; width: auto; margin: 0 auto; max-width: 100%; }
+.eq-col .eq-panel { margin-bottom: .14in; }
+
+/* v1.1 */
+.mb-tit.mb-abajo { margin: 5px 0 0; text-align: center; }
+.eq-kpis-2 { grid-template-columns: repeat(2, 1fr); margin-top: -.02in; }
+
+/* Bitácora impresa (hoja continua con márgenes) */
+@page bit { size: letter portrait; margin: .55in; }
+.bit-print { page: bit; font: 12px/1.4 Inter, sans-serif; color: #1c2420; }
+.bit-print header { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #154c2b; padding-bottom: 8px; margin-bottom: 8px; }
+.bit-print header img { width: 52px; height: 52px; border-radius: 50%; }
+.bit-print h1 { font: 700 20px Caladea, serif; margin: 0; color: #154c2b; }
+.bit-print header p { margin: 2px 0 0; color: #5a665f; font-size: 11px; }
+.bit-print .bit-it { border-radius: 6px; padding: 6px 8px; margin-bottom: 5px; }
+.bit-print .bit-f { width: 62px; font-size: 10.5px; }
+.bit-print .bit-h b { font-size: 12.5px; }
+.bit-print .bit dl { grid-template-columns: repeat(3, 1fr); } .bit-print .bit dd { font-size: 11px; } .bit-print .bit dt { font-size: 8.5px; }
+.bit-print .bit-n { font-size: 11px; } .bit-print .bit-mes, .bit-print .bit-grupo > h3 { break-after: avoid; }
+.mes-graf { height: 2.2in; }
+.p-equipo .bh { gap: 8px; }
+.f-cols { height: 3.85in; }
+.f-col { gap: .09in; }
+.mes-graf { height: 1.6in; }
+.f-pie { height: 3.05in; }
+.mb-tit.mb-abajo { margin: 12px 0 0; }
+.f-cols { height: 3.78in; }
+.f-pie { height: 3.12in; }
+.bit-print .bit-h2 { font: 700 15px Caladea, serif; color: #154c2b; margin: 12px 0 6px; break-after: avoid; }
+.bit-print .bd-kpis { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.bit-print .bd-k b { font-size: 18px; } .bit-print .bd-k span { font-size: 8px; }
+.bit-print .bd-g { gap: 7px; } .bit-print .bd-p { padding: 7px 9px; } .bit-print .bd-p h4 { font-size: 9px; }
+.bit-print .bd-r, .bit-print .bd-gr { font-size: 10px; } .bit-print .bd-leyenda { font-size: 9.5px; }
+.bit-print .bd-mes { height: 100px; } .bit-print .bd-donut svg { width: 90px; } .bit-print .bd-donut ul { font-size: 10px; }
+
+/* ================= v1.2: rectángulos claros ================= */
+.ind-lista { display: flex; flex-direction: column; gap: .1in; }
+.ind-fila, .trat-celda, .trat-celda.der, .eq-kpi, .eq-panel, .ha-card { background: #eef1ef; color: #2e3833; border: 0; border-top: 2px solid #1d5a33; border-radius: 3px; }
+.ind-fila { padding: .13in 18px; min-height: 0; }
+.ind-fila .et { color: #1d3a2a; font-size: 21px; }
+.ind-fila b, .trat-txt b, .eq-kpi b { color: #154c2b; }
+.pagina .ind-fila .ico.ico-linea, .pagina .trat-celda .ico.ico-linea { color: #1d5a33; }
+.trat-celda { padding: 10px 16px; }
+.trat-txt span { opacity: 1; color: #4a564f; }
+.eq-kpi span { opacity: 1; color: #4a564f; }
+.eq-panel h3 { color: #1d5a33; opacity: 1; }
+.bh-t { background: #d8dfda; }
+.bh-f b { color: #1d3a2a; }
+.mes-b.les, .mes-leyenda .les { background: #1d5a33; } .mes-b.mol, .mes-leyenda .mol { background: #8fbf9f; }
+.mes-b em { color: #2e3833; } .mes-c > span { color: #4a564f; opacity: 1; }
+.mes-leyenda { color: #4a564f; }
+.eq-lista li { border-bottom-color: rgba(0,0,0,.12); }
+.calor-leyenda { color: #4a564f; }
+.eq-panel .mapa-corporal .mapa-rotulo, .eq-panel .mapa-corporal .mapa-lado { fill: #4a564f; }
+.vacio-eq { color: #6b776f; opacity: 1; }
+/* Resumen: total de atenciones */
+.hero-at { display: flex; gap: .12in; margin-bottom: .14in; }
+.ha-card { flex: 1; padding: .16in 18px; text-align: center; }
+.ha-card span { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #4a564f; }
+.ha-card b { display: block; margin-top: 6px; font-family: Caladea, Georgia, serif; font-size: 46px; line-height: 1; color: #154c2b; }
+.ha-grande { flex: 1.5; } .ha-grande b, .ha-solo b { font-size: 84px; }
+.ha-solo { padding: .26in 18px; } .ha-solo span { font-size: 12px; }
+/* Ficha: títulos más fuertes, texto más pequeño */
+.tarjeta h3 { font-size: 12.5px; font-weight: 800; letter-spacing: .1em; color: #154c2b; margin-bottom: 4px; }
+.tarjeta li { font-size: 11.5px; }
+.tarjeta ul.denso li { font-size: 10.5px; } .tarjeta ul.muy-denso li { font-size: 9.5px; }
+.tarjeta p { font-size: 11px; }
+.f-coment h3 { font-size: 12.5px; font-weight: 800; color: #154c2b; }
+.f-cols { height: 4.5in; }
+.f-col { gap: .08in; }
+.f-pie { height: 2.75in; }
+.f-mapa .mapa-corporal { height: 2.2in; }
+.tarjeta.hist { padding: 7px 12px 6px; }
+.hs-nums { display: flex; gap: 6px; margin-bottom: 3px; }
+.hs-nums div { flex: 1; text-align: center; }
+.hs-nums b { display: block; font-family: Caladea, Georgia, serif; font-size: 20px; line-height: 1; color: #1d3a2a; }
+.hs-nums span { font-size: 7.5px; letter-spacing: .08em; text-transform: uppercase; color: #5a665f; }
+.tarjeta.asis { padding: 7px 12px 8px; }
+.as-fila { display: flex; align-items: baseline; gap: 10px; }
+.as-fila b { font-family: Caladea, Georgia, serif; font-size: 28px; line-height: 1; padding: 2px 10px; border-radius: 4px; background: #d8dfda; color: #1d3a2a; }
+.as-fila span { font-size: 11px; color: #4a564f; }
+.tarjeta.asis.rojo .as-fila b { background: #e8353d; color: #fff; }
+.tarjeta.asis.amarillo .as-fila b { background: #f5b400; color: #2e3833; }
+.tarjeta.asis.verde .as-fila b { background: #3fbf6a; color: #0b2f18; }
+.f-cols { height: 4.2in; }
+.f-pie { height: 2.7in; }
+.f-mapa .mapa-corporal { height: 2.15in; }
+.ha-card b { font-size: 62px; } .ha-grande b, .ha-solo b { font-size: 84px; }
+/* ===== Seguimiento kinésico (pestaña Kine) en el informe ===== */
+.kn-t { width: 100%; border-collapse: collapse; font-size: 10.5px; color: #2e3833; }
+.kn-t th { background: #1d5a33; color: #fff; text-align: left; padding: 6px 7px; font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase; }
+.kn-t td { background: #eef1ef; border-bottom: 2px solid #fff; padding: 7px 7px; vertical-align: top; }
+.kn-t td b { color: #154c2b; } .kn-t td small { display: block; color: #4a564f; font-size: 9px; margin-top: 1px; } .kn-t .n { text-align: center; }
+.kn-pct { display: inline-block; border-radius: 3px; padding: 1px 6px; background: #d8dfda; font-weight: 700; }
+.kn-pct.rojo { background: #e8353d; color: #fff; } .kn-pct.amarillo { background: #f5b400; color: #2e3833; } .kn-pct.verde { background: #3fbf6a; color: #0b2f18; }
+.kn-nota { font-size: 9px; color: #d6e5db; margin: 6px 2px 0; }
+.f-estado { margin: 0 0 3px; font-size: 10px; }
+
+/* ---- Informe de partido: escudo del rival y minutos ---- */
+.bit-print header img.rv-logo { width: 58px; height: 58px; border-radius: 0; object-fit: contain; margin-left: auto; }
+.kt-min td, .kt-min th { padding: 4px 8px; }
+.bit-print ul.vin { margin: 4px 0 8px; padding-left: 20px; } .bit-print ul.vin li { margin: 2px 0; font-size: 12px; }
+.bit-print .pt-kp { margin: 2px 0 8px; font-size: 12px; }
+
+/* =====================================================================
+   v1.3 · Diseño claro Wanderers: fondo blanco-verdoso, franja verde,
+   tarjetas redondeadas, escudo de agua. Estas reglas reemplazan a las
+   anteriores (tema oscuro).
+   ===================================================================== */
+.pagina { --verde: #154c2b; --verde2: #1d5a33; --borde: #d3e0d8; --papel: #f4f8f5; --tinta: #25322b; --suave: #5a665f; padding: 0; background: #fff; color: var(--tinta); }
+.pagina .panel { padding: 1in .55in .66in; background: var(--papel); color: var(--tinta); }
+.pagina .panel::before { background: url(../img/escudo-sw-verde.png) center / contain no-repeat; opacity: .05; right: -1.5in; bottom: -1.1in; transform: rotate(-9deg); }
+/* Título de cada página = franja verde a todo el ancho */
+.pagina .panel > h2 { margin: -1in -.55in .26in; padding: .27in .55in 0; height: .66in; box-sizing: border-box; background: linear-gradient(90deg, #154c2b, #1d5a33); color: #fff; border: 0; border-bottom: 4px solid #8fbf9f; font-size: 27px; line-height: 1.1; }
+.pagina .panel > h2 small { color: #cfe5d6; opacity: 1; }
+.sub-periodo { color: var(--suave); opacity: 1; margin: 0 0 .22in; }
+.pie { color: #7a867f; opacity: 1; border-top: 1px solid var(--borde); left: .55in; right: .55in; }
+
+/* Tarjetas */
+.ind-fila, .trat-celda, .trat-celda.der, .eq-kpi, .eq-panel, .ha-card, .tarjeta, .partido, .staff-nombres, .eq-papel, .f-coment {
+  background: #fff; color: var(--tinta); border: 1px solid var(--borde); border-radius: 12px; box-shadow: 0 1px 2px rgba(21,76,43,.07);
+}
+.staff-cargo { background: #e3eee7; color: var(--verde); border-radius: 12px; border: 1px solid var(--borde); }
+.tarjeta h3, .eq-panel h3, .f-coment h3, .eq-texto h3 { color: var(--verde2); }
+.eq-texto h3 { opacity: 1; }
+.ind-fila b, .trat-txt b, .eq-kpi b, .ha-card b { color: var(--verde); }
+.ind-fila { padding: .14in 18px; }
+.eq-kpi span, .ha-card span, .trat-txt span, .ind-fila .et { color: #3f4c45; }
+.eq-panel h3 { opacity: 1; }
+.bh-t { background: #e3ebe6; }
+.partido { border-top: 1px solid var(--borde); height: 128px; }
+.partido .p-txt small { display: block; font-size: 9px; font-weight: 600; color: #3b4640; line-height: 1.25; }
+.cal-vacio { margin: .3in 0; text-align: center; color: var(--suave); font-style: italic; }
+.eq-papel { height: 3.6in; }
+.eq-firma div { border-bottom-color: #8a9a90; }
+.eq-firma span { opacity: 1; color: var(--suave); }
+.kn-t th { background: var(--verde); }
+.kn-t th:first-child { border-radius: 8px 0 0 0; } .kn-t th:last-child { border-radius: 0 8px 0 0; }
+.kn-t td { background: #fff; border-bottom: 1px solid #e1e9e4; }
+.kn-nota { color: var(--suave); }
+.mes-b.les, .mes-leyenda .les { background: var(--verde); } .mes-b.mol, .mes-leyenda .mol { background: #8fbf9f; }
+
+/* Mapa corporal y gráfico de anillo sobre fondo claro */
+.mapa-corporal .mapa-rotulo, .mapa-corporal .mapa-lado { fill: var(--suave); }
+.donut text { fill: var(--tinta); }
+.donut .d-total { fill: var(--verde); }
+.donut .d-vacio { fill: var(--suave); opacity: 1; }
+.f-tot { color: var(--tinta); }
+.f-tot b { color: var(--verde); }
+.callout { background: #fff; border: 1px solid var(--borde); }
+
+/* Portada */
+.pagina.portada { background: #fff; }
+.pagina.portada .panel { padding: 0; background: linear-gradient(180deg, #fff 0%, #eef5f0 100%); overflow: hidden; }
+.pagina.portada .panel::before { display: none; }
+.pagina.portada .panel > * { position: absolute; }
+.p-marca { right: -1.9in; top: 2.2in; width: 6.4in; opacity: .07; transform: rotate(10deg); }
+.p-titulo { left: 0; top: 0; width: 100%; height: 2.6in; box-sizing: border-box; padding: .62in .8in 0; color: #fff; background: linear-gradient(135deg, #0f3c20 0%, #1d5a33 100%); border-bottom: 8px solid #8fbf9f; }
+.p-club { margin: 0 0 .22in; font-size: 12px; letter-spacing: .24em; text-transform: uppercase; color: #cfe5d6; }
+.p-titulo h1 { color: #fff; font-size: 70px; line-height: 1; margin: 0; }
+.pagina.portada .p-pie { left: 0; bottom: 0; width: 100%; height: .66in; box-sizing: border-box; padding: 0 .8in; display: flex; align-items: center; justify-content: space-between; color: #fff; background: linear-gradient(135deg, #0f3c20 0%, #1d5a33 100%); border-top: 4px solid #8fbf9f; }
+.p-pie .p-cat { margin: 0; text-align: left; font-size: 15px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #fff; }
+.p-pie .p-per { margin: 0; text-align: right; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #cfe5d6; opacity: 1; }
+.nota-grav { margin: 4px 0 0; font-size: 9px; color: var(--suave); line-height: 1.3; }
+.nobr { break-inside: avoid; page-break-inside: avoid; }
+.hist-ant small { display: block; margin: 4px 0 2px; font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); }
+.f-hj { margin: 2px 0 0; font-size: 11px; color: var(--suave); }
+
+/* Ficha del jugador: banda verde superior con nombre, categoría y foto/iniciales */
+.pagina.p-ficha .panel { padding-top: .4in; background: linear-gradient(135deg, #0f3c20 0%, #1d5a33 100%) .22in .22in / calc(100% - .44in) 1.5in no-repeat, var(--papel); }
+.pagina.p-ficha .f-id h2 { color: #fff; }
+.pagina.p-ficha .f-sub { color: #fff; }
+.pagina.p-ficha .f-pos { color: #cfe5d6; }
+.pagina.p-ficha .f-hj { color: #cfe5d6; }
+.pagina.p-ficha.p-extra .panel { background: var(--papel); padding-top: 1in; }
+
+.pagina.p-ficha .f-cab { height: 1.1in; }
+.pagina.p-ficha .f-foto { width: 1in; height: 1in; }
+.pagina.p-ficha .f-foto span { font-size: 36px; }
+.pagina.p-ficha .f-linea { margin: .08in 0 .2in; }
+.pagina.p-ficha .f-pie { height: 2.95in; }
+.pagina.p-ficha .f-mapa .mapa-corporal { height: 2.42in; }
+.pagina.p-ficha .f-coment { margin-top: .22in; }
+
+.bit-print header .vs-logos { display: flex; align-items: center; gap: 8px; flex: none; }
+.bit-print header img.rv-logo { margin-left: 0; }
+.vs-t { font: 700 16px Caladea, Georgia, serif; color: #154c2b; text-transform: lowercase; }
+.rv-ini { width: 52px; height: 52px; border-radius: 50%; background: #e4efe7; color: #154c2b; display: grid; place-items: center; font: 700 22px Caladea, Georgia, serif; }
