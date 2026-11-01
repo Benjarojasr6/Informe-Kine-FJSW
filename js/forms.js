@@ -8,7 +8,7 @@
     inf.casos.filter((c) => c.jugadorId === jid).sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''))
       .map((c) => `<option value="${c.id}"${c.id === sel ? ' selected' : ''}>${e(c.titulo)} (${c.tipo === 'lesion' ? 'lesión' : 'molestia'})</option>`).join('');
   const quitar = (arr, id) => { const i = arr.findIndex((x) => x.id === id); if (i >= 0) arr.splice(i, 1); };
-  const sinJugadores = () => { K.aviso('Primero agrega a tu plantel de jugadores.', true); K.formPlantel && K.formPlantel(); };
+  const sinJugadores = () => { K.aviso('Primero agrega jugadores a la lista.', true); K.formLista && K.formLista(); };
 
   /* ---------- Atención (una sola ficha: origen, período, tipo, intervención, medicamento y comentarios) ---------- */
   K.ORIGENES = [['ssw', 'En Santiago Wanderers (entrenamiento, partido, gimnasio…)'], ['externo', 'Fuera de Santiago Wanderers (en su casa, con amigos, etc.)']];

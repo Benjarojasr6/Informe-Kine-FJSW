@@ -570,3 +570,4 @@ body:has(#update-banner) #toast { bottom: calc(var(--nav) + env(safe-area-inset-
 .cap-aviso[hidden] { display: none; }
 /* las etiquetas del gráfico circular pueden asomar un poco fuera del dibujo sin cortarse */
 .donut { overflow: visible; }
+.vs-logos .mini-ico img { object-fit: contain; }

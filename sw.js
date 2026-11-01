@@ -1,6 +1,6 @@
 /* Service worker: la app funciona sin conexión.
    Al subir una versión nueva a GitHub, cambia VERSION para forzar la actualización. */
-const VERSION = '1.5.0';
+const VERSION = '1.5.2';
 const CACHE = 'kine-sw-' + VERSION;
 
 const ARCHIVOS = [
@@ -10,7 +10,7 @@ const ARCHIVOS = [
   './js/report.js', './js/pdf.js', './js/ui.js', './js/forms.js', './js/manual.js', './js/screens.js', './js/bitacora.js', './js/navegacion.js', './js/kine.js', './js/seguro.js', './js/partidos.js', './js/firebase-config.js', './js/nube.js', './js/fuentes.js', './js/salud.js', './js/app.js', './js/recordatorios.js',
   './fonts/Inter-Regular.woff', './fonts/Inter-SemiBold.woff', './fonts/Inter-Bold.woff', './fonts/Caladea-Regular.woff', './fonts/InterDisplay-Bold.woff', './fonts/InterDisplay-Regular.woff', './fonts/Poppins-Bold.woff', './fonts/Poppins-Regular.woff', './fonts/Pagella-Italic.woff', './fonts/Pagella-Bold.woff', './fonts/Pagella-Regular.woff', './fonts/Carlito-Bold.woff', './fonts/Carlito-Regular.woff', './fonts/Lora-Italic.woff', './fonts/Lora-Bold.woff', './fonts/Lora-Regular.woff', './fonts/Caladea-Bold.woff', './fonts/Caladea-Italic.woff',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png', './favicon.png',
-  './img/insignia-512.png', './img/insignia-kinesiologia.png', './img/escudo-sw-verde.png', './img/escudo-sw-blanco.png',
+  './img/insignia-512.png', './img/insignia-kinesiologia.png', './img/escudo-sw-verde.png', './img/escudo-sw-vs.png', './img/escudo-sw-blanco.png',
   './img/iconos/atenciones.png', './img/iconos/termoterapia.png', './img/iconos/crioterapia.png',
   './img/iconos/vendaje.png', './img/iconos/ejercicio.png', './img/iconos/presoterapia.png',
   './img/iconos/masaje.png', './img/iconos/puncion.png', './img/iconos/mok.png',

@@ -465,3 +465,6 @@
 .bit-print header img.rv-logo { margin-left: 0; }
 .vs-t { font: 700 16px Caladea, Georgia, serif; color: #154c2b; text-transform: lowercase; }
 .rv-ini { width: 52px; height: 52px; border-radius: 50%; background: #e4efe7; color: #154c2b; display: grid; place-items: center; font: 700 22px Caladea, Georgia, serif; }
+
+/* escudo del club junto al “vs” en el informe de partido */
+.bit-print header img.sw-vs { width: auto; height: 58px; border-radius: 0; object-fit: contain; }

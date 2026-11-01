@@ -141,7 +141,7 @@
 
   /* ======================= JUGADORES ======================= */
   const POSICIONES = ['Portero', 'Defensa', 'Volante', 'Delantero'];
-  K.etiquetasJugador = (j) => (j.contrato ? '<i class="chip g-leve etq">Contrato</i>' : '') + (j.plantel ? '<i class="chip g-leve etq">Plantel</i>' : '');
+  K.etiquetasJugador = (j) => (j.contrato ? '<i class="chip g-leve etq">Contrato</i>' : '');
   // Solo ofrece las categorías de este informe (cambiar a una de la otra pareja dejaría al jugador fuera de vista).
   const selCat = (name, val) => { const gi = K.grupoDeInforme(K.inf()); const l = (gi ? [gi] : K.GRUPOS).reduce((a, g) => a.concat(g.cats.map((c) => 'Sub ' + c)), []); if (val && !l.includes(val)) l.push(val); return `<select name="${name}"><option value="">— elegir —</option>${l.map((c) => `<option${c === val ? ' selected' : ''}>${e(c)}</option>`).join('')}</select>`; };
   const selPos = (val) => { const l = POSICIONES.slice(); if (val && !l.includes(val)) l.push(val); return `<select name="posicion"><option value="">— elegir —</option>${l.map((c) => `<option${c === val ? ' selected' : ''}>${e(c)}</option>`).join('')}</select>`; };
@@ -170,8 +170,8 @@
           <div class="fila gap wrap">${[15, 16, 18, 20].map((c) => `<label class="check" style="padding:0"><input type="checkbox" name="tb${c}" ${(rec && (rec.tambien || []).includes('Sub ' + c)) ? 'checked' : ''}><span>Sub ${c}</span></label>`).join('')}</div>
           <p class="suave" style="margin:4px 0 0">Queda marcada la categoría principal (la de arriba). Marca otras si también juega ahí (por ejemplo un Sub 16 subido a la Sub 18): su ficha no se duplica, pero podrás anotarle minutos y atenciones en los partidos de esas categorías.</p></div>
         <div class="campo"><span style="display:block;font-size:12.5px;font-weight:600;color:var(--suave);margin-bottom:4px">Etiqueta (opcional)</span>
-          <div class="fila gap wrap"><label class="check" style="padding:0"><input type="checkbox" name="contrato" ${rec && rec.contrato ? 'checked' : ''}><span>Contrato</span></label><label class="check" style="padding:0"><input type="checkbox" name="plantel" ${rec && rec.plantel ? 'checked' : ''}><span>Plantel profesional</span></label></div>
-          <p class="suave" style="margin:4px 0 0">Los jugadores con etiqueta tienen su informe de partidos individual y entran al informe de plantel.</p></div>
+          <div class="fila gap wrap"><label class="check" style="padding:0"><input type="checkbox" name="contrato" ${rec && rec.contrato ? 'checked' : ''}><span>Jugador con contrato</span></label></div>
+          <p class="suave" style="margin:4px 0 0">Los jugadores con contrato entran al informe general de jugadores con contrato y a los informes de partido.</p></div>
         <label class="check"><input type="checkbox" name="activo" ${!rec || rec.activo !== false ? 'checked' : ''}><span>Incluir su ficha en el informe</span></label>`,
       botones: [
         rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.confirmar(`¿Eliminar a ${e(rec.nombre)} y TODOS sus registros? No se puede deshacer.`, 'Eliminar', () => { eliminarJugador(rec.id); }); return true; } } : { txt: 'Cancelar', cls: 'sec' },
@@ -186,7 +186,7 @@
               K.aviso(`Sub ${nPropia} es del informe ${K.grupoDe(nPropia).nombre}: crea al jugador allí (elige esa categoría arriba). Si solo juega ahí a veces, deja su categoría y marca “Sub ${nPropia}” en “Categorías en las que juega”.`, true); return false;
             }
             const tambien = [15, 16, 18, 20].filter((c) => d['tb' + c] && 'Sub ' + c !== propia).map((c) => 'Sub ' + c);
-            const campos = { nombre: d.nombre.trim(), categoria: propia, nacimiento: d.nacimiento, posicion: d.posicion.trim(), pierna: d.pierna, foto, activo: d.activo, tambien, contrato: !!d.contrato, plantel: !!d.plantel };
+            const campos = { nombre: d.nombre.trim(), categoria: propia, nacimiento: d.nacimiento, posicion: d.posicion.trim(), pierna: d.pierna, foto, activo: d.activo, tambien, contrato: !!d.contrato };
             if (rec) Object.assign(rec, campos);
             else { const nj = Object.assign({ id: K.uid(), comentarios: '', extras: {} }, campos); inf.jugadores.push(nj); K.ui.jugadorId = nj.id; }
             guardar('Jugador guardado');
@@ -207,12 +207,12 @@
       }
     });
   };
-  /* Pegar la lista del plantel: una línea por jugador → "Nombre; año; posición" (año y posición opcionales). */
-  K.formPlantel = function () {
+  /* Pegar la lista de jugadores: una línea por jugador → "Nombre; año; posición" (año y posición opcionales). */
+  K.formLista = function () {
     const inf = K.inf();
     const inc = [];
     K.modal({
-      titulo: 'Cargar plantel',
+      titulo: 'Cargar lista de jugadores',
       cuerpo: `<p class="suave" style="margin:0 0 8px">Pega la lista de jugadores, <b>uno por línea</b>. Opcional: <i>Nombre; año de nacimiento; posición</i>. Puedes copiarla directo desde Excel.</p>
         <label class="campo"><span>Categoría</span>${selCat('cat', K.categoriaNueva(inf))}</label>
         <label class="campo"><span>Lista</span><textarea name="lista" rows="10" placeholder="Nombre Apellido; 2010; Volante&#10;Nombre Apellido; 2011"></textarea></label>
@@ -317,7 +317,7 @@
     const js = K.ordenJugadores(inf, K.jugadoresCat(inf).filter((j) => !q || j.nombre.toLowerCase().includes(q)));
     const mueve = K.puedeEditar() && !q && js.length > 1;
     return `
-      <div class="titulo-vista"><h1>Jugadores <span class="suave" style="font-family:Inter;font-size:15px;font-weight:400">${K.ui.cat ? 'Sub ' + K.ui.cat + ' · ' : ''}(${K.jugadoresCat(inf).length})</span></h1><div class="fila gap"><button class="btn sec" data-acc="plantel">Pegar lista</button><button class="btn" data-acc="nuevoJugador">${K.uiIco('mas', 18)} Agregar</button></div></div>
+      <div class="titulo-vista"><h1>Jugadores <span class="suave" style="font-family:Inter;font-size:15px;font-weight:400">${K.ui.cat ? 'Sub ' + K.ui.cat + ' · ' : ''}(${K.jugadoresCat(inf).length})</span></h1><div class="fila gap"><button class="btn sec" data-acc="pegarLista">Pegar lista</button><button class="btn" data-acc="nuevoJugador">${K.uiIco('mas', 18)} Agregar</button></div></div>
       ${K.jugadoresCat(inf).length > 6 ? `<input type="search" placeholder="Buscar jugador…" value="${e(K.ui.filtroJ || '')}" data-acc-input="buscarJ" style="margin-bottom:10px">` : ''}
       ${js.length > 1 && K.puedeEditar() ? `<p class="suave" style="margin:0 2px 8px;font-size:13px">Este es el orden de las fichas en el informe (${inf.ordenManual ? 'manual' : 'por categoría y nombre'}). Arrastra <b>⠿</b> o usa las flechas para cambiarlo.${inf.ordenManual ? ' <a href="#" data-acc="ordenAZ">Volver al orden por nombre</a>' : ''}</p>` : ''}
       <div class="card" style="padding:6px 12px">${js.length ? `<div class="lista"${mueve ? ' data-arr="jugadores"' : ''}>${js.map((j) => {
@@ -328,7 +328,7 @@
   }
   Object.assign(K.acciones, {
     nuevoJugador() { K.formJugador(); },
-    plantel() { K.formPlantel(); },
+    pegarLista() { K.formLista(); },
     abrirJugador(el) { K.ui.jugadorId = el.dataset.id; K.render(); window.scrollTo(0, 0); },
     volverJugadores() { K.ui.jugadorId = null; K.render(); },
     buscarJ(el) { K.ui.filtroJ = el.value; const pos = el.selectionStart; K.render(); const n = document.querySelector('[data-acc-input=buscarJ]'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } },
@@ -351,7 +351,7 @@
       return ctl;
     }).join('');
     return `
-      <div class="titulo-vista"><div class="fila gap"><button class="btn sec chico" data-acc="volverJugadores">${K.uiIco('atras', 16)} Jugadores</button></div><div class="fila gap wrap">${j.contrato || j.plantel ? `<button class="btn sec chico" data-acc="jugPartidosPdf" data-id="${j.id}">${K.uiIco('pdf', 16)} Informe de partidos</button>` : ''}<button class="btn sec chico" data-acc="editarJugador">${K.uiIco('editar', 16)} Datos y foto</button></div></div>
+      <div class="titulo-vista"><div class="fila gap"><button class="btn sec chico" data-acc="volverJugadores">${K.uiIco('atras', 16)} Jugadores</button></div><div class="fila gap wrap"><button class="btn sec chico" data-acc="editarJugador">${K.uiIco('editar', 16)} Datos y foto</button></div></div>
       <div class="fila gap" style="margin-bottom:12px">${avatar(j, 'grande')}<div><h1 style="font-family:Caladea,serif;font-size:23px;color:var(--verde-2)">${e(j.nombre)} ${K.etiquetasJugador(j)}</h1><div class="suave">${e([j.categoria, j.posicion, j.nacimiento].filter(Boolean).join(' · '))}</div>${(() => { const cj = K.catsJugadas(j, per), ck = Object.keys(cj).sort((a, b) => b - a), otras = (j.tambien || []).filter((x) => !ck.includes(String((/\d+/.exec(x) || [])[0]))); return ck.length || (j.tambien || []).length ? `<div class="suave">Categorías en que ha jugado${ck.length ? ': ' + ck.map((c) => `Sub ${c} (${cj[c]} partido${cj[c] === 1 ? '' : 's'})`).join(', ') : ''}${!ck.length ? ': aún sin partidos' : ''}${(j.tambien || []).length ? ' · También juega en ' + e((j.tambien || []).join(', ')) : ''}</div>` : ''; })()}</div></div>
       <div class="tiles compactos">
         <button class="tile prin" data-acc="jAtencion"><span class="mini-ico">${K.ico('img:atenciones')}</span>Atención</button>

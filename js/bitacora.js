@@ -292,7 +292,7 @@
     bitPdf() {
       const f = st(), inf = vinf(f), per = K.resolverPeriodo(K.state.periodo);
       const r = K.bitacoraLista(inf, per, f);
-      K.pdf.documento(`<div class="bit-print"><header><img src="img/insignia-512.png" alt=""><div><h1>Registro clínico del área kinésica</h1><p>Santiago Wanderers · ${e(inf.nombre)} · ${f.periodo === 'periodo' ? e(per.completo) : 'Todo el historial'} · ${n2(r.n)} · ${e(K.fechaCorta(K.hoy()))}</p></div></header><div class="bit-dash">${K.bitGraficos(inf, per, f)}</div><h2 class="bit-h2">Registro detallado</h2><div class="bit">${r.html}</div></div>`, `Registro clínico ${inf.nombre} ${K.hoy()}`);
+      K.pdf.documento(`<div class="bit-print"><header><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><div><h1>Registro clínico del área kinésica</h1><p>Santiago Wanderers · ${e(inf.nombre)} · ${f.periodo === 'periodo' ? e(per.completo) : 'Todo el historial'} · ${n2(r.n)} · ${e(K.fechaCorta(K.hoy()))}</p></div></header><div class="bit-dash">${K.bitGraficos(inf, per, f)}</div><h2 class="bit-h2">Registro detallado</h2><div class="bit">${r.html}</div></div>`, `Registro clínico ${inf.nombre} ${K.hoy()}`);
     }
   });
   const n2 = (n) => `${n} registro${n === 1 ? '' : 's'}`;

@@ -96,38 +96,17 @@
     return `<div class="card"><h2>Informe de todos los partidos</h2>
       <p class="sub">Un solo documento con todos los partidos del período (<b>${e(per.completo)}</b>): resultados, atenciones, intervenciones, minutos jugados y lesiones por jugador. Elige la categoría o el informe general.</p>
       <div class="fila gap wrap"><select data-acc-change="partGenSel" style="width:auto;min-width:220px;flex:1">${K.opts(ALCANCES.map((a) => [a[0], a[1]]), sel)}</select><button class="btn" data-acc="partGenPdf">${K.uiIco('pdf', 16)} Descargar PDF</button></div>
-      ${(() => { const pl = contratados(); return pl.length ? `<h3 class="kc-sub" style="margin-top:14px">Jugadores con contrato / plantel profesional</h3><p class="sub">Informe de partidos individual del jugador: minutos, partidos y atenciones.</p>
-        <div class="fila gap wrap"><select data-acc-change="partJugSel" style="width:auto;min-width:220px;flex:1">${K.opts(pl.map((x) => [x.j.id, x.j.nombre + (x.j.categoria ? ' · ' + x.j.categoria : '')]), estado().jug || pl[0].j.id)}</select><button class="btn sec" data-acc="partJugPdf">${K.uiIco('pdf', 16)} Informe del jugador</button></div>
-        <p class="sub" style="margin-top:12px">Informe general de todos los jugadores con contrato / plantel (resumen y partidos de cada uno).</p>
-        <button class="btn sec" data-acc="plantelPdf">${K.uiIco('pdf', 16)} Informe de todos los jugadores con contrato / plantel</button>
-        ${(() => { const js = jornadasJugadas(); if (!js.length) return ''; const v = estado().plPartido || (js[0].inf.id + '|' + js[0].jn.jid); return `<p class="sub" style="margin-top:12px">Informe de un partido solo con los jugadores con contrato / plantel que participaron y recibieron atención.</p>
-        <div class="fila gap wrap"><select data-acc-change="plPartidoSel" style="width:auto;min-width:220px;flex:1">${K.opts(js.map(({ inf, jn }) => [inf.id + '|' + jn.jid, `${jn.rival} · ${jn.fecha ? fc(jn.fecha) : 'sin fecha'} · ${jn.ps.map((p) => (p.cat ? 'Sub ' + p.cat : 'Sin cat.')).join(' / ')}`]), v)}</select><button class="btn sec" data-acc="plantelPartidoPdf">${K.uiIco('pdf', 16)} Informe del partido</button></div>`; })()}` : ''; })()}</div>`;
+      ${(() => { const pl = contratados(); return pl.length ? `<h3 class="kc-sub" style="margin-top:14px">Jugadores con contrato</h3><p class="sub">Informe general de todos los jugadores con contrato (resumen y partidos de cada uno).</p>
+        <button class="btn sec" data-acc="contratoPdf">${K.uiIco('pdf', 16)} Informe de todos los jugadores con contrato</button>
+        ${(() => { const js = jornadasJugadas(); if (!js.length) return ''; const v = estado().plPartido || (js[0].inf.id + '|' + js[0].jn.jid); return `<p class="sub" style="margin-top:12px">Informe de un partido con todos los jugadores con contrato que jugaron en él.</p>
+        <div class="fila gap wrap"><select data-acc-change="plPartidoSel" style="width:auto;min-width:220px;flex:1">${K.opts(js.map(({ inf, jn }) => [inf.id + '|' + jn.jid, `${jn.rival} · ${jn.fecha ? fc(jn.fecha) : 'sin fecha'} · ${jn.ps.map((p) => (p.cat ? 'Sub ' + p.cat : 'Sin cat.')).join(' / ')}`]), v)}</select><button class="btn sec" data-acc="contratoPartidoPdf">${K.uiIco('pdf', 16)} Informe del partido</button></div>`; })()}` : ''; })()}</div>`;
   };
-  const contratados = () => { const out = []; K.state.informes.forEach((i) => i.jugadores.forEach((j) => { if (j.contrato || j.plantel) out.push({ j, inf: i }); })); return out.sort((a, b) => a.j.nombre.localeCompare(b.j.nombre, 'es')); };
-  /* Informe de partidos de UN jugador (por ejemplo, el que juega en el plantel profesional). */
-  K.jugadorPartidosHTML = function (jid) {
-    const g = K.jugadorGlobal(jid); if (!g) return '';
-    const per = K.resolverPeriodo(K.state.periodo), j = g.j;
-    const filas = [];
-    K.state.informes.forEach((inf) => { K.jornadas(inf); inf.partidos.forEach((p) => {
-      const min = Number((p.minutos || {})[jid]) || 0, inc = incs(p).filter((i) => i.jugadorId === jid);
-      if (!K.partidoEnPeriodo(p, per) || (!min && !inc.length)) return;
-      filas.push({ p, min, inc, inf });
-    }); });
-    filas.sort((a, b) => (a.p.fecha || '9999').localeCompare(b.p.fecha || '9999'));
-    const tot = filas.reduce((a, x) => a + x.min, 0), nAt = filas.reduce((a, x) => a + x.inc.length, 0);
-    const kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
-    const detalle = (x) => x.inc.length ? x.inc.map((i) => `${e(momTxt(i))}: ${e(K.nombreClase(i.clase))}${i.zona ? ' · ' + e(zonaTxt(i.zona)) : ''}${i.enCancha ? ' · atendido en cancha' : ''}${tratTxt(x.inf, i) ? ' · ' + e(tratTxt(x.inf, i)) : ''}${i.retiro ? ' · <b>se retiró</b>' : ''}${i.notas ? '<small>' + e(i.notas) + '</small>' : ''}`).join('<br>') : '—';
-    return `<div class="bit-print kine-print"><header><img src="img/insignia-512.png" alt=""><div style="flex:1"><h1>Informe de partidos · ${e(j.nombre)}</h1><p>Santiago Wanderers · ${e(j.categoria || '')}${j.posicion ? ' · ' + e(j.posicion) : ''} · ${e(per.completo)}</p></div>${j.foto ? `<img class="rv-logo" style="border-radius:50%;object-fit:cover" src="${e(j.foto)}" alt="">` : ''}</header>
-      <div class="bd-kpis">${kpi(filas.filter((x) => x.min).length, 'partidos jugados')}${kpi(tot, 'minutos jugados')}${kpi(nAt, 'atenciones en partidos')}${kpi(filas.reduce((a, x) => a + x.inc.filter((i) => i.retiro).length, 0), 'veces que se retiró')}</div>
-      ${filas.length ? `<h2 class="bit-h2">Partidos</h2><table class="kt"><thead><tr><th>Fecha</th><th>Rival</th><th>Categoría</th><th>Resultado</th><th>Min</th><th>Atenciones</th></tr></thead><tbody>${filas.map((x) => `<tr><td>${x.p.fecha ? e(fc(x.p.fecha)) : '—'}</td><td><b>${e(x.p.rival)}</b><small>${x.p.local ? 'Local' : 'Visita'}</small></td><td>${e(catTxt(x.p))}</td><td class="n">${e(x.p.res || '—')}</td><td class="n">${x.min || '—'}</td><td>${detalle(x)}</td></tr>`).join('')}</tbody></table>` : '<p>Este jugador no tiene partidos ni atenciones en partidos en el período.</p>'}</div>`;
-  };
-  /* ---------- Informes de jugadores con contrato / plantel profesional ---------- */
-  const cabecera = (tit, sub) => `<header><img src="img/insignia-512.png" alt=""><div><h1>${tit}</h1><p>${sub}</p></div></header>`;
+  const contratados = () => { const out = []; K.state.informes.forEach((i) => i.jugadores.forEach((j) => { if (j.contrato) out.push({ j, inf: i }); })); return out.sort((a, b) => a.j.nombre.localeCompare(b.j.nombre, 'es')); };
+  /* ---------- Informes de jugadores con contrato ---------- */
+  const cabecera = (tit, sub) => `<header><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><div><h1>${tit}</h1><p>${sub}</p></div></header>`;
   const detalleInc = (inf, l) => l.map((i) => `${e(momTxt(i))}: ${e(K.nombreClase(i.clase))}${i.zona ? ' · ' + e(zonaTxt(i.zona)) : ''}${i.enCancha ? ' · atendido en cancha' : ''}${tratTxt(inf, i) ? ' · ' + e(tratTxt(inf, i)) : ''}${i.retiro ? ' · <b>se retiró</b>' : ''}${i.notas ? '<small>' + e(i.notas) + '</small>' : ''}`).join('<br>');
-  const etqTxt = (j) => [j.contrato ? 'Contrato' : '', j.plantel ? 'Plantel' : ''].filter(Boolean).join(' y ');
-  // Todos los jugadores con contrato / plantel: resumen y partidos de cada uno.
-  K.plantelGeneralHTML = function () {
+  // Todos los jugadores con contrato: resumen y partidos de cada uno.
+  K.contratoGeneralHTML = function () {
     const per = K.resolverPeriodo(K.state.periodo), pl = contratados(), kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
     const datos = pl.map(({ j, inf: i0 }) => {
       const filas = [];
@@ -140,33 +119,34 @@
       return { j, filas, min: filas.reduce((a, x) => a + x.min, 0), at: filas.reduce((a, x) => a + x.inc.length, 0), les };
     });
     const tot = (f) => datos.reduce((a, d) => a + f(d), 0);
-    const resumenT = datos.length ? `<h2 class="bit-h2">Resumen por jugador</h2><table class="kt"><thead><tr><th>Jugador</th><th>Categoría</th><th>Etiqueta</th><th>Partidos</th><th>Minutos</th><th>Atenciones</th><th>Lesiones</th></tr></thead><tbody>${datos.map((d) => `<tr><td><b>${e(d.j.nombre)}</b></td><td>${e(d.j.categoria || '')}</td><td>${e(etqTxt(d.j))}</td><td class="n">${d.filas.filter((x) => x.min).length}</td><td class="n">${d.min || '—'}</td><td class="n">${d.at}</td><td class="n">${d.les}</td></tr>`).join('')}</tbody></table>` : '<p>No hay jugadores con etiqueta Contrato o Plantel.</p>';
-    const porJ = datos.filter((d) => d.filas.length).map((d) => `<div class="nobr"><h2 class="bit-h2">${e(d.j.nombre)} <small>${e(etqTxt(d.j))} · ${e(d.j.categoria || '')}</small></h2><table class="kt"><thead><tr><th>Fecha</th><th>Rival</th><th>Categoría</th><th>Res.</th><th>Min</th><th>Atenciones</th></tr></thead><tbody>${d.filas.map((x) => `<tr><td>${x.p.fecha ? e(fc(x.p.fecha)) : '—'}</td><td><b>${e(x.p.rival)}</b></td><td>${e(catTxt(x.p))}</td><td class="n">${e(x.p.res || '—')}</td><td class="n">${x.min || '—'}</td><td>${x.inc.length ? detalleInc(x.inf, x.inc) : '—'}</td></tr>`).join('')}</tbody></table></div>`).join('');
-    return `<div class="bit-print kine-print">${cabecera('Informe de jugadores con contrato / plantel', 'Santiago Wanderers · ' + e(per.completo) + ' · ' + datos.length + ' jugador' + (datos.length === 1 ? '' : 'es'))}
+    const resumenT = datos.length ? `<h2 class="bit-h2">Resumen por jugador</h2><table class="kt"><thead><tr><th>Jugador</th><th>Categoría</th><th>Partidos</th><th>Minutos</th><th>Atenciones</th><th>Lesiones</th></tr></thead><tbody>${datos.map((d) => `<tr><td><b>${e(d.j.nombre)}</b></td><td>${e(d.j.categoria || '')}</td><td class="n">${d.filas.filter((x) => x.min).length}</td><td class="n">${d.min || '—'}</td><td class="n">${d.at}</td><td class="n">${d.les}</td></tr>`).join('')}</tbody></table>` : '<p>No hay jugadores con contrato.</p>';
+    const porJ = datos.filter((d) => d.filas.length).map((d) => `<div class="nobr"><h2 class="bit-h2">${e(d.j.nombre)} <small>${e(d.j.categoria || '')}</small></h2><table class="kt"><thead><tr><th>Fecha</th><th>Rival</th><th>Categoría</th><th>Res.</th><th>Min</th><th>Atenciones</th></tr></thead><tbody>${d.filas.map((x) => `<tr><td>${x.p.fecha ? e(fc(x.p.fecha)) : '—'}</td><td><b>${e(x.p.rival)}</b></td><td>${e(catTxt(x.p))}</td><td class="n">${e(x.p.res || '—')}</td><td class="n">${x.min || '—'}</td><td>${x.inc.length ? detalleInc(x.inf, x.inc) : '—'}</td></tr>`).join('')}</tbody></table></div>`).join('');
+    return `<div class="bit-print kine-print">${cabecera('Informe de jugadores con contrato', 'Santiago Wanderers · ' + e(per.completo) + ' · ' + datos.length + ' jugador' + (datos.length === 1 ? '' : 'es'))}
       <div class="bd-kpis">${kpi(datos.length, 'jugadores')}${kpi(tot((d) => d.filas.filter((x) => x.min).length), 'participaciones en partidos')}${kpi(tot((d) => d.min), 'minutos jugados')}${kpi(tot((d) => d.at), 'atenciones en partidos')}</div>
       ${resumenT}${porJ}</div>`;
   };
-  // Un partido (por ejemplo contra Recoleta): solo jugadores con contrato / plantel que participaron y recibieron atención.
+  // Un partido (por ejemplo contra Recoleta): todos los jugadores con contrato que jugaron en él (con minutos o atenciones).
   const jornadasJugadas = () => { const out = []; K.state.informes.forEach((inf) => K.jornadas(inf).forEach((jn) => { if (jn.jugado || jn.ps.some((p) => incs(p).length)) out.push({ inf, jn }); })); return out.sort((a, b) => (b.jn.fecha || '').localeCompare(a.jn.fecha || '')); };
-  K.plantelPartidoHTML = function (clave) {
+  K.contratoPartidoHTML = function (clave) {
     const [iid, jid] = String(clave || '').split('|'), inf = K.state.informes.find((i) => i.id === iid), jn = inf && K.jornadas(inf).find((x) => x.jid === jid);
     if (!jn) return '<div class="bit-print kine-print"><p>Elige un partido.</p></div>';
-    const filas = [], sinAt = [];
+    const filas = [];
     jn.ps.forEach((p) => {
       const ids = new Set(Object.keys(p.minutos || {}).filter((id) => Number(p.minutos[id]) > 0).concat(incs(p).map((i) => i.jugadorId)));
       ids.forEach((id) => {
-        const g = K.jugadorGlobal(id); if (!g || !(g.j.contrato || g.j.plantel)) return;
+        const g = K.jugadorGlobal(id); if (!g || !g.j.contrato) return;
         const inc = incs(p).filter((i) => i.jugadorId === id).map((i) => Object.assign({}, i, { _p: p })), min = Number((p.minutos || {})[id]) || 0;
-        if (inc.length) filas.push({ g, p, min, inc }); else sinAt.push(g.j.nombre);
+        filas.push({ g, p, min, inc });
       });
     });
     filas.sort((a, b) => a.g.j.nombre.localeCompare(b.g.j.nombre, 'es'));
     const res = jn.ps.map((p) => (p.res ? (p.cat ? 'Sub ' + p.cat + ' ' : '') + p.res : '')).filter(Boolean).join(' · ');
     const kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
-    return `<div class="bit-print kine-print">${cabecera('Informe de partido · jugadores con contrato / plantel', `Santiago Wanderers vs ${e(jn.rival)} · ${jn.fecha ? e(dia(jn.fecha)) + ' ' + e(fc(jn.fecha)) : 'sin fecha'} · ${jn.local ? 'Local' : 'Visita'}${res ? ' · ' + e(res) : ''}`)}
-      <div class="bd-kpis">${kpi(filas.length, 'jugadores atendidos')}${kpi(filas.reduce((a, x) => a + x.inc.length, 0), 'atenciones')}${kpi(filas.filter((x) => x.inc.some((i) => i.retiro)).length, 'se retiraron')}${kpi(sinAt.length, 'participaron sin atención')}</div>
-      ${filas.length ? `<h2 class="bit-h2">Jugadores atendidos</h2><table class="kt"><thead><tr><th>Jugador</th><th>Etiqueta</th><th>Categoría</th><th>Min</th><th>Atenciones</th></tr></thead><tbody>${filas.map((x) => `<tr><td><b>${e(x.g.j.nombre)}</b></td><td>${e(etqTxt(x.g.j))}</td><td>${e(catTxt(x.p))}</td><td class="n">${x.min || '—'}</td><td>${detalleInc(x.g.inf, x.inc)}</td></tr>`).join('')}</tbody></table>` : '<p>Ningún jugador con contrato o plantel recibió atención en este partido.</p>'}
-      ${sinAt.length ? `<p class="suave">Participaron sin atención: ${e(sinAt.join(', '))}.</p>` : ''}</div>`;
+    const src = logoSrc(jn);
+    const cab = `<header><div class="vs-logos"><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><b class="vs-t">vs</b>${src ? `<img class="rv-logo" src="${e(src)}" alt="">` : `<span class="rv-ini">${e((jn.rival || '?').slice(0, 1))}</span>`}</div><div style="flex:1"><h1>Informe de partido · vs ${e(jn.rival)}</h1><p>Santiago Wanderers · Jugadores con contrato · ${jn.fecha ? e(dia(jn.fecha)) + ' ' + e(fc(jn.fecha)) : 'sin fecha'} · ${jn.local ? 'Local' : 'Visita'}${res ? ' · ' + e(res) : ''}</p></div></header>`;
+    return `<div class="bit-print kine-print">${cab}
+      <div class="bd-kpis">${kpi(filas.length, 'jugadores con contrato')}${kpi(filas.reduce((a, x) => a + x.min, 0), 'minutos jugados')}${kpi(filas.reduce((a, x) => a + x.inc.length, 0), 'atenciones')}${kpi(filas.filter((x) => x.inc.some((i) => i.retiro)).length, 'se retiraron')}</div>
+      ${filas.length ? `<h2 class="bit-h2">Jugadores con contrato</h2><table class="kt"><thead><tr><th>Jugador</th><th>Categoría</th><th>Min</th><th>Atenciones</th></tr></thead><tbody>${filas.map((x) => `<tr><td><b>${e(x.g.j.nombre)}</b></td><td>${e(catTxt(x.p))}</td><td class="n">${x.min || '—'}</td><td>${x.inc.length ? detalleInc(x.g.inf, x.inc) : 'Sin atención'}</td></tr>`).join('')}</tbody></table>` : '<p>Ningún jugador con contrato jugó en este partido.</p>'}</div>`;
   };
   function juntarPartidos(cats, todos, per) {
     const out = [];
@@ -201,7 +181,7 @@
     const topZ = Object.keys(zonas).map((z) => [z, zonas[z]]).sort((a, b) => b[1] - a[1]).slice(0, 8);
     const obs = lista.filter((x) => lineas(x.p.observaciones).length);
     const bloqueObs = obs.length ? `<h2 class="bit-h2">Observaciones de los partidos</h2>${obs.map(({ p }) => `<div class="nobr"><p class="pg-obs-t"><b>${e(p.rival)}</b> · ${e(catTxt(p))}${p.fecha ? ' · ' + e(fc(p.fecha)) : ''}</p>${vinetas(p.observaciones)}</div>`).join('')}` : '';
-    return `<div class="bit-print kine-print"><header><img src="img/insignia-512.png" alt=""><div><h1>Informe de partidos · ${e(al[1])}</h1><p>Santiago Wanderers · ${e(per.completo)} · ${lista.length} partido${lista.length === 1 ? '' : 's'}</p></div></header>
+    return `<div class="bit-print kine-print"><header><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><div><h1>Informe de partidos · ${e(al[1])}</h1><p>Santiago Wanderers · ${e(per.completo)} · ${lista.length} partido${lista.length === 1 ? '' : 's'}</p></div></header>
       <div class="bd-kpis">${kpi(lista.length, 'partidos')}${kpi(r.n, 'atenciones')}${kpi(r.jugadores, 'jugadores atendidos')}${kpi(r.retiros, 'se retiraron')}</div>
       ${lista.length ? `<div class="bd-g" style="margin-top:10px"><section class="bd-p"><h4>Cuándo ocurrió</h4>${hbar(r.porMom)}</section><section class="bd-p"><h4>Tipo de atención</h4>${hbar(r.porClase, '#2f7a4a')}</section></div>
       <div class="bd-g" style="margin-top:8px"><section class="bd-p"><h4>Intervenciones realizadas</h4>${nombresInterv.length ? hbar(nombresInterv, '#3b5bb5') : '<p class="suave">Sin intervenciones.</p>'}</section><section class="bd-p"><h4>Zonas más frecuentes</h4>${topZ.length ? hbar(topZ, '#e9a93b') : '<p class="suave">Sin zonas registradas.</p>'}</section></div>
@@ -244,7 +224,7 @@
       : `<div class="card" style="margin-top:12px"><h2>Observaciones del partido</h2>${ps.map((x) => `<p class="sub" style="margin:8px 0 4px"><b>${e(catTxt(x))}</b></p>${lineas(x.observaciones).length ? vinetas(x.observaciones) : '<p class="suave">Sin observaciones.</p>'}`).join('')}</div>`;
     return `<div class="titulo-vista"><div class="fila gap"><button class="btn sec chico" data-acc="partVolver">${K.uiIco('atras', 16)} Partidos</button></div>
         <div class="fila gap wrap"><button class="btn sec chico" data-acc="partPdf" data-id="${e(p.id)}">${K.uiIco('pdf', 16)} PDF</button>${ed && vista !== 'comb' ? `<button class="btn" data-acc="partIncNueva" data-id="${e(p.id)}">${K.uiIco('mas', 18)} Agregar atención</button>` : ''}</div></div>
-      <div class="fila gap" style="margin-bottom:10px"><span class="vs-logos"><span class="mini-ico" style="width:52px;height:52px"><img src="img/insignia-512.png" alt=""></span><b class="vs-t">vs</b><span class="mini-ico" style="width:52px;height:52px">${logo(jn) || `<span class="sin-logo">${e((jn.rival || '?').slice(0, 1))}</span>`}</span></span><div><h1 style="font-family:Caladea,serif;font-size:23px;color:var(--verde-2)">Informe de partido · vs ${e(jn.rival)}</h1><div class="suave">${jn.fecha ? e(dia(jn.fecha)) + ' ' + e(fc(jn.fecha)) + ' · ' : ''}${jn.local ? 'Local' : 'Visita'}${resultadosTxt(jn) ? ' · ' + e(resultadosTxt(jn)) : ''}${jn.jugado ? '' : ' · por jugar'}</div></div></div>
+      <div class="fila gap" style="margin-bottom:10px"><span class="vs-logos"><span class="mini-ico" style="width:52px;height:52px"><img src="img/escudo-sw-vs.png" alt=""></span><b class="vs-t">vs</b><span class="mini-ico" style="width:52px;height:52px">${logo(jn) || `<span class="sin-logo">${e((jn.rival || '?').slice(0, 1))}</span>`}</span></span><div><h1 style="font-family:Caladea,serif;font-size:23px;color:var(--verde-2)">Informe de partido · vs ${e(jn.rival)}</h1><div class="suave">${jn.fecha ? e(dia(jn.fecha)) + ' ' + e(fc(jn.fecha)) + ' · ' : ''}${jn.local ? 'Local' : 'Visita'}${resultadosTxt(jn) ? ' · ' + e(resultadosTxt(jn)) : ''}${jn.jugado ? '' : ' · por jugar'}</div></div></div>
       ${tabs}
       ${vista === 'comb' ? '<p class="suave" style="margin:0 0 10px">Informe combinado: todas las categorías de este día juntas. Para agregar atenciones, minutos u observaciones elige una categoría arriba.</p>' : ''}
       <div class="bd-kpis">${kpi(r.n, 'atenciones')}${kpi(r.jugadores, 'jugadores atendidos')}${kpi(r.enCancha, 'atendidos en cancha')}${kpi(r.retiros, 'se retiraron del partido')}</div>
@@ -452,7 +432,7 @@
     }).join('');
     const sub = [ps.length > 1 ? ps.map((p) => 'Sub ' + p.cat).join(' y ') : (ps[0].cat ? 'Sub ' + ps[0].cat : inf.nombre), jn.fecha ? fc(jn.fecha) : '', jn.local ? 'Local' : 'Visita', ps.length === 1 && ps[0].res ? 'Resultado ' + ps[0].res : ''].filter(Boolean);
     const src = logoSrc(jn);
-    return `<div class="bit-print kine-print"><header><div class="vs-logos"><img src="img/insignia-512.png" alt=""><b class="vs-t">vs</b>${src ? `<img class="rv-logo" src="${e(src)}" alt="">` : `<span class="rv-ini">${e((jn.rival || '?').slice(0, 1))}</span>`}</div><div style="flex:1"><h1>Informe de partido · vs ${e(jn.rival)}</h1><p>Santiago Wanderers · ${e(sub.join(' · '))}</p>${por ? `<p>Informe realizado por: <b>${e(por)}</b></p>` : ''}</div></header>
+    return `<div class="bit-print kine-print"><header><div class="vs-logos"><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><b class="vs-t">vs</b>${src ? `<img class="rv-logo" src="${e(src)}" alt="">` : `<span class="rv-ini">${e((jn.rival || '?').slice(0, 1))}</span>`}</div><div style="flex:1"><h1>Informe de partido · vs ${e(jn.rival)}</h1><p>Santiago Wanderers · ${e(sub.join(' · '))}</p>${por ? `<p>Informe realizado por: <b>${e(por)}</b></p>` : ''}</div></header>
       ${ps.length > 1 ? `<p style="margin:0 0 6px">${ps.map((p) => `<b>${e(catTxt(p))}</b>${p.res ? ' ' + e(p.res) : ''}`).join(' · ')}</p>` : ''}
       <div class="bd-kpis">${kpi(rTodo.n, 'atenciones')}${kpi(rTodo.jugadores, 'jugadores atendidos')}${kpi(rTodo.enCancha, 'atendidos en cancha')}${kpi(rTodo.retiros, 'se retiraron del partido')}</div>
       ${rTodo.n ? `<div class="bd-g" style="margin:10px 0"><section class="bd-p"><h4>Cuándo ocurrió</h4>${hbar(rTodo.porMom)}</section><section class="bd-p"><h4>Tipo de atención</h4>${hbar(rTodo.porClase, '#2f7a4a')}</section></div>` : ''}
@@ -479,12 +459,9 @@
       K.pdf.documento(htmlPartido(jn, vista), nombrePdfPartido(jn, vista));
     },
     plPartidoSel(el) { estado().plPartido = el.value; },
-    plantelPdf() { K.pdf.documento(K.plantelGeneralHTML(), `Informe jugadores contrato y plantel ${K.resolverPeriodo(K.state.periodo).completo}`); },
-    plantelPartidoPdf() { const js = jornadasJugadas(); if (!js.length) return; const v = estado().plPartido || (js[0].inf.id + '|' + js[0].jn.jid), x = js.find((q) => q.inf.id + '|' + q.jn.jid === v) || js[0]; K.pdf.documento(K.plantelPartidoHTML(x.inf.id + '|' + x.jn.jid), `Informe de partido ${x.jn.rival} contrato y plantel`); },
+    contratoPdf() { K.pdf.documento(K.contratoGeneralHTML(), `Informe jugadores con contrato ${K.resolverPeriodo(K.state.periodo).completo}`); },
+    contratoPartidoPdf() { const js = jornadasJugadas(); if (!js.length) return; const v = estado().plPartido || (js[0].inf.id + '|' + js[0].jn.jid), x = js.find((q) => q.inf.id + '|' + q.jn.jid === v) || js[0]; K.pdf.documento(K.contratoPartidoHTML(x.inf.id + '|' + x.jn.jid), `Informe de partido ${x.jn.rival} jugadores con contrato`); },
     partGenSel(el) { estado().general = el.value; },
-    partJugSel(el) { estado().jug = el.value; },
-    partJugPdf(el) { const id = estado().jug || (contratados()[0] || { j: {} }).j.id; const g = id && K.jugadorGlobal(id); if (!g) return; K.pdf.documento(K.jugadorPartidosHTML(id), `Informe de partidos ${g.j.nombre} ${K.resolverPeriodo(K.state.periodo).completo}`); },
-    jugPartidosPdf(el) { const id = el.dataset.id, g = K.jugadorGlobal(id); if (g) K.pdf.documento(K.jugadorPartidosHTML(id), `Informe de partidos ${g.j.nombre} ${K.resolverPeriodo(K.state.periodo).completo}`); },
     partGenPdf() { const c = estado().general || 'todas', al = ALCANCES.find((a) => a[0] === c) || ALCANCES[0]; K.pdf.documento(htmlGeneral(c), `Informe de partidos ${al[1]} ${K.resolverPeriodo(K.state.periodo).completo}`); },
     vaciarPartidos(el, ev) {
       if (ev) ev.preventDefault();

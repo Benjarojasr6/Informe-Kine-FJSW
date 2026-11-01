@@ -289,7 +289,7 @@
   }
   function semanalPDF() {
     const d = datosSemana(), g = comGeneral(d.lun);
-    K.pdf.documento(`<div class="bit-print kine-print"><header><img src="img/insignia-512.png" alt=""><div><h1>Informe semanal de kinesiología</h1><p>Santiago Wanderers · Fútbol Joven · semana del ${e(fc(d.lun))} al ${e(fc(d.dom))} · ${d.filas.length} lesionado${d.filas.length === 1 ? '' : 's'}</p></div></header>
+    K.pdf.documento(`<div class="bit-print kine-print"><header><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><div><h1>Informe semanal de kinesiología</h1><p>Santiago Wanderers · Fútbol Joven · semana del ${e(fc(d.lun))} al ${e(fc(d.dom))} · ${d.filas.length} lesionado${d.filas.length === 1 ? '' : 's'}</p></div></header>
       ${g ? `<h2 class="bit-h2">Comentario general</h2>${/\n/.test(g) ? `<ul class="vin">${g.split(/\r?\n/).map((x) => x.replace(/^\s*[-•*·]+\s*/, '').trim()).filter(Boolean).map((x) => `<li>${e(x)}</li>`).join('')}</ul>` : `<p>${e(g)}</p>`}` : ''}
       <h2 class="bit-h2">Lesionados de la semana</h2>${d.filas.length ? tablaSemanal(d, false) : '<p>No hubo lesionados en esta semana.</p>'}
       <h2 class="bit-h2">Próximos controles, exámenes y procedimientos</h2>${proximosHTML(d)}</div>`, `Informe semanal kine ${d.lun}`);

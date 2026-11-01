@@ -12,7 +12,7 @@
       if (!inf.tratamientos.some((x) => x.id === t.id)) inf.tratamientos.push(Object.assign({}, t));
       if (!inf.indicadores.some((i) => i.fuente === 'trat:' + t.id)) inf.indicadores.push({ id: 'i-t-' + t.id, nombre: t.nombre, fuente: 'trat:' + t.id, icono: t.icono, grupo: 'tratamiento', visible: true });
     });
-    inf.jugadores.forEach((j) => { j.extras = j.extras || {}; });
+    inf.jugadores.forEach((j) => { j.extras = j.extras || {}; if (j.plantel) j.contrato = true; delete j.plantel; }); // “Plantel” ya no existe: quien lo tenía pasa a “jugador con contrato”
     return inf;
   };
 
