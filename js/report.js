@@ -480,7 +480,7 @@
 
   K.paginas = function (inf, per) {
     const eq = equipoPaginas(inf, per); // análisis (2 páginas) · seguimiento kinésico y seguro · conclusiones
-    const todas = [portada(inf, per)].concat(calendarioPaginas(inf, per), resumenPaginas(inf, per), eq.slice(0, 2), kinePaginas(inf, per), eq.slice(2), fichas(inf, per));
+    const todas = [portada(inf, per)].concat(calendarioPaginas(inf, per), resumenPaginas(inf, per), eq.slice(0, 2), kinePaginas(inf, per), eq.slice(2), inf._sinFichas ? [] : fichas(inf, per));
     return todas.map((h, i) => h.replace('<!--PIE-->', i === 0 ? '' : PIE(i + 1)));
   };
 })();

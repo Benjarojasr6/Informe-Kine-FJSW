@@ -571,3 +571,21 @@ body:has(#update-banner) #toast { bottom: calc(var(--nav) + env(safe-area-inset-
 /* las etiquetas del gráfico circular pueden asomar un poco fuera del dibujo sin cortarse */
 .donut { overflow: visible; }
 .vs-logos .mini-ico img { object-fit: contain; }
+
+/* Selector de fecha propio (empieza en lunes) */
+input[type=date][data-kd] { cursor: pointer; }
+.kd-fondo { position: fixed; inset: 0; z-index: 200; background: rgba(10,25,16,.45); display: grid; place-items: center; padding: 16px; }
+.kd { background: #fff; color: var(--tinta, #1d2a22); border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,.35); width: min(330px, 100%); padding: 14px 14px 12px; }
+.kd-cab { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+.kd-sel { display: flex; gap: 6px; flex: 1; justify-content: center; }
+.kd-sel select { width: auto; min-width: 0; padding: 6px 8px; font-size: 14px; border-radius: 8px; text-transform: capitalize; }
+.kd-nav { width: 38px; height: 38px; border: 0; border-radius: 10px; background: #eef3ef; color: var(--verde-2, #154c2b); font-size: 22px; line-height: 1; cursor: pointer; }
+.kd-sem, .kd-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.kd-sem i { font-style: normal; font-size: 12px; font-weight: 700; color: var(--suave, #5b6b62); padding: 4px 0; }
+.kd-sem i:nth-child(n+6) { color: #9a5b2a; }
+.kd-d { border: 0; background: transparent; border-radius: 10px; height: 38px; font-size: 15px; cursor: pointer; color: inherit; }
+.kd-d:hover:not([disabled]) { background: #eef3ef; }
+.kd-d.hoy { box-shadow: inset 0 0 0 1.5px var(--verde-2, #154c2b); }
+.kd-d.sel { background: var(--verde-2, #154c2b); color: #fff; font-weight: 700; }
+.kd-d[disabled] { opacity: .3; cursor: default; }
+.kd-pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }

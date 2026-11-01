@@ -152,6 +152,7 @@
   K.informeVista = (inf) => {
     const a = K.ui.alcance;
     if (K.ui.cat && a === 'todas') return K.informeTodas();
+    if (K.ui.cat && a === 'todasRes') return Object.assign({}, K.informeTodas(), { _sinFichas: true }); // mismo informe general, sin las fichas individuales
     if (!K.ui.cat) return inf;
     const g = K.grupoDe(K.ui.cat);
     if (!a || a === 'comb') return Object.assign(K.vistaCategorias(inf, g ? g.cats : [K.ui.cat], inf.jugadores), {});
@@ -160,14 +161,14 @@
   };
   K.selectorAlcance = () => {
     const g = K.grupoDe(K.ui.cat); if (!g) return '';
-    const ops = [['comb', 'Informe combinado ' + g.nombre]].concat(g.cats.map((c) => [String(c), 'Informe único Sub ' + c]), [['todas', 'Informe general Sub 15 a Sub 20']]);
+    const ops = [['comb', 'Informe combinado ' + g.nombre]].concat(g.cats.map((c) => [String(c), 'Informe único Sub ' + c]), [['todas', 'Informe general Sub 15 a Sub 20 · con fichas de cada jugador'], ['todasRes', 'Informe general Sub 15 a Sub 20 · resumen sin fichas']]);
     return `<select data-acc-change="alcance" style="width:auto;min-width:200px" aria-label="Alcance del informe">${K.opts(ops, K.ui.alcance || 'comb')}</select>`;
   };
   // Qué informe se está viendo (siempre visible, para no confundir combinado con único).
   K.vistaTexto = () => {
     const g = K.grupoDe(K.ui.cat); if (!g) return '';
     const a = K.ui.alcance || 'comb';
-    return a === 'comb' ? `Informe combinado ${g.nombre}` : a === 'todas' ? 'Informe general Sub 15 a Sub 20' : `Informe solo Sub ${a}`;
+    return a === 'comb' ? `Informe combinado ${g.nombre}` : a === 'todas' ? 'Informe general Sub 15 a Sub 20 (con fichas)' : a === 'todasRes' ? 'Informe general Sub 15 a Sub 20 (resumen sin fichas)' : `Informe solo Sub ${a}`;
   };
   K.elegirVista = (cat, alc) => {
     const g = K.grupoDe(cat);
@@ -176,10 +177,10 @@
     K.render(); window.scrollTo(0, 0);
   };
   // Cuerpo técnico: debe elegir explícitamente qué informe ve.
-  K.opcionesVista = () => K.GRUPOS.map((g) => ({ g, ops: g.cats.map((c) => [`${c}|${c}`, `Solo Sub ${c}`]).concat([[`${g.cats[0]}|comb`, `Combinado ${g.nombre}`]]) })).concat([{ g: { nombre: 'Todas las categorías' }, ops: [['16|todas', 'Informe general Sub 15 a Sub 20']] }]);
+  K.opcionesVista = () => K.GRUPOS.map((g) => ({ g, ops: g.cats.map((c) => [`${c}|${c}`, `Solo Sub ${c}`]).concat([[`${g.cats[0]}|comb`, `Combinado ${g.nombre}`]]) })).concat([{ g: { nombre: 'Todas las categorías' }, ops: [['16|todas', 'General Sub 15 a Sub 20 · con fichas'], ['16|todasRes', 'General Sub 15 a Sub 20 · resumen sin fichas']] }]);
   K.selectorVista = () => {
     const g0 = K.grupoDe(K.ui.cat), al = K.ui.alcance || 'comb';
-    const actual = g0 ? (al === 'comb' ? `${g0.cats[0]}|comb` : al === 'todas' ? '16|todas' : `${al}|${al}`) : '';
+    const actual = g0 ? (al === 'comb' ? `${g0.cats[0]}|comb` : al === 'todas' ? '16|todas' : al === 'todasRes' ? '16|todasRes' : `${al}|${al}`) : '';
     return `<select class="sel-cat" data-vista-sel aria-label="Elegir informe"><option value=""${actual ? '' : ' selected'}>Elegir informe…</option>
       ${K.opcionesVista().map(({ g, ops }) => `<optgroup label="${e(g.nombre)}">${ops.map(([v, t]) => `<option value="${v}"${v === actual ? ' selected' : ''}>${e(t)}</option>`).join('')}</optgroup>`).join('')}</select>`;
   };
@@ -187,7 +188,7 @@
       <div class="inicio-cab"><img src="img/insignia-512.png" alt=""><div><h1>Informe del área kinésica</h1><p>Santiago Wanderers · Fútbol joven</p></div></div>
       <p class="inicio-ayuda"><b>¿Qué informe quieres ver?</b> Elige uno: puedes ver una sola categoría o el informe combinado de la pareja.</p>
       ${K.opcionesVista().map(({ g, ops }) => `<section class="inicio-grupo"><header><span>Informe</span><b>${e(g.nombre)}</b></header>
-        <div class="inicio-cats">${ops.map(([v, t]) => `<button class="inicio-cat${v.endsWith('comb') || v.endsWith('todas') ? ' comb' : ''}" data-ver="${v}"><b>${e(t)}</b><small>${v.endsWith('comb') ? 'Las dos categorías juntas' : v.endsWith('todas') ? 'Sub 15, 16, 18 y 20 en un solo informe' : 'Solo jugadores de esta categoría'}</small></button>`).join('')}</div></section>`).join('')}
+        <div class="inicio-cats">${ops.map(([v, t]) => `<button class="inicio-cat${v.endsWith('comb') || v.endsWith('todas') || v.endsWith('todasRes') ? ' comb' : ''}" data-ver="${v}"><b>${e(t)}</b><small>${v.endsWith('comb') ? 'Las dos categorías juntas' : v.endsWith('todas') ? 'Sub 15, 16, 18 y 20 en un solo informe, con la ficha de cada jugador' : v.endsWith('todasRes') ? 'Solo el resumen de todas las categorías, sin fichas individuales' : 'Solo jugadores de esta categoría'}</small></button>`).join('')}</div></section>`).join('')}
     </div>`;
   K.irInicio = () => { K.ui.cat = null; K.ui.jugadorId = null; K.render(); window.scrollTo(0, 0); };
 
