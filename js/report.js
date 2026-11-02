@@ -233,7 +233,7 @@
   const lineasDe = (t, ancho) => Math.max(1, Math.ceil(String(t).length / ancho));
   K.fichaPlan = function (inf, per, j, casosIn) {
     const casos = casosIn || K.casosJugador(inf, per, j).sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
-    const mol = casos.filter((c) => c.tipo !== 'lesion').map((c) => ({ g: c.gravedad || 'leve', t: c.titulo + tagCat(c, j) + conLado(c) + (c.contexto ? ` (${c.contexto})` : '') + (K.limitaTxt(c) ? ` · limita entrenamiento: ${K.limitaTxt(c)}` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }));
+    const mol = casos.filter((c) => c.tipo !== 'lesion').map((c) => { const dm = K.duracionCaso(c); return { g: c.gravedad || 'leve', t: c.titulo + tagCat(c, j) + conLado(c) + (c.contexto ? ` (${c.contexto})` : '') + (/sin limitar/.test(dm) ? ` (${dm})` : '') + (K.limitaTxt(c) ? ` · limita entrenamiento: ${K.limitaTxt(c)}` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
     const les = casos.filter((c) => c.tipo === 'lesion').map((c) => { const d = K.duracionCaso(c); return { g: c.gravedad || 'moderada', t: c.titulo + tagCat(c, j) + conLado(c) + (c.contexto ? ` – ${c.contexto}` : '') + (d ? ` (${d})` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
     const hh = K.historialJugador(inf, j, per);
     const altoHist = (h, campo) => { const enP = h.lista.filter((x) => K.enPeriodo(x[campo], per)).slice(-4).length, ant = h.lista.filter((x) => !K.enPeriodo(x[campo], per)).slice(-3).length; return 76 + (enP + ant) * 15.5 + (ant ? 22 : 0); };
@@ -329,7 +329,7 @@
   function fichas(inf, per) {
     // Informe con varias categorías: primero la más grande; dentro de cada una, alfabético (o el orden manual de la lista, si la ordenaste a mano)
     const base = K.ordenJugadores(inf, inf.jugadores.filter((j) => j.activo !== false)), pos = new Map(base.map((j, i) => [j, i]));
-    const todos = base.slice().sort((a, b) => (K.numCat(b.categoria) - K.numCat(a.categoria)) || (inf.ordenManual ? pos.get(a) - pos.get(b) : a.nombre.localeCompare(b.nombre, 'es')));
+    const todos = base.slice().sort((a, b) => (K.numCat(b.categoria) - K.numCat(a.categoria)) || (pos.get(a) - pos.get(b))); // dentro de cada categoría, el orden elegido en Jugadores (nombre, apellido, posición o manual)
     const propios = todos.filter((j) => !j._inv), inv = todos.filter((j) => j._inv);
     const out = [];
     // Ficha del jugador propio: usa todos sus registros (de cualquier categoría); el resto del informe sigue por categoría.

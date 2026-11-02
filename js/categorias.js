@@ -19,7 +19,26 @@
   // Orden de los informes con más de una categoría: primero la categoría más grande (Sub 20 antes que Sub 18) y dentro de ella alfabético.
   K.numCat = (c) => Number((/\d+/.exec(String(c == null ? '' : c)) || [])[0]) || 0;
   K.cmpCatNombre = (catA, nomA, catB, nomB) => (K.numCat(catB) - K.numCat(catA)) || String(nomA || '').localeCompare(String(nomB || ''), 'es');
-  K.ordenJugadores = (inf, arr) => (inf.ordenManual ? arr.slice() : arr.slice().sort((a, b) => (a.categoria || '').localeCompare(b.categoria || '', 'es') || a.nombre.localeCompare(b.nombre, 'es')));
+  // Cómo se ordena la lista de jugadores (y las fichas del informe): nombre, apellido, posición o manual. Se guarda en inf.ordenJ.
+  // inf.ordenManual dice si hay un orden manual guardado en el arreglo (se conserva aunque se mire por otro criterio).
+  K.ORDENES_J = [['nombre', 'Nombre'], ['apellido', 'Apellido'], ['posicion', 'Posición'], ['manual', 'Manual']];
+  K.modoOrdenJ = (inf) => (K.ORDENES_J.some((o) => o[0] === inf.ordenJ) ? inf.ordenJ : inf.ordenManual ? 'manual' : 'nombre');
+  // Apellidos del jugador: los campos apellido1/apellido2 si existen; si no, las dos últimas palabras del nombre (o la última si son dos)
+  K.apellidoDe = (j) => {
+    if (j.apellido1) return [j.apellido1, j.apellido2 || '', j.nombres || ''].join(' ').trim();
+    const w = String(j.nombre || '').trim().split(/\s+/).filter(Boolean);
+    return w.length >= 3 ? w.slice(-2).concat(w.slice(0, -2)).join(' ') : w.length === 2 ? w[1] + ' ' + w[0] : w[0] || '';
+  };
+  const POS_ORDEN = ['portero', 'defensa', 'volante', 'delantero'];
+  const posRango = (j) => { const i = POS_ORDEN.indexOf(K.norm(j.posicion || '')); return i >= 0 ? i : j.posicion ? POS_ORDEN.length : POS_ORDEN.length + 1; };
+  K.ordenJugadores = (inf, arr) => {
+    const m = K.modoOrdenJ(inf); if (m === 'manual') return arr.slice();
+    const cat = (a, b) => (a.categoria || '').localeCompare(b.categoria || '', 'es'), nom = (a, b) => a.nombre.localeCompare(b.nombre, 'es');
+    const cmp = m === 'apellido' ? (a, b) => cat(a, b) || K.apellidoDe(a).localeCompare(K.apellidoDe(b), 'es') || nom(a, b)
+      : m === 'posicion' ? (a, b) => cat(a, b) || (posRango(a) - posRango(b)) || nom(a, b)
+        : (a, b) => cat(a, b) || nom(a, b);
+    return arr.slice().sort(cmp);
+  };
   K.enCat = (inf, jid) => {
     if (!K.ui.cat) return true;
     const j = K.jugador(inf, jid); if (!j) return true;

@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.6.5';
+  K.version = '1.6.9';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -321,6 +321,7 @@
     const plano = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
     ['conclusiones', 'objetivos', 'conclusionesTodas', 'objetivosTodas', 'firmante'].forEach((c) => { if (inf[c] !== undefined && typeof inf[c] !== 'string') inf[c] = str(inf[c]); });
     if (inf.atencionesPartidos !== undefined && typeof inf.atencionesPartidos !== 'boolean') delete inf.atencionesPartidos;
+    if (inf.ordenJ !== undefined && !['nombre', 'apellido', 'posicion', 'manual'].includes(inf.ordenJ)) delete inf.ordenJ;
     ['anioTexto', 'tempIniciada'].forEach((c) => { if (inf[c] !== undefined) { inf[c] = Number(inf[c]); if (!ANIO_OK(inf[c])) delete inf[c]; } });
     const limpiarStaff = (st) => arrObj(st).filter((x) => x && typeof x === 'object' && ID_OK(x.id)).map((x) => ({ id: x.id, cargo: str(x.cargo), personas: arrObj(x.personas).filter((p) => p && typeof p === 'object').map((p) => ({ nombre: str(p.nombre), ocasional: p.ocasional === true })) }));
     if (inf.anios !== undefined) {
@@ -356,10 +357,11 @@
     // --- ficha clínica: campos nuevos de lesiones, exámenes, atenciones; antecedentes y documentos (todo opcional) ---
     const NUM_OK = (v, a, b) => v !== '' && v !== null && typeof v !== 'boolean' && Number.isFinite(Number(v)) && Number(v) >= a && Number(v) <= b;
     (inf.casos || []).forEach((c) => {
-      if (c.tejido !== undefined && !K.TEJIDOS.some((x) => x[0] === c.tejido)) c.tejido = '';
+      if (c.tejido !== undefined) c.tejido = String(c.tejido).split(',').map((x) => x.trim()).filter((x, i, a) => K.TEJIDOS.some((t) => t[0] === x) && a.indexOf(x) === i).join(',');
       if (c.contacto !== undefined && !K.CONTACTOS.some((x) => x[0] === c.contacto)) c.contacto = '';
       if (c.eva !== undefined) { if (NUM_OK(c.eva, 0, 10)) c.eva = Math.round(Number(c.eva)); else delete c.eva; }
       if (c.recidiva !== undefined && typeof c.recidiva !== 'boolean') c.recidiva = c.recidiva === 'si' || c.recidiva === 1;
+      if (c.relacionadaA !== undefined && (typeof c.relacionadaA !== 'string' || !c.relacionadaA || c.relacionadaA === c.id || c.tipo === 'lesion')) delete c.relacionadaA; // v1.6.8: molestia relacionada con una lesión
       delete c.tests; delete c.criterios; // v1.6.1: los tests y criterios de retorno ya no existen
     });
     (inf.atenciones || []).forEach((a) => { delete a.soap; }); // v1.6.1: la evolución (SOAP) ya no existe

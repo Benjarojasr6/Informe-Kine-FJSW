@@ -125,9 +125,11 @@
     }
     if (c.inicio && c.alta) {
       const dias = Math.max(1, Math.round((new Date(c.alta) - new Date(c.inicio)) / 86400000));
-      if (dias < 14) return dias === 1 ? '1 día' : `${dias} días`;
+      // Molestia ya resuelta que no limitó el entrenamiento: se dice claro (p. ej. “1 día sin limitar entrenamiento”)
+      const sinLimitar = c.tipo === 'molestia' && c.limita !== 'si' && !K.esMecPartido(c.mecanismo) ? ' sin limitar entrenamiento' : '';
+      if (dias < 14) return (dias === 1 ? '1 día' : `${dias} días`) + sinLimitar;
       const s = Math.round(dias / 7);
-      return `${s} semanas`;
+      return `${s} semanas${sinLimitar}`;
     }
     if (c.inicio && !c.alta && c.tipo === 'lesion') return 'en curso';
     return '';
@@ -180,8 +182,16 @@
     if (!c) return '';
     if (c.convertidaA) { const l = K.buscarCaso(c.convertidaA); if (l) return `terminó siendo la lesión: ${l.titulo}`; }
     if (c.origenId) { const m = K.buscarCaso(c.origenId); if (m) return `comenzó como molestia: ${m.titulo}`; }
-    return '';
+    return K.relacionCasoTxt(c);
   };
+  // Molestia relacionada con una lesión que el jugador tuvo o tiene (se elige en el formulario de la molestia)
+  K.relacionCasoTxt = (c) => {
+    if (!c || c.tipo === 'lesion' || !c.relacionadaA) return '';
+    const l = K.buscarCaso(c.relacionadaA);
+    if (!l || l.id === c.id || l.tipo !== 'lesion' || l.jugadorId !== c.jugadorId) return '';
+    return `relacionada con la lesión: ${l.titulo}${l.inicio ? ' (' + K.fechaCorta(l.inicio) + ')' : ''}`;
+  };
+  K.origenRotulo = (c) => (c.convertidaA ? 'Evolución' : c.relacionadaA && !c.origenId && K.relacionCasoTxt(c) ? 'Relación' : 'Origen');
   K.FASES_ENTRENO = [['calentamiento', 'Calentamiento'], ['gimnasio', 'Parte física · gimnasio'], ['cancha', 'Parte física · cancha'], ['tecnica', 'Parte técnica']];
   K.MOMENTOS_PARTIDO = [['pre', 'Pre partido'], ['durante', 'Durante el partido'], ['entretiempo', 'Entretiempo'], ['post', 'Post partido']];
   K.esMecPartido = (m) => m === 'partido' || m === 'amistoso';

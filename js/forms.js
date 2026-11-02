@@ -10,6 +10,13 @@
   // Lesiones anteriores del mismo jugador en la misma zona (o con el mismo nombre): sirven para sugerir “recidiva”.
   K.casosPrevios = (inf, c) => (inf.casos || []).filter((x) => x.id !== c.id && x.jugadorId === c.jugadorId && x.tipo === 'lesion' && (x.inicio || '') < (c.inicio || '9999')
     && ((x.zonas || []).some((z) => (c.zonas || []).includes(z)) || (x.titulo || '').trim().toLowerCase() === (c.titulo || '').trim().toLowerCase()));
+  // Lesiones del jugador a las que puede estar relacionada una molestia (las que tuvo o tiene; no la que nació de esta molestia)
+  K.lesionesRelacionables = (inf, c) => (inf.casos || []).filter((x) => x.tipo === 'lesion' && x.jugadorId === c.jugadorId && x.id !== c.id && x.origenId !== c.id)
+    .sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''));
+  // La que más se parece (misma zona o mismo nombre) y que empezó antes o el mismo día
+  K.relacionSugerida = (inf, c) => K.lesionesRelacionables(inf, c).find((x) => (!c.inicio || !x.inicio || x.inicio <= c.inicio)
+    && ((x.zonas || []).some((z) => (c.zonas || []).includes(z)) || (x.titulo || '').trim().toLowerCase() === (c.titulo || '').trim().toLowerCase())) || null;
+  const optsRelacion = (lista, sel) => `<option value="">No, ninguna</option>` + lista.map((x) => `<option value="${e(x.id)}"${x.id === sel ? ' selected' : ''}>${e(x.titulo)} · ${e(K.fechaCorta(x.inicio))}${x.alta ? ' · alta ' + e(K.fechaCorta(x.alta)) : ' · en curso'}</option>`).join('');
   K.avisoRecidiva = (previas, marcada) => (previas.length ? `Este jugador ya tuvo ${previas.length === 1 ? 'una lesión parecida' : previas.length + ' lesiones parecidas'} (${previas.map((x) => x.titulo + ' · ' + K.fechaCorta(x.inicio)).join('; ')}). ${marcada ? 'Quedó marcada como recidiva; desmárcala si no lo es.' : '¿Es una recidiva?'}` : '');
   const quitar = (arr, id) => { const i = arr.findIndex((x) => x.id === id); if (i >= 0) arr.splice(i, 1); };
   const sinJugadores = () => { K.aviso('Primero agrega jugadores a la lista.', true); K.formLista && K.formLista(); };
@@ -247,6 +254,8 @@
             <label class="campo"><span>Qué parte limita</span><select name="limitaParte">${K.opts(K.PARTES_LIMITE, rec ? rec.limitaParte || 'fisica' : 'fisica')}</select></label>
           </div>
         </div>
+        <div class="campo ${tipo === 'molestia' && !conv ? '' : 'oculto'}" data-bloque-rel><label class="campo" style="margin:0"><span>¿Está relacionada con una lesión que tuvo o tiene?</span><select name="relacionadaA" data-rel-sel>${optsRelacion(K.lesionesRelacionables(inf, { id: rec ? rec.id : '', jugadorId: rec ? rec.jugadorId : '' }), rec ? rec.relacionadaA || '' : '')}</select></label>
+          <p class="aviso oculto" data-aviso-rel style="margin:4px 0 0"></p></div>
         <div class="campo" data-bloque-recidiva><label class="check" style="padding:2px 0"><input type="checkbox" name="recidiva"${rec && rec.recidiva === true ? ' checked' : ''}><span>Es una recidiva (vuelve a lesionarse en la misma zona)</span></label>
           <p class="aviso oculto" data-aviso-rec style="margin:4px 0 0"></p></div>
         ${K.selTorneoHTML(inf, rec ? rec.torneoId || '' : o.torneoId || '', 'Torneo en que ocurrió (opcional)')}
@@ -276,6 +285,7 @@
             let reg = rec;
             if (d.torneoId) campos.torneoId = d.torneoId;
             if (rec) { Object.assign(rec, campos); if (!d.torneoId) delete rec.torneoId; } else { reg = Object.assign({ id: K.uid() }, campos); inf.casos.push(reg); }
+            if (campos.tipo === 'molestia' && !conv && d.relacionadaA) reg.relacionadaA = d.relacionadaA; else delete reg.relacionadaA;
             if (d.recidiva || (rec && rec.recidiva !== undefined)) reg.recidiva = !!d.recidiva; // un caso viejo sin el dato se queda igual
             K.clinico.aplicar(reg, K.clinico.leer(hoja), { sinFechas: conv });
             if (reg.conmocion && K.conmocion && hoja.querySelector('[data-cm-rtp]')) K.conmocion.rtpAplicar(reg, K.conmocion.rtpLeer(hoja));
@@ -310,6 +320,7 @@
         const refrescar = () => {
           const esMol = K.segValor(hoja, 'tipo') === 'molestia', mec = hoja.querySelector('[name=mecanismo]').value;
           bl.classList.toggle('oculto', !esMol || conv || K.esMecPartido(mec));
+          const bRel = hoja.querySelector('[data-bloque-rel]'); if (bRel) bRel.classList.toggle('oculto', !esMol || conv);
           bEnt.classList.toggle('oculto', mec !== 'entrenamiento');
           bPar.classList.toggle('oculto', !K.esMecPartido(mec));
           const n = fi.value && fa.value ? Math.round((new Date(fa.value) - new Date(fi.value)) / 864e5) : 0;
@@ -330,6 +341,25 @@
         const sugerirRec = () => { const pv = previasAhora(); if (!rec && !tocada) chkRec.checked = pv.length > 0; avisarRec(); };
         [selJug, inTit, fi].forEach((x) => { x.addEventListener('change', sugerirRec); x.addEventListener('input', sugerirRec); });
         mapa.addEventListener('click', () => setTimeout(sugerirRec, 0));
+        // relación con una lesión: se llenan las lesiones del jugador elegido y, en una molestia nueva, se sugiere la parecida
+        const selRel = hoja.querySelector('[data-rel-sel]'), avRel = hoja.querySelector('[data-aviso-rel]');
+        let relTocada = false; selRel.addEventListener('change', () => { relTocada = true; avisarRel(); });
+        const datosAhora = () => ({ id: rec ? rec.id : '', jugadorId: selJug.value, inicio: fi.value, zonas: Array.from(sel), titulo: inTit.value });
+        function avisarRel() {
+          const sg = K.relacionSugerida(inf, datosAhora());
+          avRel.textContent = sg && selRel.value === sg.id ? `Parece relacionada con «${sg.titulo}» (${K.fechaCorta(sg.inicio)}): misma zona o mismo nombre. Cámbiala si no lo está.` : '';
+          avRel.classList.toggle('oculto', !avRel.textContent);
+        }
+        const llenarRel = () => {
+          const d0 = datosAhora(), lista = K.lesionesRelacionables(inf, d0), sg = K.relacionSugerida(inf, d0);
+          // molestia nueva sin tocar: sigue a la sugerida; molestia guardada o ya tocada: conserva lo elegido mientras siga siendo del jugador
+          const quiere = !rec && !relTocada ? (sg ? sg.id : '') : selRel.value;
+          selRel.innerHTML = optsRelacion(lista, lista.some((x) => x.id === quiere) ? quiere : '');
+          avisarRel();
+        };
+        [selJug, inTit, fi].forEach((x) => { x.addEventListener('change', llenarRel); });
+        mapa.addEventListener('click', () => setTimeout(llenarRel, 0));
+        llenarRel();
         sugerirRec();
         K.clinico.montar(hoja, () => ({ tipo: K.segValor(hoja, 'tipo') || 'lesion', inicio: fi.value, alta: fa.value, semanas: hoja.querySelector('[name=semanas]').value }));
         if (K.conmocion && hoja.querySelector('[data-cm-rtp]')) K.conmocion.rtpMontar(hoja);

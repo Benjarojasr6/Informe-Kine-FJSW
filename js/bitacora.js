@@ -49,7 +49,7 @@
     if (c.mecanismo) det.push(['Ocurrió en', K.ocurrioTxt(c)]);
     if (c.contexto) det.push(['Contexto', c.contexto]);
     if (c.terreno) det.push(['Terreno', c.terreno]);
-    if (K.origenCasoTxt(c)) det.push([c.convertidaA ? 'Evolución' : 'Origen', K.origenCasoTxt(c)]);
+    if (K.origenCasoTxt(c)) det.push([K.origenRotulo(c), K.origenCasoTxt(c)]);
     det.push(['Inicio', fc(c.inicio)]);
     const clin = K.clinico ? K.clinico.detalle(c) : [];
     det.push([c.altaMedica || c.retornoEntreno || c.retornoPartido ? 'Alta kinésica' : 'Alta', c.alta ? fc(c.alta) : les ? 'En curso' : '—']);

@@ -343,7 +343,7 @@
   // Mueve un jugador entre los visibles (misma categoría elegida) dentro del orden global.
   function moverJ(id, d) {
     const inf = K.inf();
-    if (!inf.ordenManual) { inf.jugadores = K.ordenJugadores(inf, inf.jugadores); inf.ordenManual = true; }
+    if (K.modoOrdenJ(inf) !== 'manual') { inf.jugadores = K.ordenJugadores(inf, inf.jugadores); inf.ordenManual = true; inf.ordenJ = 'manual'; }
     const vis = K.jugadoresCat(inf), i = vis.findIndex((j) => j.id === id), k = i + d;
     if (i < 0 || k < 0 || k >= vis.length) return;
     const a = inf.jugadores.indexOf(vis[i]), b = inf.jugadores.indexOf(vis[k]);
@@ -361,7 +361,7 @@
   const reordenar = {
     jugadores(ids) {
       const inf = K.inf();
-      if (!inf.ordenManual) { inf.jugadores = K.ordenJugadores(inf, inf.jugadores); inf.ordenManual = true; }
+      if (K.modoOrdenJ(inf) !== 'manual') { inf.jugadores = K.ordenJugadores(inf, inf.jugadores); inf.ordenManual = true; inf.ordenJ = 'manual'; }
       const set = new Set(ids), slots = [];
       inf.jugadores.forEach((j, i) => { if (set.has(j.id)) slots.push(i); });
       const por = new Map(inf.jugadores.map((j) => [j.id, j]));
@@ -413,7 +413,7 @@
     const est = K.estadoJugadores ? K.estadoJugadores() : { les: new Map(), ult: new Map() }, lesionado = (j) => !!(K.esLesionado && K.esLesionado(est, j));
     const nLes = K.jugadoresCat(inf).filter(lesionado).length, solo = !!K.ui.soloLes;
     const js = K.ordenJugadores(inf, K.jugadoresCat(inf).filter((j) => (!q || K.norm(j.nombre).includes(q)) && (!solo || lesionado(j))));
-    const puedeOrdenar = K.puedeEditar() && !q && !solo && js.length > 1, ordenando = puedeOrdenar && !!K.ui.ordenarJ, mueve = ordenando;
+    const modoOrden = K.modoOrdenJ(inf), puedeOrdenar = K.puedeEditar() && !q && !solo && js.length > 1, ordenando = puedeOrdenar && !!K.ui.ordenarJ, mueve = ordenando;
     const nArch = K.archivados().length, archivo = K.ui.jtab === 'archivo';
     const pestanas = `<div class="seg jtabs" role="tablist"><button type="button" role="tab" data-acc="jtab" data-v="inscritos" class="${archivo ? '' : 'act'}">Inscritos (${K.jugadoresCat(inf).length})</button><button type="button" role="tab" data-acc="jtab" data-v="archivo" class="${archivo ? 'act' : ''}">Archivo (${nArch})</button></div>`;
     if (archivo) return `<div class="titulo-vista"><h1>Jugadores</h1></div><div style="margin-bottom:10px">${pestanas}</div>${K.archivoHTML()}`;
@@ -422,7 +422,9 @@
       <div style="margin-bottom:10px">${pestanas}</div>
       <div class="fila gap wrap" style="margin-bottom:10px"><button type="button" class="th-chip${solo ? ' on' : ''}" data-acc="soloLes" aria-pressed="${solo}">Solo lesionados <small>${nLes}</small></button></div>
       ${K.jugadoresCat(inf).length > 6 ? `<input type="search" placeholder="Buscar jugador…" value="${e(K.ui.filtroJ || '')}" data-acc-input="buscarJ" style="margin-bottom:10px">` : ''}
-      ${js.length > 1 && K.puedeEditar() ? `<div class="fila sb wrap gap" style="margin:0 0 8px"><p class="suave" style="margin:0 2px;flex:1 1 220px">Orden de las fichas en el informe: ${inf.ordenManual ? 'manual' : 'por categoría y nombre'}.${ordenando ? ' Arrastra <b>⠿</b> o usa las flechas.' : ''}${inf.ordenManual ? ' <a href="#" data-acc="ordenAZ">Volver al orden por nombre</a>' : ''}</p>${puedeOrdenar || K.ui.ordenarJ ? `<button type="button" class="btn ${ordenando ? '' : 'sec '}chico" data-acc="ordenarJ" aria-pressed="${ordenando}">${ordenando ? 'Listo' : 'Ordenar'}</button>` : ''}</div>` : ''}
+      ${js.length > 1 && K.puedeEditar() ? `<div class="orden-j" data-orden-j style="margin:0 0 8px"><div class="fila sb wrap gap"><span class="lbl" style="margin:0">Ordenar por</span>${puedeOrdenar || K.ui.ordenarJ ? `<button type="button" class="btn ${ordenando ? '' : 'sec '}chico" data-acc="ordenarJ" aria-pressed="${ordenando}">${ordenando ? 'Listo' : 'Mover a mano'}</button>` : ''}</div>
+        <div class="seg" role="group" aria-label="Ordenar jugadores por" style="margin-top:6px">${K.ORDENES_J.map(([k, t]) => `<button type="button" data-acc="ordenJ" data-v="${k}" class="${modoOrden === k ? 'act' : ''}" aria-pressed="${modoOrden === k}">${t}</button>`).join('')}</div>
+        <p class="suave" style="margin:6px 2px 0;font-size:13px">${modoOrden === 'manual' ? 'Tu orden manual.' + (ordenando ? ' Arrastra <b>⠿</b> o usa las flechas.' : ' Toca “Mover a mano” para cambiarlo.') : 'Por categoría y ' + (modoOrden === 'apellido' ? 'apellido' : modoOrden === 'posicion' ? 'posición (portero, defensa, volante, delantero)' : 'nombre') + '.'} Las fichas del informe salen en este mismo orden.</p></div>` : ''}
       <div class="card" style="padding:6px 12px">${js.length ? `<div class="lista"${mueve ? ' data-arr="jugadores"' : ''}>${js.map((j) => {
         const c = K.contar(inf, per, j.id).porFuente, z = K.casosJugador(inf, per, j).length;
         const ua = est.ult.get(j.id) || '';
@@ -440,7 +442,13 @@
     buscarJ(el) { K.ui.filtroJ = el.value; const pos = el.selectionStart; K.render(); const n = document.querySelector('[data-acc-input=buscarJ]'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } },
     subirJ(el, ev) { ev.stopPropagation(); moverJ(el.dataset.id, -1); },
     bajarJ(el, ev) { ev.stopPropagation(); moverJ(el.dataset.id, 1); },
-    ordenAZ(el, ev) { if (ev) ev.preventDefault(); const inf = K.inf(); inf.jugadores = K.ordenJugadores(Object.assign({}, inf, { ordenManual: false }), inf.jugadores); inf.ordenManual = false; guardar('Orden por nombre restablecido'); },
+    ordenJ(el) {
+      const inf = K.inf(), v = el.dataset.v; if (!K.ORDENES_J.some((o) => o[0] === v)) return;
+      if (v === 'manual' && !inf.ordenManual) { inf.jugadores = K.ordenJugadores(inf, inf.jugadores); inf.ordenManual = true; } // primera vez: parte del orden que ves ahora
+      inf.ordenJ = v; K.ui.ordenarJ = false;
+      guardar('Orden: ' + K.ORDENES_J.find((o) => o[0] === v)[1].toLowerCase());
+    },
+    ordenAZ(el, ev) { if (ev) ev.preventDefault(); K.inf().ordenJ = 'nombre'; guardar('Orden por nombre restablecido'); },
     editarJugador() { K.formJugador(K.jugador(K.inf(), K.ui.jugadorId)); }
   });
 
@@ -483,7 +491,7 @@
         <label class="campo"><span>Comentarios (aparecen en la ficha)</span><textarea data-campo="comentarios">${e(j.comentarios || '')}</textarea></label>
         ${otrosAnios.length ? `<div class="suave" style="margin-top:8px"><b>Comentarios de años anteriores</b>${otrosAnios.map(([y, c]) => `<p style="margin:4px 0"><b>${y}:</b> ${e(c).replace(/\n/g, '<br>')}</p>`).join('')}</div>` : ''}</div>
       ${extras ? `<div class="card"><h2>Información adicional</h2>${extras}</div>` : ''}
-      <div class="card"><h2>Lesiones y molestias</h2>${casos.length ? `<div class="lista">${casos.map((c) => `<div class="item" data-acc="editCaso" data-id="${c.id}"><span class="mini-ico">${K.ico(c.tipo === 'lesion' ? 'svg:lesion' : 'svg:molestia')}</span><div class="txt"><b>${e(c.titulo)}${c.conmocion ? ' <i class="chip g-grave etq" data-conmocion>Conmoción</i>' : ''}</b><span>${c.tipo === 'lesion' ? 'Lesión' : 'Molestia'} · ${K.fechaCorta(c.inicio)}${K.duracionCaso(c) ? ' · ' + K.duracionCaso(c) : ''}${c.zonas && c.zonas.length ? ' · ' + e(c.zonas.map(K.nombreZona).join(', ')) : ''}${K.clinico.resumen(c) ? ' · ' + e(K.clinico.resumen(c)) : ''}</span></div><span class="chip g-${c.gravedad || 'leve'}">${K.GRAVEDADES[K.gravClave(c.gravedad)]}</span></div>`).join('')}</div>` : '<p class="vacio-msg">Sin lesiones ni molestias registradas.</p>'}</div>
+      <div class="card"><h2>Lesiones y molestias</h2>${casos.length ? `<div class="lista">${casos.map((c) => `<div class="item" data-acc="editCaso" data-id="${c.id}"><span class="mini-ico">${K.ico(c.tipo === 'lesion' ? 'svg:lesion' : 'svg:molestia')}</span><div class="txt"><b>${e(c.titulo)}${c.conmocion ? ' <i class="chip g-grave etq" data-conmocion>Conmoción</i>' : ''}</b><span>${c.tipo === 'lesion' ? 'Lesión' : 'Molestia'} · ${K.fechaCorta(c.inicio)}${K.duracionCaso(c) ? ' · ' + K.duracionCaso(c) : ''}${K.relacionCasoTxt(c) ? ' · ' + e(K.relacionCasoTxt(c)) : ''}${c.zonas && c.zonas.length ? ' · ' + e(c.zonas.map(K.nombreZona).join(', ')) : ''}${K.clinico.resumen(c) ? ' · ' + e(K.clinico.resumen(c)) : ''}</span></div><span class="chip g-${c.gravedad || 'leve'}">${K.GRAVEDADES[K.gravClave(c.gravedad)]}</span></div>`).join('')}</div>` : '<p class="vacio-msg">Sin lesiones ni molestias registradas.</p>'}</div>
       ${K.fichaClinica.documentos(inf, j0)}
       ${K.fichaClinica.seguro(inf, j0)}
       ${K.histCard ? K.histCard(inf, j0) : ''}

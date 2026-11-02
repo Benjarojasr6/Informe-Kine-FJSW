@@ -55,7 +55,7 @@
     // ---- lesiones, molestias y sus altas / retornos
     casos.forEach((c) => {
       const en = K.bit.entCaso(c), les = c.tipo === 'lesion';
-      const sub = [textoZonas(c), c.contexto, K.duracionCaso(c) === 'en curso' ? 'en curso' : K.duracionCaso(c), c.tejido ? (K.TEJIDOS.find((t) => t[0] === c.tejido) || [0, c.tejido])[1].toLowerCase() : '', K.limitaTxt(c) ? 'limita entrenamiento: ' + K.limitaTxt(c) : ''].filter(Boolean).join(' · ');
+      const sub = [textoZonas(c), c.contexto, K.duracionCaso(c) === 'en curso' ? 'en curso' : K.duracionCaso(c), K.tejidosTxt(c, true), K.limitaTxt(c) ? 'limita entrenamiento: ' + K.limitaTxt(c) : ''].filter(Boolean).join(' · ');
       items.push(nuevo({ id: 'c' + c.id, f: FECHA.test(c.inicio || '') ? c.inicio : '', k: 'caso', tag: en.tag, cls: en.cls, titulo: c.titulo, sub, det: en.det, notas: en.notas, raw: c, edit: 'caso' }, infoCaso(c)));
       // cada evaluación SCAT5 (cancha, camarín, seguimiento) de una conmoción es una entrada propia
       const xs = c.conmocion === true && K.scat5 ? K.scat5.deCaso(c) : null;
@@ -334,9 +334,9 @@
     const filas = campo('Inicio', c.inicio ? e(K.fechaCorta(c.inicio)) : '—') + campo(les ? 'Alta kinésica' : 'Alta', c.alta ? e(K.fechaCorta(c.alta)) : les ? 'En curso' : '—') + campo('Inicio del reintegro deportivo', c.reintegroDesde ? e(K.fechaCorta(c.reintegroDesde)) : '') + campo('Alta médica', c.altaMedica ? e(K.fechaCorta(c.altaMedica)) : '')
       + campo('Retorno a entrenar con el grupo', c.retornoEntreno ? dret('retornoEntreno') : '') + campo('Retorno a partido', c.retornoPartido ? dret('retornoPartido') : '')
       + campo('Días de baja', les && c.inicio ? String(K.diasBajaCarrera(c)) : '') + campo('Duración', dur && dur !== 'en curso' ? e(dur) : '') + campo('Zona', e(textoZonas(c)))
-      + campo('Tejido', c.tejido ? e((K.TEJIDOS.find((t) => t[0] === c.tejido) || [0, c.tejido])[1]) : '') + campo('Contacto', c.contacto ? e((K.CONTACTOS.find((t) => t[0] === c.contacto) || [0, c.contacto])[1]) : '')
+      + campo(K.tejidosDe(c).length > 1 ? 'Tejidos' : 'Tejido', e(K.tejidosTxt(c))) + campo('Contacto', c.contacto ? e((K.CONTACTOS.find((t) => t[0] === c.contacto) || [0, c.contacto])[1]) : '')
       + campo('Dolor al inicio (EVA)', c.eva != null && c.eva !== '' ? e(c.eva) + ' / 10' : '') + campo('Ocurrió en', e(K.ocurrioTxt(c))) + campo('Contexto', e(c.contexto || '')) + campo('Terreno', e(c.terreno || ''))
-      + campo('Limita entrenamiento', e(K.limitaTxt(c))) + campo(c.convertidaA ? 'Evolución' : 'Origen', e(K.origenCasoTxt(c)));
+      + campo('Limita entrenamiento', e(K.limitaTxt(c))) + campo(K.origenRotulo(c), e(K.origenCasoTxt(c)));
     const notas = c.notas ? `<p class="fj-crit"><b>Notas:</b> ${e(recorta(c.notas, 900)).replace(/\n/g, '<br>')}</p>` : '';
     const cm = c.conmocion === true && K.conmocion ? `<p class="fj-crit fj-cm"><b>Conmoción cerebral (registro SCAT5 del partido):</b> ${K.conmocion.detalleCaso(c).slice(1).map(([l, v]) => `<br><b>${e(l.replace(/^Conmoción · /, ''))}:</b> ${e(recorta(v, 300))}`).join('') || 'sin más datos'}</p>` : '';
     out.push(`<div class="fj-caso"><div class="fj-caso-h"><b>${e(c.titulo)}</b><span class="fj-ch"><i class="chip">${les ? 'Lesión' : 'Molestia'}</i><i class="chip g-${g}">${e(K.GRAVEDADES[g])}</i>${c.recidiva === true ? '<i class="chip rec">Recidiva</i>' : ''}</span></div><dl class="fj-dl fj-dl3">${filas}</dl>${cm}${notas}</div>`);

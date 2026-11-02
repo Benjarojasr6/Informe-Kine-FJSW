@@ -19,6 +19,14 @@
   K.diasHasta = (c, campo) => { const n = dif(c && c.inicio, c && c[campo]); return n != null && n >= 0 ? n : null; };
   const dias = (n) => `${n} ${n === 1 ? 'día' : 'días'}`;
 
+  // v1.6.9: el tejido afectado puede ser más de uno. Se guarda en c.tejido como texto con las claves separadas por coma
+  // ("muscular,tendon"); un solo tejido queda igual que antes.
+  K.tejidosDe = (c) => String((c && c.tejido) || '').split(',').map((x) => x.trim()).filter(Boolean);
+  K.tejidosTxt = (c, minus) => {
+    const t = K.tejidosDe(c).map((k) => (K.TEJIDOS.find((x) => x[0] === k) || [0, k])[1]).map((x) => (minus ? x.toLowerCase() : x));
+    return t.join(', ');
+  };
+
   /* ---------- Bloque “Más detalles clínicos” (lesión) ---------- */
   const tieneClin = (c) => !!(c.tejido || c.contacto || (c.eva != null && c.eva !== '') || c.altaMedica || c.retornoEntreno || c.retornoPartido);
   K.clinico = {
@@ -28,10 +36,11 @@
       const eva = [[0, '0 · sin dolor']].concat([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [n, String(n)]), [[10, '10 · el peor dolor']]);
       return `<details class="mas-clin" data-mas-clin${tieneClin(c) ? ' open' : ''}><summary>Más detalles clínicos</summary><div class="mas-cuerpo">
         <div class="grid2">
-          <label class="campo"><span>Tejido afectado</span><select name="tejido"><option value="">—</option>${K.opts(K.TEJIDOS, c.tejido || '')}</select></label>
           <label class="campo"><span>Contacto</span><select name="contacto"><option value="">—</option>${K.opts(K.CONTACTOS, c.contacto || '')}</select></label>
+          <label class="campo"><span>Dolor al inicio (EVA de 0 a 10)</span><select name="eva"><option value="">—</option>${K.opts(eva, c.eva == null ? '' : c.eva)}</select></label>
         </div>
-        <label class="campo"><span>Dolor al inicio (EVA de 0 a 10)</span><select name="eva"><option value="">—</option>${K.opts(eva, c.eva == null ? '' : c.eva)}</select></label>
+        <div class="campo" data-tejidos><span class="lbl">Tejido afectado <span class="suave" style="font-weight:400">(puedes marcar más de uno)</span></span>
+          <div class="fila wrap gap" style="gap:4px 14px">${K.TEJIDOS.map(([k, t]) => `<label class="check" style="padding:2px 0"><input type="checkbox" data-tejido="${k}"${K.tejidosDe(c).includes(k) ? ' checked' : ''}><span>${e(t)}</span></label>`).join('')}</div></div>
         ${o.sinFechas ? '' : `
         <h3 class="clin-h">Altas y retornos</h3>
         <div class="grid2">
@@ -71,7 +80,7 @@
     // Lee el bloque. Si el formulario no tiene fechas (molestia convertida) esa parte no viene.
     leer(hoja) {
       const v = (n) => { const el = hoja.querySelector(`[name=${n}]`); return el ? el.value : ''; };
-      const d = { tejido: v('tejido'), contacto: v('contacto'), eva: v('eva'), fechas: !!hoja.querySelector('[name=altaMedica]') };
+      const d = { tejido: Array.from(hoja.querySelectorAll('[data-tejido]:checked')).map((x) => x.dataset.tejido).join(','), contacto: v('contacto'), eva: v('eva'), fechas: !!hoja.querySelector('[name=altaMedica]') };
       if (d.fechas) {
         d.altaMedica = v('altaMedica'); d.retornoEntreno = v('retornoEntreno'); d.retornoPartido = v('retornoPartido');
       }
@@ -91,7 +100,7 @@
       const r = [], f = (iso) => (iso ? fc(iso) : '');
       if (c.conmocion === true && K.conmocion) K.conmocion.detalleCaso(c).forEach((x) => r.push(x));
       if (c.recidiva === true) r.push(['Recidiva', 'Sí']);
-      if (c.tejido) r.push(['Tejido', (K.TEJIDOS.find((x) => x[0] === c.tejido) || [0, c.tejido])[1]]);
+      if (c.tejido) r.push([K.tejidosDe(c).length > 1 ? 'Tejidos' : 'Tejido', K.tejidosTxt(c)]);
       if (c.contacto) r.push(['Contacto', (K.CONTACTOS.find((x) => x[0] === c.contacto) || [0, c.contacto])[1]]);
       if (c.eva != null && c.eva !== '') r.push(['Dolor al inicio (EVA)', c.eva + ' / 10']);
       if (c.reintegroDesde) r.push(['Inicio del reintegro deportivo', f(c.reintegroDesde)]);
