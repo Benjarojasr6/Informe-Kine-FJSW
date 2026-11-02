@@ -4,7 +4,7 @@
   const K = window.K;
   const e = K.esc;
   const TIPOS = [['todo', 'Todo'], ['casos', 'Lesiones y molestias'], ['atenciones', 'Atenciones'], ['eventos', 'Controles, exámenes, medicamentos y cirugías'], ['partidos', 'Partidos y minutos'], ['manuales', 'Ajustes manuales'], ['comentarios', 'Comentarios y fichas']];
-  const st = () => (K.ui.bit = K.ui.bit || { alc: '', jugador: '', tipos: 'todo', texto: '', agrupar: 'fecha', periodo: 'todo' });
+  const st = () => (K.ui.bit = K.ui.bit || { alc: '', jugador: '', tipos: 'todo', texto: '', agrupar: 'fecha', periodo: 'todo', origen: 'todo' });
   const fc = (iso) => (iso ? K.fechaCorta(iso) : 'Sin fecha');
   const nom = (inf, id) => (K.jugador(inf, id) || { nombre: '—' }).nombre;
 
@@ -21,15 +21,16 @@
   function vinf(f) {
     const a = alcance(f), base = K.inf();
     const vacio = (nombre) => Object.assign({}, base, { nombre, jugadores: [], casos: [], atenciones: [], eventos: [], manuales: [], partidos: [] });
+    // Historial completo: entran los jugadores de esas categorías de cualquier informe (archivados incluidos), con todos sus registros desde que fueron de la categoría.
+    const TODO = { desde: '0000-01-01', hasta: '9999-12-31' };
     if (a[0] === 'c') {
       const c = Number(a.slice(1)), inf = K.buscarInformeGrupo(K.grupoDe(c));
       if (!inf) return vacio('Sub ' + c);
-      const js = inf.jugadores.filter((j) => K.catNum(j) === c), ids = new Set(js.map((j) => j.id)), de = (arr) => arr.filter((x) => ids.has(x.jugadorId));
-      return Object.assign({}, inf, { nombre: 'Sub ' + c, jugadores: js, casos: de(inf.casos), atenciones: de(inf.atenciones), eventos: de(inf.eventos), manuales: [], _soloCat: true });
+      return Object.assign({}, K.vistaPeriodo(inf, [c], TODO, false, true), { nombre: 'Sub ' + c, partidos: inf.partidos, manuales: [], _soloCat: true });
     }
     if (a[0] === 'g') {
       const g = K.GRUPOS.find((x) => 'g' + x.id === a), inf = g && K.buscarInformeGrupo(g);
-      return inf ? Object.assign({}, inf, { nombre: g.nombre }) : vacio(g ? g.nombre : '');
+      return inf ? Object.assign({}, K.vistaPeriodo(inf, g.cats, TODO, true, true), { nombre: g.nombre, partidos: inf.partidos }) : vacio(g ? g.nombre : '');
     }
     const infs = K.GRUPOS.map((g) => K.buscarInformeGrupo(g)).filter(Boolean);
     if (!infs.length) return vacio('Todas las categorías');
@@ -40,38 +41,47 @@
     return inf.jugadores.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }
 
+  /* Entradas de un registro (las usan el registro clínico y la línea de tiempo de la ficha del jugador). */
+  function entCaso(c) {
+    const les = c.tipo === 'lesion', det = [];
+    det.push(['Gravedad', K.gravRotulo(c.gravedad, true)]);
+    if ((c.zonas || []).length) det.push(['Zona', c.zonas.map(K.nombreZona).join(', ')]);
+    if (c.mecanismo) det.push(['Ocurrió en', K.ocurrioTxt(c)]);
+    if (c.contexto) det.push(['Contexto', c.contexto]);
+    if (c.terreno) det.push(['Terreno', c.terreno]);
+    if (K.origenCasoTxt(c)) det.push([c.convertidaA ? 'Evolución' : 'Origen', K.origenCasoTxt(c)]);
+    det.push(['Inicio', fc(c.inicio)]);
+    const clin = K.clinico ? K.clinico.detalle(c) : [];
+    det.push([c.altaMedica || c.retornoEntreno || c.retornoPartido ? 'Alta kinésica' : 'Alta', c.alta ? fc(c.alta) : les ? 'En curso' : '—']);
+    const dur = K.duracionCaso(c); if (dur && dur !== 'en curso') det.push(['Duración', dur]);
+    if (les && c.inicio) det.push(['Días de baja', K.diasBajaCaso(c, { desde: c.inicio, hasta: '2100-01-01' }) + '']);
+    if (K.limitaTxt(c)) det.push(['Limita entrenamiento', K.limitaTxt(c)]);
+    clin.forEach((x) => det.push(x));
+    return { f: c.inicio || '', j: c.jugadorId, k: 'casos', tag: c.conmocion === true ? 'Conmoción' : les ? 'Lesión' : 'Molestia', cls: les ? 'les' : 'mol', titulo: c.titulo, det, notas: c.notas || '', raw: c };
+  }
+  function entAtencion(inf, a) {
+    const tr = Object.keys(a.trat || {}).filter((id) => a.trat[id] > 0).map((id) => `${(K.trat(inf, id) || { nombre: id }).nombre} ×${a.trat[id]}`);
+    const det = [['Tipo de atención', K.nombreClase(a.clase) || '—'], ['Origen', K.nombreOrigen(a.origen) || '—'], ['Período de la temporada', K.nombreTemporada(a.temporada) || '—'], ['Intervenciones', tr.length ? tr.join(', ') : 'Sin intervenciones anotadas']];
+    const caso = a.casoId && inf.casos.find((c) => c.id === a.casoId); if (caso) det.push(['Asociada a', caso.titulo]);
+    { const tn = a.torneoId && (K.state.informes.map((i) => (i.torneos || []).find((t) => t.id === a.torneoId)).find(Boolean)); if (tn) det.push(['Torneo', tn.nombre]); }
+    return { f: a.fecha || '', j: a.jugadorId, k: 'atenciones', tag: 'Atención', cls: 'at', titulo: 'Atención kinésica', det, notas: a.notas || '', raw: a };
+  }
+  function entEvento(inf, x) {
+    const def = K.EV[x.tipo] || { t: x.tipo }, det = [];
+    if (x.tipo !== 'cirugia') det.push([x.tipo === 'medicamento' ? 'Unidades' : 'Cantidad', String(x.cantidad || 1)]);
+    if (x.tipo === 'examen' && x.resultado) det.push(['Resultado', x.resultado]);
+    const caso = x.casoId && inf.casos.find((c) => c.id === x.casoId); if (caso) det.push(['Asociado a', caso.titulo]);
+    return { f: x.fecha || '', j: x.jugadorId, k: 'eventos', tag: def.t, cls: 'ev', titulo: x.nombre || def.t, det, notas: x.notas || '', raw: x };
+  }
+
   /* Entradas: { f: fecha, j: jugadorId|'', k: clave de tipo, tag, titulo, det: [[etiqueta, valor]], notas } */
   function entradas(inf, per, f) {
     const js = jugadoresBase(inf), ids = new Set(f.jugador ? [f.jugador] : js.map((j) => j.id));
     const ok = (fecha) => f.periodo !== 'periodo' || K.enPeriodo(fecha, per);
     const out = [];
-    inf.casos.filter((c) => ids.has(c.jugadorId) && ok(c.inicio)).forEach((c) => {
-      const les = c.tipo === 'lesion', det = [];
-      det.push(['Gravedad', K.gravRotulo(c.gravedad, true)]);
-      if ((c.zonas || []).length) det.push(['Zona', c.zonas.map(K.nombreZona).join(', ')]);
-      if (c.mecanismo) det.push(['Ocurrió en', K.ocurrioTxt(c)]);
-      if (c.contexto) det.push(['Contexto', c.contexto]);
-      if (c.terreno) det.push(['Terreno', c.terreno]);
-      if (K.origenCasoTxt(c)) det.push([c.convertidaA ? 'Evolución' : 'Origen', K.origenCasoTxt(c)]);
-      det.push(['Inicio', fc(c.inicio)]);
-      det.push(['Alta', c.alta ? fc(c.alta) : les ? 'En curso' : '—']);
-      const dur = K.duracionCaso(c); if (dur && dur !== 'en curso') det.push(['Duración', dur]);
-      if (les && c.inicio) det.push(['Días de baja', K.diasBajaCaso(c, { desde: c.inicio, hasta: '2100-01-01' }) + '']);
-      if (K.limitaTxt(c)) det.push(['Limita entrenamiento', K.limitaTxt(c)]);
-      out.push({ f: c.inicio || '', j: c.jugadorId, k: 'casos', tag: les ? 'Lesión' : 'Molestia', cls: les ? 'les' : 'mol', titulo: c.titulo, det, notas: c.notas || '', raw: c });
-    });
-    inf.atenciones.filter((a) => ids.has(a.jugadorId) && ok(a.fecha)).forEach((a) => {
-      const tr = Object.keys(a.trat || {}).filter((id) => a.trat[id] > 0).map((id) => `${(K.trat(inf, id) || { nombre: id }).nombre} ×${a.trat[id]}`);
-      const det = [['Tipo de atención', K.nombreClase(a.clase) || '—'], ['Origen', K.nombreOrigen(a.origen) || '—'], ['Período de la temporada', K.nombreTemporada(a.temporada) || '—'], ['Intervenciones', tr.length ? tr.join(', ') : 'Sin intervenciones anotadas']];
-      const caso = a.casoId && inf.casos.find((c) => c.id === a.casoId); if (caso) det.push(['Asociada a', caso.titulo]);
-      out.push({ f: a.fecha || '', j: a.jugadorId, k: 'atenciones', tag: 'Atención', cls: 'at', titulo: 'Atención kinésica', det, notas: a.notas || '', raw: a });
-    });
-    inf.eventos.filter((x) => ids.has(x.jugadorId) && ok(x.fecha) && K.evRealizado(x)).forEach((x) => {
-      const def = K.EV[x.tipo] || { t: x.tipo }, det = [];
-      if (x.tipo !== 'cirugia') det.push([x.tipo === 'medicamento' ? 'Unidades' : 'Cantidad', String(x.cantidad || 1)]);
-      const caso = x.casoId && inf.casos.find((c) => c.id === x.casoId); if (caso) det.push(['Asociado a', caso.titulo]);
-      out.push({ f: x.fecha || '', j: x.jugadorId, k: 'eventos', tag: def.t, cls: 'ev', titulo: x.nombre || def.t, det, notas: x.notas || '', raw: x });
-    });
+    inf.casos.filter((c) => ids.has(c.jugadorId) && ok(c.inicio)).forEach((c) => out.push(entCaso(c)));
+    inf.atenciones.filter((a) => ids.has(a.jugadorId) && ok(a.fecha) && (f.origen === 'gira' ? a.origen === 'gira' : f.origen === 'singira' ? a.origen !== 'gira' : true)).forEach((a) => out.push(entAtencion(inf, a)));
+    inf.eventos.filter((x) => ids.has(x.jugadorId) && ok(x.fecha) && K.evRealizado(x)).forEach((x) => out.push(entEvento(inf, x)));
     inf.partidos.filter((p) => ok(p.fecha)).forEach((p) => {
       const jug = Object.keys(p.minutos || {}).filter((id) => ids.has(id) && Number(p.minutos[id]) > 0);
       if (inf._soloCat && !jug.length) return;
@@ -97,8 +107,8 @@
     let r = lista;
     if (f.tipos !== 'todo' && f.tipos !== 'comentarios') r = r.filter((x) => x.k === f.tipos);
     if (f.tipos === 'comentarios') r = [];
-    const q = (f.texto || '').trim().toLowerCase();
-    if (q) r = r.filter((x) => [x.tag, x.titulo, nom(inf, x.j), x.notas].concat(x.det.map((d) => d[0] + ' ' + d[1])).join(' ').toLowerCase().includes(q));
+    const tk = K.norm(f.texto || '').split(' ').filter(Boolean); // sin tildes ni mayúsculas, todas las palabras
+    if (tk.length) r = r.filter((x) => { const h = K.norm([x.tag, x.titulo, nom(inf, x.j), x.notas].concat(x.det.map((d) => d[0] + ' ' + d[1])).join(' ')); return tk.every((t) => h.includes(t)); });
     return r;
   }
 
@@ -144,6 +154,7 @@
     }
     return { html: html || '<p class="vacio-msg">No hay registros con estos filtros.</p>', n: lista.length };
   };
+  K.bit = { entCaso, entAtencion, entEvento, fc };
   K.nombreMesLargo = (iso) => { const m = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][Number(iso.slice(5, 7)) - 1]; const t = (m || '') + ' ' + iso.slice(0, 4); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 
@@ -245,13 +256,14 @@
       <p class="suave" style="margin:0 2px 10px">Todo lo que se ha anotado en la app, con notas, fechas y días. No sale en el PDF del informe.</p>
       <div class="card">
         <div class="grid2">
-          <label class="campo"><span>Jugador</span><select data-acc-change="bitFiltro" data-k="jugador"><option value="">Todos</option>${js.map((j) => `<option value="${j.id}"${f.jugador === j.id ? ' selected' : ''}>${e(j.nombre)}</option>`).join('')}</select></label>
+          <div class="campo"><span class="lbl-j">Jugador</span>${K.selJugador('bitJugador', { lista: K.itemsSelJ(js), sel: f.jugador, vacio: 'Todos', attrs: 'data-acc-change="bitFiltro" data-k="jugador"', etiqueta: 'Filtrar por jugador', reciente: false })}</div>
           <label class="campo"><span>Mostrar</span><select data-acc-change="bitFiltro" data-k="tipos">${K.opts(TIPOS, f.tipos)}</select></label>
         </div>
         <div class="grid2">
           <label class="campo"><span>Ordenar por</span><select data-acc-change="bitFiltro" data-k="agrupar">${K.opts([['fecha', 'Fecha (lo más reciente primero)'], ['jugador', 'Jugador (cronológico)']], f.agrupar)}</select></label>
           <label class="campo"><span>Período</span><select data-acc-change="bitFiltro" data-k="periodo">${K.opts([['todo', 'Todo el historial'], ['periodo', 'Solo ' + per.completo.toLowerCase()]], f.periodo)}</select></label>
         </div>
+        <label class="campo"><span>Origen de las atenciones</span><select data-acc-change="bitFiltro" data-k="origen">${K.opts([['todo', 'Todas'], ['gira', 'Solo las hechas en gira / torneo fuera de sede'], ['singira', 'Sin las de gira']], f.origen || 'todo')}</select></label>
         <label class="campo"><span>Categorías</span><select data-acc-change="bitFiltro" data-k="alc">${K.opts(ALCANCES(), alcance(f))}</select></label>
         <label class="campo"><span>Buscar en todo el texto</span><input type="search" value="${e(f.texto)}" placeholder="Ej. rodilla, ibuprofeno, post partido…" data-acc-input="bitTexto"></label>
         <div class="fila wrap gap"><button class="btn chico" data-acc="bitPdf">${K.uiIco('pdf', 16)} Descargar PDF</button><button class="btn sec chico" data-acc="bitCsv">${K.uiIco('descargar', 16)} Descargar Excel (CSV)</button></div>
@@ -264,6 +276,13 @@
   };
 
   const csv = (v) => { let t = String(v == null ? '' : v); if (/^[=+@\t\r]/.test(t) || /^-(?!\d)/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; }; // un texto que empiece con = + - @ no se ejecuta como fórmula en Excel
+  // CSV listo para Excel: con BOM (acentos), separador ; y celdas neutralizadas contra fórmulas.
+  K.csvTexto = (filas) => '\ufeff' + filas.map((r) => r.map(csv).join(';')).join('\r\n');
+  K.descargarCSV = (filas, nombre) => {
+    const blob = new Blob([K.csvTexto(filas)], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
   Object.assign(K.acciones, {
     abrirBitacora() { K.ui.pantalla = 'bitacora'; K.render(); window.scrollTo(0, 0); },
     volverInforme() { K.ui.pantalla = 'informe'; K.render(); window.scrollTo(0, 0); },
@@ -284,9 +303,7 @@
         const j = K.jugador(inf, x.j);
         return [x.f ? K.fechaCorta(x.f) : '', j ? j.nombre : '', j ? j.categoria || '' : '', x.tag, x.titulo, x.det.map(([l, v]) => `${l}: ${v}`).join(' | '), x.notas];
       }));
-      const blob = new Blob(['﻿' + filas.map((r) => r.map(csv).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `registro-clinico-${inf.nombre.replace(/[^\w-]+/g, '-')}-${K.hoy()}.csv`;
-      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      K.descargarCSV(filas, `registro-clinico-${inf.nombre.replace(/[^\w-]+/g, '-')}-${K.hoy()}.csv`);
       K.aviso('Archivo descargado (ábrelo con Excel)');
     },
     bitPdf() {

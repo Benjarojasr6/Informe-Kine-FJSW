@@ -43,22 +43,34 @@
   };
 
   K.enPeriodo = (fecha, per) => !!fecha && fecha >= per.desde && fecha <= per.hasta;
-  // Un partido sin fecha se considera dentro de cualquier período (hasta que se le asigne fecha).
-  K.partidoEnPeriodo = (p, per) => !p.fecha || K.enPeriodo(p.fecha, per);
+  // Un partido sin fecha se cuenta solo en su año (p.anio, que el asistente de temporada le pone al cerrar el año) o, si no lo tiene, en el año vigente del informe (inf.anioTexto), hasta que se le asigne fecha.
+  K.partidoEnPeriodo = (p, per, inf) => (p.fecha ? K.enPeriodo(p.fecha, per) : p.anio ? K.anioDePeriodo(per) === Number(p.anio) : !inf || !inf.anioTexto || K.anioDePeriodo(per) === Number(inf.anioTexto));
 
-  K.partidosJugados = (inf, per) => inf.partidos.filter((p) => p.jugado && K.partidoEnPeriodo(p, per));
+  K.partidosJugados = (inf, per) => inf.partidos.filter((p) => p.jugado && K.partidoEnPeriodo(p, per, inf));
+
+  /* ---------- Índice por jugador (solo mientras se arma el informe: evita recorrer miles de registros por cada ficha) ---------- */
+  // K.porJugador(arreglo, id) = arreglo.filter((x) => x.jugadorId === id), en el mismo orden. Con K._idx activo (K.paginas) se calcula una sola vez por arreglo.
+  K._idx = null;
+  K.porJugador = function (arr, jid) {
+    const ix = K._idx;
+    if (!ix) return arr.filter((x) => x.jugadorId === jid);
+    let m = ix.get(arr);
+    if (!m || m.n !== arr.length) { m = new Map(); m.n = arr.length; arr.forEach((x) => { let l = m.get(x.jugadorId); if (!l) m.set(x.jugadorId, l = []); l.push(x); }); ix.set(arr, m); }
+    return m.get(jid) || [];
+  };
 
   /* ---------- Totales ---------- */
   // Devuelve { porFuente: {fuente: n}, trat: {id: n} } filtrando por período y, si se pide, por jugador.
   K.contar = function (inf, per, jugadorId) {
     const okJ = (x) => !jugadorId || x.jugadorId === jugadorId;
+    const de = (arr) => (jugadorId ? K.porJugador(arr, jugadorId) : arr); // con jugador: solo sus registros (mismo orden)
     const r = { lesiones: 0, molestias: 0, atenciones: 0, intervenciones: 0, controles: 0, examenes: 0, medicamentos: 0, cirugias: 0 };
     const trat = {};
-    inf.casos.forEach((c) => {
+    de(inf.casos).forEach((c) => {
       if (!okJ(c) || !K.enPeriodo(c.inicio, per)) return;
       if (c.tipo === 'lesion') r.lesiones++; else r.molestias++;
     });
-    inf.atenciones.forEach((a) => {
+    de(inf.atenciones).forEach((a) => {
       if (!okJ(a) || !K.enPeriodo(a.fecha, per)) return;
       r.atenciones++;
       Object.keys(a.trat || {}).forEach((tid) => {
@@ -69,7 +81,7 @@
         if (t && t.intervencion) r.intervenciones += n;
       });
     });
-    inf.eventos.forEach((e) => {
+    de(inf.eventos).forEach((e) => {
       if (!okJ(e) || !K.enPeriodo(e.fecha, per) || !K.evRealizado(e)) return;
       const n = Number(e.cantidad) || 1;
       if (e.tipo === 'control') r.controles += n;
@@ -103,7 +115,7 @@
 
   // Casos del jugador dentro del período (por fecha de inicio o por estar activos en él).
   K.casosJugador = function (inf, per, j) {
-    return inf.casos.filter((c) => c.jugadorId === j.id && K.enPeriodo(c.inicio, per));
+    return K.porJugador(inf.casos, j.id).filter((c) => K.enPeriodo(c.inicio, per));
   };
 
   K.duracionCaso = function (c) {
@@ -124,7 +136,7 @@
   // Agrupa controles y exámenes por nombre: [{nombre, n}]
   K.controlesJugador = function (inf, per, j) {
     const m = {};
-    inf.eventos.forEach((e) => {
+    K.porJugador(inf.eventos, j.id).forEach((e) => {
       if (e.jugadorId !== j.id || !K.enPeriodo(e.fecha, per) || !K.evRealizado(e)) return;
       if (e.tipo !== 'control' && e.tipo !== 'examen') return;
       const k = (e.nombre || (e.tipo === 'control' ? 'Control médico' : 'Examen')).trim();
@@ -193,7 +205,7 @@
   };
   K.medicamentosJugador = function (inf, per, j) {
     const m = {};
-    inf.eventos.forEach((e) => {
+    K.porJugador(inf.eventos, j.id).forEach((e) => {
       if (e.tipo !== 'medicamento' || e.jugadorId !== j.id || !K.enPeriodo(e.fecha, per)) return;
       const k = (e.nombre || 'Medicamento').trim(); m[k] = (m[k] || 0) + (Number(e.cantidad) || 1);
     });
@@ -214,7 +226,7 @@
     return f >= ini ? Math.max(1, dif(ini, f)) : 0;
   };
   K.bajaJugador = (inf, per, j) => {
-    const dias = inf.casos.filter((c) => c.jugadorId === j.id).reduce((s, c) => s + K.diasBajaCaso(c, per), 0);
+    const dias = K.porJugador(inf.casos, j.id).reduce((s, c) => s + K.diasBajaCaso(c, per), 0);
     const dp = K.diasPeriodo(per);
     return { dias, pct: Math.max(0, Math.round(100 * (1 - Math.min(dias, dp) / dp))) };
   };
@@ -247,22 +259,22 @@
     });
     if (dr.length) r.retorno = Math.round(dr.reduce((a, b) => a + b, 0) / dr.length);
     // ranking de zonas (agrupando lado derecho e izquierdo bajo su nombre)
-    r.top = Object.keys(r.zonas).map((id) => [K.nombreZona(id), r.zonas[id]]).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    r.top = Object.keys(r.zonas).map((id) => [K.nombreZona(id), r.zonas[id]]).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'es')).slice(0, 8);
     // medicamentos entregados (total por nombre)
     const md = {};
     inf.eventos.forEach((ev) => { if (ev.tipo === 'medicamento' && K.enPeriodo(ev.fecha, per) && inf.jugadores.some((j) => j.id === ev.jugadorId)) { const k = (ev.nombre || 'Medicamento').trim(); md[k] = (md[k] || 0) + (Number(ev.cantidad) || 1); } });
-    r.meds = Object.keys(md).map((k) => [k, md[k]]).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    r.meds = Object.keys(md).map((k) => [k, md[k]]).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'es')).slice(0, 6);
     // jugadores con más atenciones
     const at = {};
     inf.atenciones.forEach((a) => { if (K.enPeriodo(a.fecha, per)) at[a.jugadorId] = (at[a.jugadorId] || 0) + 1; });
-    r.topAt = Object.keys(at).map((id) => [(K.jugador(inf, id) || { nombre: '—' }).nombre, at[id]]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    r.topAt = Object.keys(at).map((id) => [(K.jugador(inf, id) || { nombre: '—' }).nombre, at[id]]).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'es')).slice(0, 5);
     // recurrencias: mismo jugador y misma zona en 2 o más casos
     const rec = {};
     casos.forEach((c) => (c.zonas || []).forEach((z) => { const k = c.jugadorId + '|' + z; rec[k] = (rec[k] || 0) + 1; }));
     r.recurrentes = Object.keys(rec).filter((k) => rec[k] >= 2).map((k) => { const [jid, z] = k.split('|'); return [(K.jugador(inf, jid) || { nombre: '—' }).nombre, K.nombreZona(z), rec[k]]; }).slice(0, 6);
     return r;
   };
-  K.edadAnios = (nac) => (/^\d{4}$/.test(String(nac || '')) ? new Date().getFullYear() - Number(nac) : null);
+  K.edadAnios = (nac, anio) => (/^\d{4}$/.test(String(nac || '')) ? (anio || new Date().getFullYear()) - Number(nac) : null);
 
   K.edad = (nac) => (nac ? String(nac).slice(0, 4) : '');
 
@@ -277,7 +289,7 @@
   // Controles, exámenes y cirugías con fecha posterior a hoy todavía no ocurrieron: no cuentan en totales.
   K.evRealizado = (e) => !['control', 'examen', 'cirugia'].includes(e.tipo) || !e.fecha || e.fecha <= K.hoy();
   K.asistenciaKine = function (inf, jugadorId, per) {
-    const rs = (inf.asistencias || []).filter((a) => a.jugadorId === jugadorId && (!per || K.enPeriodo(a.fecha, per)));
+    const rs = K.porJugador(inf.asistencias || [], jugadorId).filter((a) => !per || K.enPeriodo(a.fecha, per));
     const si = rs.filter((a) => a.v === 'si').length;
     const esp = rs.filter(K.asisEsperada).length;
     const enf = rs.filter((a) => a.v === 'no' && a.no === 'enfermedad').length;
@@ -286,8 +298,8 @@
   // Historial de lesiones / cirugías de un jugador: histórico, del año del período y del período.
   K.historialJugador = function (inf, j, per) {
     const anio = per.desde.slice(0, 4);
-    const lesiones = inf.casos.filter((c) => c.jugadorId === j.id && c.tipo === 'lesion').sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
-    const cirugias = inf.eventos.filter((x) => x.jugadorId === j.id && x.tipo === 'cirugia' && K.evRealizado(x)).sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+    const lesiones = K.porJugador(inf.casos, j.id).filter((c) => c.tipo === 'lesion').sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
+    const cirugias = K.porJugador(inf.eventos, j.id).filter((x) => x.tipo === 'cirugia' && K.evRealizado(x)).sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
     const cuenta = (arr, f) => ({ hist: arr.length, anio: arr.filter((x) => (x[f] || '').slice(0, 4) === anio).length, per: arr.filter((x) => K.enPeriodo(x[f], per)).length, anioTxt: anio, lista: arr });
     return { lesiones: cuenta(lesiones, 'inicio'), cirugias: cuenta(cirugias, 'fecha') };
   };

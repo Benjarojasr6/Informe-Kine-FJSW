@@ -6,9 +6,9 @@
 
   const render0 = K.render;
   K.render = function () {
-    const cur = { p: K.ui.pantalla, j: K.ui.jugadorId || null, m: K.ui.partidoId || null, c: K.ui.cat || null };
+    const cur = { p: K.ui.pantalla, j: K.ui.jugadorId || null, m: K.ui.partidoId || null, t: K.ui.torneoId || null, c: K.ui.cat || null };
     if (previo && previo.c !== cur.c) pila.length = 0;
-    else if (previo && !K._volviendo && (previo.p !== cur.p || previo.j !== cur.j || previo.m !== cur.m) && cur.c) { pila.push(previo); if (pila.length > 25) pila.shift(); }
+    else if (previo && !K._volviendo && (previo.p !== cur.p || previo.j !== cur.j || previo.m !== cur.m || previo.t !== cur.t) && cur.c) { pila.push(previo); if (pila.length > 25) pila.shift(); }
     previo = cur; K._volviendo = false;
     return render0.apply(this, arguments);
   };
@@ -19,8 +19,9 @@
     const cubierta = document.getElementById('vista-previa-cubierta'); if (cubierta) { cubierta.remove(); return true; }
     if (!K.state || !K.ui.cat) return false;
     const v = pila.pop();
-    if (v && v.c === K.ui.cat) { K._volviendo = true; K.ui.pantalla = v.p; K.ui.jugadorId = v.j; K.ui.partidoId = v.m; K.render(); window.scrollTo(0, 0); return true; }
-    if (K.ui.pantalla !== 'informe' || K.ui.jugadorId || K.ui.partidoId) { K._volviendo = true; K.ui.pantalla = 'informe'; K.ui.jugadorId = null; K.ui.partidoId = null; K.render(); window.scrollTo(0, 0); return true; }
+    if (v && v.c === K.ui.cat) { K._volviendo = true; K.ui.pantalla = v.p; K.ui.jugadorId = v.j; K.ui.partidoId = v.m; K.ui.torneoId = v.t || null; K.render(); window.scrollTo(0, 0); return true; }
+    const casa = K.puedeEditar && !K.puedeEditar() ? 'informe' : 'hoy'; // la pantalla de inicio de una categoría
+    if (K.ui.pantalla !== casa || K.ui.jugadorId || K.ui.partidoId || K.ui.torneoId) { K._volviendo = true; K.ui.pantalla = casa; K.ui.jugadorId = null; K.ui.partidoId = null; K.ui.torneoId = null; K.render(); window.scrollTo(0, 0); return true; }
     return false;
   };
 

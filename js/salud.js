@@ -36,11 +36,15 @@
       add(cuenta(inf.atenciones || [], (a) => a.casoId && !casos.has(a.casoId)), 'atención(es) ligada(s) a un caso que ya no existe');
       add(cuenta(inf.seguros || [], (s) => !jug.has(s.jugadorId)), 'activación(es) de seguro de un jugador que ya no existe');
       add(cuenta(inf.segEventos || [], (x) => x.seguroId && !segs.has(x.seguroId)), 'evento(s) de seguro sin su activación');
+      add(cuenta(inf.antecedentes || [], (x) => !jug.has(x.jugadorId)), 'antecedente(s) de un jugador que ya no existe');
+      add(cuenta(inf.documentos || [], (x) => !jug.has(x.jugadorId)), 'documento(s) de un jugador que ya no existe');
+      add(cuenta(inf.documentos || [], (x) => String(x.img || '').length > 950000), 'documento(s) con una imagen demasiado grande para la nube');
       let minHuerf = 0, incHuerf = 0;
       (inf.partidos || []).forEach((p) => {
         Object.keys(p.minutos || {}).forEach((id) => { if (!jug.has(id)) minHuerf++; });
         (p.incidencias || []).forEach((i) => { if (!jug.has(i.jugadorId)) incHuerf++; });
       });
+      { const ts = new Set((inf.torneos || []).map((t) => t.id)); add(cuenta(inf.partidos || [], (p) => p.torneoId && !ts.has(p.torneoId)), 'partido(s) ligado(s) a un torneo que ya no existe'); }
       add(minHuerf, 'minuto(s) de partido de un jugador que ya no existe');
       add(incHuerf, 'incidencia(s) de partido de un jugador que ya no existe');
       const malaFecha = (f) => f && !FECHA_OK.test(String(f).slice(0, 10));
@@ -174,7 +178,7 @@
   });
 
   /* ---------- importar respaldo (vista previa + copia de seguridad antes de reemplazar) ---------- */
-  const lineas = (r) => `<li><b>${num(r.informes)}</b> ${r.informes === 1 ? 'informe' : 'informes'}</li><li><b>${num(r.jugadores)}</b> ${r.jugadores === 1 ? 'jugador' : 'jugadores'}</li><li><b>${num(r.casos)}</b> ${r.casos === 1 ? 'caso' : 'casos'} · <b>${num(r.atenciones)}</b> ${r.atenciones === 1 ? 'atención' : 'atenciones'}</li><li><b>${num(r.partidos)}</b> ${r.partidos === 1 ? 'partido' : 'partidos'}</li><li><b>${num(r.seguros)}</b> ${r.seguros === 1 ? 'activación' : 'activaciones'} de seguro · <b>${num(r.segEventos)}</b> ${r.segEventos === 1 ? 'evento' : 'eventos'}</li>`;
+  const lineas = (r) => `<li><b>${num(r.informes)}</b> ${r.informes === 1 ? 'informe' : 'informes'}</li><li><b>${num(r.jugadores)}</b> ${r.jugadores === 1 ? 'jugador' : 'jugadores'}</li><li><b>${num(r.casos)}</b> ${r.casos === 1 ? 'caso' : 'casos'} · <b>${num(r.atenciones)}</b> ${r.atenciones === 1 ? 'atención' : 'atenciones'}</li><li><b>${num(r.partidos)}</b> ${r.partidos === 1 ? 'partido' : 'partidos'}</li>${r.torneos ? `<li><b>${num(r.torneos)}</b> ${r.torneos === 1 ? 'torneo' : 'torneos'}</li>` : ''}<li><b>${num(r.seguros)}</b> ${r.seguros === 1 ? 'activación' : 'activaciones'} de seguro · <b>${num(r.segEventos)}</b> ${r.segEventos === 1 ? 'evento' : 'eventos'}</li>`;
   K.importarArchivo = function (txt, despues) {
     let rev;
     try { rev = K.revisarRespaldo(txt); } catch (x) { K.aviso(x.message, true); return; }
@@ -191,6 +195,7 @@
       try { r = K.importar(txt, modo); } catch (x) { K.aviso(x.message, true); return; }
       let msg = modo === 'reemplazar' ? 'Respaldo restaurado' : 'Agregado: ' + r.agregados.join(', ');
       if (modo === 'agregar' && r.omitidos.length) msg += ' (se omitió ' + r.omitidos.join(', ') + ', que ya existe)';
+      if (r.enOtroInforme) msg += ` (${r.enOtroInforme} jugador${r.enOtroInforme === 1 ? '' : 'es'} ya está${r.enOtroInforme === 1 ? '' : 'n'} en el otro informe, con sus registros más nuevos, y no se repitieron)`;
       despues(msg);
     };
     const nubeAviso = K.rol === 'admin' ? ' <u>y también cambia lo guardado en la nube para ambos kinesiólogos</u>' : '';

@@ -30,15 +30,16 @@
   const ss = () => { const s = K.kineEstado(); if (s.segAnio === undefined) s.segAnio = 'todo'; return s; };
 
   /* ---------- Ingreso al seguro ---------- */
-  function formIngreso(sid) {
-    const ya = sid ? segPorId(sid) : null, js = K.kineJugadores();
+  function formIngreso(sid, pre) {
+    pre = pre || {};
+    const ya = sid ? segPorId(sid) : null, js = K.kineJugadores(!!ya); // al editar una activación vale también un jugador archivado
     if (!js.length) { K.aviso('Primero agrega jugadores en la pestaña Jugadores', true); return; }
     const s = ya ? ya.s : {}, jid = ya ? s.jugadorId : '';
     const opcJ = js.filter((x) => !ya || x.j.id === jid).map((x) => `<option value="${x.inf.id}|${x.j.id}"${x.j.id === jid ? ' selected' : ''}>${e(x.j.nombre)} · ${e(x.j.categoria || 'Sub ' + x.cat)}</option>`).join('');
     K.modal({
       titulo: ya ? 'Datos de la activación del seguro' : 'Nueva activación del seguro',
       cuerpo: `
-        <label class="campo"><span>Jugador (nombre completo y categoría)</span><select name="jid" ${ya ? 'disabled' : ''}>${ya ? '' : '<option value="">— elegir —</option>'}${opcJ}</select></label>
+        <div class="campo"><span class="lbl-j">Jugador (nombre completo y categoría)</span>${K.selJugador('jid', { lista: K.itemsSelJ(js.filter((x) => !ya || x.j.id === jid).map((x) => ({ j: x.j, value: x.inf.id + '|' + x.j.id, sub: x.j.categoria || 'Sub ' + x.cat }))), sel: ya ? (js.find((x) => x.j.id === jid) ? js.find((x) => x.j.id === jid).inf.id + '|' + jid : '') : pre.jid || '', disabled: !!ya })}</div>
         <p class="suave" data-prev style="margin:-4px 0 8px"></p>
         <label class="campo"><span>Diagnóstico o motivo de esta activación (ej. Esguince de tobillo)</span><input type="text" name="diagnostico" list="dl-segdx" value="${e(s.diagnostico || '')}" autocomplete="off"><datalist id="dl-segdx"></datalist></label>
         <div class="grid2">
@@ -47,12 +48,17 @@
         </div>
         <div class="grid2">
           <label class="campo"><span>Comuna donde vive</span><input type="text" name="comuna" value="${e(s.comuna || '')}" autocomplete="off"></label>
-          <label class="campo"><span>Fecha de activación del seguro</span><input type="date" name="activacion" value="${e(s.activacion || '')}"></label>
+          <label class="campo"><span>Fecha de activación del seguro</span><input type="date" name="activacion" value="${e(s.activacion || pre.activacion || '')}"></label>
         </div>
         <div class="grid2">
           <label class="campo"><span>Clínica a la que asiste</span><input type="text" name="clinica" list="dl-clin" value="${e(s.clinica || '')}" autocomplete="off"><datalist id="dl-clin">${clinicasGuardadas().map((c) => `<option value="${e(c)}">`).join('')}</datalist></label>
           <label class="campo"><span>N.º de asistencia de la clínica</span><input type="text" name="nClinica" value="${e(s.nClinica || '')}" autocomplete="off"></label>
         </div>
+        <div class="grid2">
+          <label class="campo"><span>País donde ocurrió (opcional)</span><input type="text" name="pais" maxlength="80" value="${e(s.pais || pre.pais || '')}" placeholder="Ej. Paraguay" autocomplete="off"></label>
+          <label class="campo"><span>Cobertura (opcional)</span><select name="cobertura"><option value="">—</option>${K.opts(K.COBERTURAS_SEGURO.map((x) => [x, x === 'Club' ? 'Seguro del club' : 'Seguro de viaje']), s.cobertura || pre.cobertura || '')}</select></label>
+        </div>
+        <label class="campo"><span>N.º de póliza (opcional)</span><input type="text" name="poliza" maxlength="60" value="${e(s.poliza || '')}" autocomplete="off"></label>
         <p class="suave">Estos datos son privados: solo los ven los administradores y no salen en el informe.</p>`,
       botones: [
         ya ? { txt: 'Quitar', cls: 'peligro', fn: () => { K.confirmar('¿Quitar esta activación del seguro? También se borran sus eventos.', 'Quitar', () => { const evs = evsDe(ya.inf, s).map((x) => x.id); ya.inf.seguros = ya.inf.seguros.filter((x) => x.id !== s.id); ya.inf.segEventos = (ya.inf.segEventos || []).filter((x) => !evs.includes(x.id)); K.guardar(); K.aviso('Quitado'); K.render(); }); return true; } } : { txt: 'Cancelar', cls: 'sec' },
@@ -61,8 +67,9 @@
           fn: (m, hoja) => {
             const d = K.datos(hoja);
             const campos = { diagnostico: (d.diagnostico || '').trim(), rut: fmtRut(d.rut), fechaNac: d.fechaNac || '', comuna: (d.comuna || '').trim(), activacion: d.activacion || '', clinica: (d.clinica || '').trim(), nClinica: (d.nClinica || '').trim() };
+            { const pa = (d.pais || '').trim().slice(0, 80), po = (d.poliza || '').trim().slice(0, 60); if (pa) campos.pais = pa; if (K.COBERTURAS_SEGURO.includes(d.cobertura)) campos.cobertura = d.cobertura; if (po) campos.poliza = po; }
             if (!campos.diagnostico) { K.aviso('Escribe el diagnóstico o motivo de esta activación', true); return false; }
-            if (ya) Object.assign(s, campos);
+            if (ya) { ['pais', 'cobertura', 'poliza'].forEach((k) => { if (!(k in campos)) delete s[k]; }); Object.assign(s, campos); }
             else {
               if (!d.jid) { K.aviso('Elige un jugador', true); return false; }
               const [iid, id] = d.jid.split('|'), inf = K.state.informes.find((i) => i.id === iid);
@@ -103,6 +110,7 @@
         </div>
         <div data-blq="examen" class="${tipo0 === 'examen' ? '' : 'oculto'}">
           <label class="campo"><span>Examen</span><select name="exSel">${K.opts(exSug.map((x) => [x, x]).concat([['__otro', 'Otro (escribir)…']]), rec && rec.tipo === 'examen' ? (exEsta ? rec.detalle : '__otro') : exSug[0])}</select></label>
+          <label class="campo"><span>Resultado (opcional)</span><input type="text" name="resultado" maxlength="160" value="${e(rec ? rec.resultado || '' : '')}" placeholder="Ej. Rotura parcial de fibras, grado II" autocomplete="off"></label>
         </div>
         <label class="campo" data-blq="detalle"><span data-lbl>Detalle</span><input type="text" name="detalle" list="dl-segdet" value="${e(rec && !(rec.tipo === 'examen' && exEsta) ? rec.detalle || '' : '')}" autocomplete="off"><datalist id="dl-segdet"></datalist></label>
         <div class="grid2">
@@ -122,7 +130,10 @@
             const campos = { jugadorId: jid, seguroId: sid, tipo, fecha: d.fecha, detalle, nAsist: (d.nAsist || '').trim(), cantidad: tipo === 'kinesiologia' ? Math.max(1, Number(d.cantidad) || 1) : 1, hasta: tipo === 'hosp' ? d.hasta || '' : '', casoId: d.casoId || '', notas: d.notas };
             if (!campos.fecha) { K.aviso('Pon la fecha', true); return false; }
             inf.segEventos = inf.segEventos || [];
-            if (rec) Object.assign(inf.segEventos.find((x) => x.id === rec.id), campos); else inf.segEventos.push(Object.assign({ id: K.uid() }, campos));
+            const resultado = tipo === 'examen' ? (d.resultado || '').trim() : '';
+            const reg = rec ? inf.segEventos.find((x) => x.id === rec.id) : Object.assign({ id: K.uid() }, campos);
+            if (rec) Object.assign(reg, campos); else inf.segEventos.push(reg);
+            if (resultado) reg.resultado = resultado; else delete reg.resultado;
             K.guardar(); K.aviso('Guardado'); K.render();
           }
         }
@@ -155,9 +166,9 @@
       <div class="seg-cab seg-cab-t" data-acc="segToggle" data-sid="${s.id}" role="button" tabindex="0" aria-expanded="true"><div class="txt"><b>${e(j.nombre)}</b><span>${cat} · ${e(s.diagnostico || 'sin diagnóstico')}</span></div>
         <button class="btn ghost chico" data-acc="segEditar" data-sid="${s.id}">${K.uiIco('editar', 16)} Datos</button><i class="seg-flecha">${K.uiIco('arriba', 18)}</i></div>
       <dl class="seg-datos"><div style="grid-column:1/-1"><dt>Diagnóstico</dt><dd>${e(s.diagnostico || '—')}</dd></div><div><dt>RUT</dt><dd>${e(fmtRut(s.rut) || '—')}</dd></div><div><dt>Nacimiento</dt><dd>${s.fechaNac ? e(fc(s.fechaNac)) : '—'}</dd></div><div><dt>Comuna</dt><dd>${e(s.comuna || '—')}</dd></div>
-        <div><dt>Activación</dt><dd>${s.activacion ? e(fc(s.activacion)) : '—'}</dd></div><div><dt>Clínica</dt><dd>${e(s.clinica || '—')}${s.nClinica ? ' · N.º ' + e(s.nClinica) : ''}</dd></div></dl>
+        <div><dt>Activación</dt><dd>${s.activacion ? e(fc(s.activacion)) : '—'}</dd></div><div><dt>Clínica</dt><dd>${e(s.clinica || '—')}${s.nClinica ? ' · N.º ' + e(s.nClinica) : ''}</dd></div>${s.pais ? `<div><dt>País</dt><dd>${e(s.pais)}</dd></div>` : ''}${s.cobertura ? `<div><dt>Cobertura</dt><dd>${e(s.cobertura === 'Club' ? 'Seguro del club' : 'Seguro de viaje')}</dd></div>` : ''}${s.poliza ? `<div><dt>Póliza</dt><dd>${e(s.poliza)}</dd></div>` : ''}</dl>
       <div class="fila sb" style="margin:8px 0 2px"><b style="font-size:13.5px">Eventos (${evs.length})</b><button class="btn chico" data-acc="segEvento" data-sid="${s.id}">${K.uiIco('mas', 16)} Evento</button></div>
-      ${evs.length ? `<div class="lista">${evs.map((x) => `<div class="item seg-ev" data-acc="segEvEditar" data-id="${x.id}" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL[x.tipo]}"></span><div class="txt"><b>${e(TIPO_TXT[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'kinesiologia' && (Number(x.cantidad) || 1) > 1 ? ' (' + x.cantidad + ' sesiones)' : ''}</b><span>${e(fc(x.fecha))}${x.hasta ? ' al ' + e(fc(x.hasta)) : ''} · ${x.nAsist ? 'N.º asistencia ' + e(x.nAsist) : 'sin N.º de asistencia'}</span></div></div>`).join('')}</div>` : '<p class="suave" style="margin:4px 0 0">Sin eventos todavía.</p>'}
+      ${evs.length ? `<div class="lista">${evs.map((x) => `<div class="item seg-ev" data-acc="segEvEditar" data-id="${x.id}" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL[x.tipo]}"></span><div class="txt"><b>${e(TIPO_TXT[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'examen' && x.resultado ? ' — ' + e(x.resultado) : ''}${x.tipo === 'kinesiologia' && (Number(x.cantidad) || 1) > 1 ? ' (' + x.cantidad + ' sesiones)' : ''}</b><span>${e(fc(x.fecha))}${x.hasta ? ' al ' + e(fc(x.hasta)) : ''} · ${x.nAsist ? 'N.º asistencia ' + e(x.nAsist) : 'sin N.º de asistencia'}</span></div></div>`).join('')}</div>` : '<p class="suave" style="margin:4px 0 0">Sin eventos todavía.</p>'}
     </div>`;
   }
 
@@ -182,7 +193,7 @@
     const kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
     const partes = TIPOS.map(([k, t]) => [t, c[k] || 0, TIPO_COL[k]]);
     return `<div class="card"><div class="fila sb wrap gap"><h2 style="margin:0">Uso del seguro</h2>${sel}</div>
-      <div class="bd-kpis">${kpi(ini, 'Activaciones iniciales de seguro (Sala de urgencias)')}${kpi(ini + evs.length, 'Activaciones + continuidad')}${kpi(evs.length, 'eventos de continuidad')}${kpi(c.control || 0, 'controles')}${kpi(c.examen || 0, 'exámenes')}${kpi(c.procedimiento || 0, 'procedimientos')}${kpi(ses, 'sesiones de kine')}${kpi(c.cirugia || 0, 'cirugías')}${kpi(c.hosp || 0, 'hospitalizaciones')}</div>
+      <div class="bd-kpis">${kpi(ini, 'Activaciones iniciales de seguro (Sala de urgencias)')}${kpi(ini + evs.length, 'Activaciones + continuidad')}${kpi(evs.length, 'eventos de continuidad')}${kpi(c.control || 0, 'controles')}${kpi(c.examen || 0, 'exámenes')}${kpi(c.procedimiento || 0, 'procedimientos')}${kpi(ses, 'sesiones de kinesiología')}${kpi(c.cirugia || 0, 'cirugías')}${kpi(c.hosp || 0, 'hospitalizaciones')}</div>
       <div class="bd-g">
         ${panel('Eventos por mes', mensual(evs.map((x) => ({ f: x.fecha, cls: 'ev' }))), true)}
         ${panel('Tipo de evento', donut(partes))}
@@ -196,6 +207,7 @@
       <p class="bd-nota">${conAsist} de ${evs.length} eventos tienen N.º de asistencia registrado.</p></div>`;
   }
 
+  K.seguroNuevo = (pre) => formIngreso('', pre); // desde la ficha de un torneo: país, cobertura y fecha ya puestos
   K.kineSeguroHTML = function () {
     const lista = todos('seguros').map((r) => ({ inf: r.inf, s: r.x, cat: (K.kineBuscarJ(r.x.jugadorId) || { cat: 0 }).cat }))
       .sort((a, b) => b.cat - a.cat || ((K.jugador(a.inf, a.s.jugadorId) || { nombre: '' }).nombre).localeCompare((K.jugador(b.inf, b.s.jugadorId) || { nombre: '' }).nombre, 'es') || (a.s.activacion || '').localeCompare(b.s.activacion || ''));
@@ -221,6 +233,11 @@
       if (c.jugadorId !== j.id || c.tipo !== 'lesion' || !c.inicio) return;
       const fin = c.alta || hoy;
       for (let d = c.inicio, n = 0; d <= fin && n < 800; d = suma(d, 1), n++) if (en(d)) { const x = mk(d); x.les = true; if (d === c.inicio) { x.L = true; x.tx.push('Lesión: ' + c.titulo); } }
+      // Inicio del reintegro deportivo (R) y alta (A) de la lesión
+      const rd = K.inicioReintegro(inf, c);
+      if (rd && en(rd)) { const x = mk(rd); x.R = true; x.tx.push('Inicio del reintegro deportivo: ' + c.titulo); }
+      if (c.alta && en(c.alta)) { const x = mk(c.alta); x.A = true; x.tx.push('Alta: ' + c.titulo); }
+      if (c.altaMedica && c.altaMedica !== c.alta && en(c.altaMedica)) { const x = mk(c.altaMedica); x.A = true; x.tx.push('Alta médica: ' + c.titulo); }
     });
     (inf.asistencias || []).forEach((a) => {
       if (a.jugadorId !== j.id) return;
@@ -255,13 +272,14 @@
       for (let d = 1; d <= 31; d++) {
         if (d > nd) { celdas += '<i class="ac fuera"></i>'; continue; }
         const iso = `${anio}-${K.pad(mes)}-${K.pad(d)}`, x = mapa[iso], k = x && PRIO.find((p) => x.k.has(p));
-        const fondo = x && x.L ? '#d62839' : k ? AC[k][1] : x && x.les ? LESION_COL : '';
+        const letra = x ? (x.L ? 'L' : x.A ? 'A' : x.R ? 'R' : '') : '';
+        const fondo = letra === 'L' ? '#d62839' : letra === 'A' ? '#0b7a43' : letra === 'R' ? '#1f5fbf' : k ? AC[k][1] : x && x.les ? LESION_COL : '';
         const tit = `${d} ${MESES[mes - 1].toLowerCase()}${x ? ': ' + (x.tx.length ? x.tx.join('; ') : x.les ? 'lesionado' : '') : ''}${x && x.les && k ? ' · lesionado' : ''}`;
-        celdas += `<i class="ac${iso === hoy ? ' hoy' : ''}${k && x.les && !x.L ? ' con-les' : ''}${x && x.L ? ' dia-L' : ''}"${fondo ? ` style="background:${fondo}"` : ''} title="${e(tit)}">${x && x.L ? 'L' : ''}</i>`;
+        celdas += `<i class="ac${iso === hoy ? ' hoy' : ''}${k && x.les && !x.L ? ' con-les' : ''}${letra ? ' dia-' + letra : ''}"${fondo ? ` style="background:${fondo}"` : ''} title="${e(tit)}">${letra}</i>`;
       }
       filas += `<div class="ac-fila"><span>${MESES[mes - 1].slice(0, 3)}</span>${celdas}</div>`;
     }
-    const ley = PRIO.map((k) => `<span><i style="background:${AC[k][1]}"></i>${AC[k][0]}${cuenta[k] ? ` <b>${cuenta[k]}</b>` : ''}</span>`).join('') + `<span><i style="background:#d62839;color:#fff;font-size:8px;font-style:normal;text-align:center;line-height:11px">L</i>Día de la lesión</span><span><i style="background:${LESION_COL}"></i>Lesionado <b>${diasLes}</b></span>`;
+    const ley = PRIO.map((k) => `<span><i style="background:${AC[k][1]}"></i>${AC[k][0]}${cuenta[k] ? ` <b>${cuenta[k]}</b>` : ''}</span>`).join('') + `<span><i style="background:#d62839;color:#fff;font-size:8px;font-style:normal;text-align:center;line-height:11px">L</i>Día de la lesión</span><span><i style="background:#1f5fbf;color:#fff;font-size:8px;font-style:normal;text-align:center;line-height:11px">R</i>Inicio del reintegro deportivo</span><span><i style="background:#0b7a43;color:#fff;font-size:8px;font-style:normal;text-align:center;line-height:11px">A</i>Alta</span><span><i style="background:${LESION_COL}"></i>Lesionado <b>${diasLes}</b></span>`;
     return `<div class="card"><h2>Calendario de asistencia anual</h2>
       <div class="grid2"><label class="campo"><span>Jugador</span><select data-acc-change="anualJ">${js.map((x) => `<option value="${x.j.id}"${x.j.id === s.anualJ ? ' selected' : ''}>${e(x.j.nombre)} · ${e(x.j.categoria || 'Sub ' + x.cat)}</option>`).join('')}</select></label>
         <label class="campo"><span>Año</span><select data-acc-change="anualAnio">${aniosOp.map((a) => `<option value="${a}"${a === anio ? ' selected' : ''}>${a}</option>`).join('')}</select></label></div>

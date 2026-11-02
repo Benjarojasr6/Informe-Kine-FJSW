@@ -216,6 +216,7 @@
 .cg-nums { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
 .cg-nums div { text-align: center; flex: 1; }
 .cg-nums b { display: block; font-family: Caladea, Georgia, serif; font-size: 21px; line-height: 1; color: #1d3a2a; }
+.cg-ayuda { margin: 0 0 3px; font-size: 7.4px; line-height: 1.25; color: #5a665f; }
 .cg-nums span { font-size: 7.5px; letter-spacing: .1em; text-transform: uppercase; color: #5a665f; }
 .mb-tit { font-size: 7.5px; letter-spacing: .1em; text-transform: uppercase; color: #5a665f; margin: 2px 0 2px; }
 .mb { display: flex; align-items: flex-end; gap: 3px; padding-top: 9px; position: relative; }
@@ -468,3 +469,91 @@
 
 /* escudo del club junto al “vs” en el informe de partido */
 .bit-print header img.sw-vs { width: auto; height: 58px; border-radius: 0; object-fit: contain; }
+
+/* ---------- Ficha del jugador en PDF (bloques medidos y repartidos en páginas carta) ---------- */
+.pagina.fj .fj-cuerpo { font-size: 11px; color: var(--tinta); line-height: 1.3; }
+.fj-blq { display: flow-root; margin-bottom: 10px; } .fj-blq.fj-blq-s { margin-bottom: 4px; }
+.fj-cab { display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; }
+.fj-cab .sw-vs { height: 56px; width: auto; flex: none; object-fit: contain; }
+.fj-cab-t { flex: 1; min-width: 0; } .fj-cab-t h1 { font: 700 24px/1.1 Caladea, Georgia, serif; color: var(--verde); margin: 0 0 4px; }
+.fj-cab-t p { margin: 0; font-size: 10px; color: var(--suave); letter-spacing: .03em; }
+.fj-cab-c { padding: 6px 12px; margin-bottom: 0; } .fj-cab-c .sw-vs { height: 38px; } .fj-cab-c h1 { font-size: 17px; margin: 0; }
+.fj-foto { width: 78px; height: 78px; border-radius: 50%; overflow: hidden; background: #e3eee7; color: var(--verde); display: grid; place-items: center; font: 700 28px Caladea, Georgia, serif; flex: none; }
+.fj-foto img { width: 100%; height: 100%; object-fit: cover; }
+.fj-card { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 9px 14px; box-shadow: 0 1px 2px rgba(21,76,43,.07); }
+.fj-card h3 { margin: 0 0 6px; font: 700 13px Inter, sans-serif; color: var(--verde2); } .fj-card h3 small { font-weight: 600; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--suave); margin-left: 6px; } .fj-card h3 small.fj-conf { color: #9b1c1c; }
+.fj-dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 16px; margin: 0; } .fj-dl3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fj-dl dt { font-size: 8.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--suave); } .fj-dl dd { margin: 0; font-size: 11px; font-weight: 600; word-break: break-word; } .fj-dl dd .suave { font-weight: 400; color: var(--suave); }
+.fj-dl .x { grid-column: 1 / -1; }
+.fj-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.fj-k { background: #eef1ef; border-top: 2px solid #1d5a33; border-radius: 3px; padding: 7px 6px; text-align: center; } .fj-k b { display: block; font: 700 24px/1 Caladea, Georgia, serif; color: var(--verde); } .fj-k span { display: block; margin-top: 3px; font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase; color: #4a564f; }
+.fj-alerta { margin: 0 0 8px; background: #fde3e1; color: #9b1c1c; border-radius: 8px; padding: 6px 10px; font-size: 11.5px; }
+.fj-aviso { margin: 8px 0 0; background: #fcf1c2; color: #6b4f00; border-radius: 8px; padding: 6px 10px; font-size: 11px; }
+.fj-zonas { margin: 8px 0 0; font-size: 10.5px; color: var(--tinta); } .fj-nota { margin: 6px 0 0; font-size: 9.5px; color: var(--suave); }
+.fj-sec { margin: 6px 0 6px; font: 700 17px Caladea, Georgia, serif; color: var(--verde); border-bottom: 1px solid var(--borde); padding-bottom: 3px; } .fj-sec small { font: 600 10px Inter, sans-serif; color: var(--suave); margin-left: 6px; }
+.fj-caso { background: #fff; border: 1px solid var(--borde); border-left: 4px solid var(--verde); border-radius: 10px; padding: 8px 12px; }
+.fj-caso-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; } .fj-caso-h b { font: 700 13px Inter, sans-serif; color: var(--verde); }
+.fj-ch { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; } .fj-ch .chip, .fj-c .chip { font-size: 9px; padding: 1px 7px; font-style: normal; }
+.fj-crit { margin: 6px 0 0; font-size: 10.5px; }
+.fj-seg { margin: 0 0 6px; } .fj-seg b { display: block; font-size: 12px; color: var(--verde); } .fj-seg small { font-size: 10px; color: var(--suave); }
+.fj-mes { margin: 6px 0 4px; font: 700 12.5px Caladea, Georgia, serif; color: var(--verde2); text-transform: capitalize; }
+.fj-it { display: grid; grid-template-columns: 64px 92px minmax(0, 1fr); gap: 8px; align-items: start; background: #fff; border: 1px solid var(--borde); border-radius: 8px; padding: 5px 9px; }
+.fj-f { font-size: 10px; font-weight: 600; color: var(--suave); padding-top: 1px; }
+.fj-tg { font-size: 8px; text-align: center; padding: 2px 4px; }
+.fj-c b { font-size: 11px; color: var(--verde); } .fj-s { font-size: 10px; color: #3f4c45; } .fj-n { font-size: 9.5px; color: #3f4c45; margin-top: 2px; }
+
+/* ===== Informe del torneo (v1.6, 5B) ===== */
+.pagina.tj .fj-cuerpo { font-size: 11px; }
+.pagina.tj .kn-t { font-size: 10px; } .pagina.tj .kn-t th { font-size: 8px; padding: 5px 6px; } .pagina.tj .kn-t td { padding: 5px 6px; }
+.pagina.tj .kn-t td.n, .pagina.tj .kn-t th.n { text-align: center; }
+.tj-al { color: #9a5a00; font-size: 9.5px; }
+.tj-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tj-kpis .fj-k b { font-size: 26px; } .tj-kpis .fj-k span { font-size: 8.5px; }
+.tj-vacio { font-style: italic; }
+.tj-cab-g .sw-vs { height: 92px; }
+.tj-cab-g .fj-cab-t h1 { font-size: 28px; }
+.tj-staff { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--borde); font-size: 11px; }
+.tj-staff:last-child { border-bottom: 0; } .tj-staff b { color: var(--verde); }
+.tj-barras { padding: 8px 12px; }
+.tj-fila { display: grid; grid-template-columns: 190px minmax(0, 1fr) 34px; gap: 8px; align-items: center; padding: 3px 0; font-size: 10.5px; }
+.tj-fila b { text-align: right; color: var(--verde); }
+.tj-barra { display: block; height: 10px; background: #e3eee7; border-radius: 5px; overflow: hidden; } .tj-barra i { display: block; height: 100%; background: #2f7a4a; border-radius: 5px; }
+.tj-leyenda { margin: 0 0 8px; font-size: 11px; }
+.tj-reemp h3 small { font-weight: 500; color: var(--suave); }
+.tj-cm .kn-t { font-size: 9px; }
+.pagina.tj .fj-mes { text-transform: none; }
+
+/* Informe de jugadores de plantel (partidos elegidos) */
+.pagina.pl .fj-cuerpo { font-size: 11px; }
+.pagina.pl .eq-kpis { margin-bottom: 8px; } .pagina.pl .eq-kpi { padding: 9px 8px; } .pagina.pl .eq-kpi b { font-size: 28px; } .pagina.pl .eq-kpi span { font-size: 8px; }
+.pagina.pl .eq-kpis-2 { margin-top: 0; }
+.pl-ph { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
+.pl-ph .vs-logos { display: inline-flex; align-items: center; gap: 7px; flex: none; }
+.pl-ph .sw-vs { height: 40px; width: auto; object-fit: contain; } .pl-ph .rv-logo { width: 40px; height: 40px; object-fit: contain; } .pl-ph .rv-ini { width: 40px; height: 40px; font-size: 18px; }
+.pl-pt { min-width: 0; flex: 1; } .pl-pt h3 { margin: 0; font: 700 17px/1.15 Caladea, Georgia, serif; color: var(--verde); } .pl-pt h3 small { font: 600 10px Inter, sans-serif; color: var(--suave); }
+.pl-pt p { margin: 1px 0 0; font-size: 10px; color: var(--suave); }
+.pl-t { font-size: 10px; table-layout: fixed; } .pl-t th { font-size: 7.5px; padding: 5px 6px; vertical-align: bottom; } .pl-t td { padding: 5px 6px; word-break: break-word; }
+.pl-t th:nth-child(1) { width: 21%; } .pl-t th:nth-child(2) { width: 10%; } .pl-t th:nth-child(3) { width: 10%; } .pl-t th:nth-child(4) { width: 10%; } .pl-t th:nth-child(6) { width: 9%; }
+.pl-t th.n { text-align: center; }
+.pl-iv + .pl-iv { margin-top: 3px; padding-top: 3px; border-top: 1px dotted #9fb3a6; }
+
+/* ---------- Ficha SCAT5 (v1.6.1) ---------- */
+.pagina.sc5 .fj-cuerpo { font-size: 10.5px; }
+.sc5 .fj-card { margin-bottom: 8px; padding: 7px 12px; } .sc5 .fj-cab { margin-bottom: 8px; padding: 8px 12px; }
+.sc5 .fj-card h3 { margin-bottom: 4px; }
+.sc5-2c { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sc5 .kn-t { font-size: 9.5px; width: 100%; } .sc5 .kn-t th { font-size: 8px; padding: 3px 6px; } .sc5 .kn-t td { padding: 2.5px 6px; }
+.sc5 .kn-t td.n, .sc5 .kn-t th.n { text-align: center; width: 58px; }
+.sc5-m { margin-top: 4px; }
+.sc5-w { display: inline-block; margin: 1px 3px 1px 0; padding: 1px 6px; border-radius: 9px; border: 1px solid #b9c7be; color: #8a948e; font-size: 9px; }
+.sc5-w.on { background: #dff3e6; border-color: #2f7a4a; color: #12472a; font-weight: 700; }
+.sc5-ok { color: #1b7a3a; font-weight: 700; } .sc5-no { color: #98a29c; }
+.sc5 .fj-alerta { margin-bottom: 4px; }
+/* SCAT5: evolución y seguimiento (v1.6.2) */
+.sc-comp-t th small { display: block; font-weight: 400; font-size: 8px; color: inherit; opacity: .8; } .sc-comp-t td.n, .sc-comp-t th.n { text-align: center; }
+.sc-t { display: inline-block; font-size: 8.5px; font-weight: 700; border-radius: 4px; padding: 0 4px; white-space: nowrap; } .sc-t.mej { color: #1d6b3a; background: #e1f3e7; } .sc-t.emp { color: #9b1c1c; background: #fde3e1; } .sc-t.ig { color: #55605a; background: #eceeed; }
+.fj-sub { font: 700 12px Inter, sans-serif; color: var(--verde2); margin: 6px 0 4px; }
+.cm-evs { display: block; margin-top: 2px; }
+.sc5-evs { margin-top: 6px; }
+.sc-mo { display: block; font-size: 8px; color: var(--suave); }
+.sc-comp-t td small.sc-t { display: block; margin: 1px auto 0; width: fit-content; }

@@ -3,16 +3,36 @@
   const K = window.K;
 
   K.normalizar = function (inf) {
-    ['partidos', 'staff', 'jugadores', 'camposExtra', 'casos', 'atenciones', 'eventos', 'manuales', 'tratamientos', 'indicadores', 'asistencias', 'seguros', 'segEventos']
+    ['partidos', 'staff', 'jugadores', 'camposExtra', 'casos', 'atenciones', 'eventos', 'manuales', 'tratamientos', 'indicadores', 'asistencias', 'seguros', 'segEventos', 'torneos', 'antecedentes', 'documentos']
       .forEach((k) => { if (!Array.isArray(inf[k])) inf[k] = []; });
     inf.conclusiones = inf.conclusiones || ''; inf.objetivos = inf.objetivos || '';
-    inf.partidos.forEach((p) => { p.minutos = p.minutos || {}; if (!Array.isArray(p.incidencias)) p.incidencias = []; });
+    // v1.6.1: ya no existen la evolución (SOAP) ni los tests y criterios de retorno: se borran si vienen de un respaldo anterior
+    inf.atenciones.forEach((a) => { if (a && typeof a === 'object') delete a.soap; });
+    inf.casos.forEach((c) => { if (c && typeof c === 'object') { delete c.tests; delete c.criterios; } });
+    if (!Array.isArray(inf.plantillas)) inf.plantillas = []; // plantillas de intervenciones (v1.6, uso diario)
+    if (K.conmocion) K.conmocion.normalizarInforme(inf); // conmoción cerebral (v1.6): deja válidos scat5, conmocion y rtpConmocion si existen
+    if (K.torneos) K.torneos.normalizar(inf); // torneos como ficha propia (v1.6): deja válidos los campos y enlaza los partidos que solo tenían el texto del torneo
+    inf.partidos.forEach((p) => {
+      p.minutos = p.minutos || {}; if (!Array.isArray(p.incidencias)) p.incidencias = [];
+      // citados (v1.6): solo existe si alguien lo definió; un partido sin esta lista cuenta con todos los de la categoría
+      if (p.citados !== undefined) { if (Array.isArray(p.citados)) { const v = Array.from(new Set(p.citados.filter((x) => typeof x === 'string' && x))); if (v.length !== p.citados.length) p.citados = v; } else delete p.citados; }
+    });
     // Intervenciones nuevas (manejo de carga, farmacología, derivación externa, sangrado, ortopedia, inmovilización)
     K.TRATAMIENTOS_BASE.filter((t) => K.TRAT_NUEVOS.includes(t.id)).forEach((t) => {
       if (!inf.tratamientos.some((x) => x.id === t.id)) inf.tratamientos.push(Object.assign({}, t));
       if (!inf.indicadores.some((i) => i.fuente === 'trat:' + t.id)) inf.indicadores.push({ id: 'i-t-' + t.id, nombre: t.nombre, fuente: 'trat:' + t.id, icono: t.icono, grupo: 'tratamiento', visible: true });
     });
-    inf.jugadores.forEach((j) => { j.extras = j.extras || {}; if (j.plantel) j.contrato = true; delete j.plantel; }); // “Plantel” ya no existe: quien lo tenía pasa a “jugador con contrato”
+    // Temporadas: los textos de siempre pertenecen al año vigente (nunca anterior al año actual, para que lo ya escrito se siga viendo en el informe de este año)
+    if (!Number.isInteger(inf.anioTexto)) inf.anioTexto = Math.max(Number(inf.anio) || 0, new Date().getFullYear());
+    if (!Number.isInteger(inf.tempIniciada)) inf.tempIniciada = inf.anioTexto;
+    if (!inf.anios || typeof inf.anios !== 'object' || Array.isArray(inf.anios)) inf.anios = {};
+    inf.jugadores.forEach((j) => {
+      j.extras = j.extras || {}; if (j.plantel) j.contrato = true; delete j.plantel; // campo antiguo j.plantel: pasa a j.contrato (el campo interno se llama contrato; en pantalla es “Jugador de plantel”)
+      if (!j.estado) j.estado = 'inscrito';
+      if (j.estado !== 'inscrito' && !/^\d{4}-\d{2}-\d{2}$/.test(j.salida || '')) j.salida = K.hoy(); // un archivado siempre tiene fecha de salida
+      if (!j.anios || typeof j.anios !== 'object' || Array.isArray(j.anios)) j.anios = {};
+    });
+    K.mayusInforme(inf); // datos viejos: primera letra en mayúscula y nombres de personas con mayúscula en cada palabra
     return inf;
   };
 
@@ -21,7 +41,7 @@
     const previo = K.ui.alcance;
     if (alcance) K.ui.alcance = alcance;
     let inf, per;
-    try { inf = K.informeVista(K.inf()); per = K.resolverPeriodo(K.state.periodo); } finally { K.ui.alcance = previo; }
+    try { per = K.resolverPeriodo(K.state.periodo); inf = K.informeVista(K.inf(), per); } finally { K.ui.alcance = previo; }
     K._paraPdf = true; // en el PDF no se imprimen los textos de ayuda de la pantalla
     let pag; try { pag = K.paginas(inf, per); } finally { K._paraPdf = false; }
     return K.pdf.paginas(pag, `Informe kinésico ${inf.nombre}${inf._sinFichas ? ' (resumen sin fichas)' : ''} - ${per.completo}`);
@@ -31,7 +51,7 @@
   K.cargarDemo = function () {
     const inf = K.inf(), anio = Number(K.state.periodo.anio) || new Date().getFullYear();
     const d = (m, dia) => `${anio}-${K.pad(m)}-${K.pad(dia)}`;
-    const mk = (nombre, cat, nac, pos) => ({ id: K.uid(), nombre, categoria: cat, nacimiento: nac, posicion: pos, comentarios: '', extras: {}, activo: true, demo: true });
+    const mk = (nombre, cat, nac, pos) => K.nuevoJugador({ nombre, categoria: cat, nacimiento: nac, posicion: pos, demo: true });
     const m = mk('Jugador de ejemplo 1', 'Sub 16', '2010', 'Portero');
     const j2 = mk('Jugador de ejemplo 2', 'Sub 15', '2011', 'Volante');
     const j3 = mk('Jugador de ejemplo 3', 'Sub 16', '2010', 'Delantero');
@@ -59,11 +79,7 @@
     ev(j2, 'control', d(8, 24), 'Traumatólogo', 2); ev(j2, 'examen', d(8, 22), 'Radiografía', 1); ev(j2, 'medicamento', d(8, 21), 'Ibuprofeno', 4);
     ev(j3, 'medicamento', d(9, 26), 'Paracetamol', 2);
   };
-  function quitarJugadorYRegistros(inf, id) {
-    inf.jugadores = inf.jugadores.filter((j) => j.id !== id);
-    ['casos', 'atenciones', 'eventos'].forEach((k) => { inf[k] = inf[k].filter((x) => x.jugadorId !== id); });
-    inf.partidos.forEach((p) => { delete p.minutos[id]; });
-  }
+  function quitarJugadorYRegistros(inf, id) { K.quitarJugador(id); }
   K.quitarDemo = function () {
     const inf = K.inf();
     inf.jugadores.filter((j) => j.demo).map((j) => j.id).forEach((id) => quitarJugadorYRegistros(inf, id));
@@ -110,6 +126,7 @@
       K.state.informes.forEach(K.normalizar);
       if (!K.state.informes.some((i) => i.id === K.state.activo)) K.state.activo = K.state.informes[0].id;
       K.state.periodo = K.state.periodo || { tipo: 'anual', anio: new Date().getFullYear(), desde: '', hasta: '' };
+      K.periodoPorDefecto();
     } else {
       K.state = K.estadoInicial();
       K.guardarYa();

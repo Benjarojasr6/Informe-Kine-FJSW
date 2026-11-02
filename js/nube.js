@@ -6,8 +6,8 @@
   const e = K.esc;
   const CFG = window.K_FIREBASE || {};
   const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
-  const GRANDES = ['jugadores', 'partidos', 'casos', 'atenciones', 'eventos', 'asistencias', 'seguros', 'segEventos']; // cada elemento es su propio documento
-  const PRIVADOS = ['seguros', 'segEventos']; // datos del seguro (RUT, etc.): solo administradores, en la subcolección 'privado'
+  const GRANDES = ['jugadores', 'partidos', 'casos', 'atenciones', 'eventos', 'asistencias', 'seguros', 'segEventos', 'torneos', 'antecedentes', 'documentos']; // cada elemento es su propio documento
+  const PRIVADOS = ['seguros', 'segEventos', 'antecedentes', 'documentos']; // datos del seguro (RUT, etc.), antecedentes médicos y documentos: solo administradores, en la subcolección 'privado'
   const coleccionDe = (kind) => (PRIVADOS.includes(kind) ? 'privado' : 'items');
   let privBloq = false;
   const DIAS_INVITACION = 30;
@@ -232,22 +232,33 @@
       if (cur.length) r.push(cur);
       return r;
     };
-    const lotes = trocear(todas).concat(trocear(privOps));
+    // Orden: primero TODO lo que se escribe (también lo privado) y al final lo que se borra. Si la conexión se cae a medias,
+    // un jugador movido de informe queda duplicado (se limpia solo al reintentar) en vez de perderse.
+    const sets = (l) => l.filter((o) => o[0] === 'set'), dels = (l) => l.filter((o) => o[0] !== 'set');
+    const lotes = trocear(sets(todas)).concat(trocear(sets(privOps)), trocear(dels(todas)), trocear(dels(privOps)));
     // Si algo sale mal, lo que no se pudo enviar vuelve a quedar “pendiente” para el próximo intento.
     const reintentar = (trozo) => trozo.forEach((o) => {
       if (o[0] === 'del') ultimo.set(o[1], '#borrar'); else ultimo.delete(o[1]);
       if (o[0] === 'set' && o[1].startsWith('media/')) mediaConocida.delete(o[1].slice(6));
     });
+    // Primero se arman todos los envíos (un dato inválido falla aquí, antes de enviar nada). Si no se pudo armar algún lote de escrituras,
+    // no se manda ningún borrado: así un jugador movido de informe no desaparece de la nube (queda duplicado hasta el siguiente intento).
+    const armados = []; let fallaArmado = false;
     for (const trozo of lotes) {
+      const soloBorra = trozo.every((o) => o[0] !== 'set');
+      if (soloBorra && fallaArmado) { reintentar(trozo); continue; }
       let b;
       try {
         b = db.batch();
         trozo.forEach((o) => (o[0] === 'set' ? b.set(db.doc(o[1]), o[2]) : b.delete(db.doc(o[1]))));
       } catch (err) {
-        reintentar(trozo); fallos++;
+        reintentar(trozo); fallos++; if (!soloBorra) fallaArmado = true;
         K.aviso('Un dato no se pudo guardar en la nube (' + ((err && err.message) || 'error') + '). Descarga un respaldo y avísame.', true);
         continue;
       }
+      armados.push([trozo, b]);
+    }
+    for (const [trozo, b] of armados) {
       enVuelo++; actualizarChip();
       b.commit().then(() => { enVuelo--; fallos = 0; ultimaSync = Date.now(); actualizarChip(); }).catch((err) => {
         enVuelo--; actualizarChip();
@@ -263,6 +274,7 @@
     }
   }
   function guardarNube() {
+    K.mayusEstado(); // primera letra en mayúscula en los textos de registros y nombres de personas
     K.state.cambios = (K.state.cambios || 0) + 1;
     guardarLocal();
     if (K.rol === 'admin') programarPush();
@@ -416,6 +428,7 @@
     K.rol = rol; document.body.classList.add('rol-' + rol);
     const l = leerLocal();
     K.state = { v: 1, informes: [], activo: l.activo || '', periodo: l.periodo || { tipo: 'anual', anio: new Date().getFullYear(), desde: '', hasta: '' }, ultimoRespaldo: l.ultimoRespaldo || null, cambios: l.cambios || 0, packIconos: 'linea', iconosPropios: {}, fuente: 'clasica' };
+    K.periodoPorDefecto();
     K.guardar = guardarNube; K.guardarYa = guardarNube;
     const alOcultar = () => { if (document.visibilityState === 'hidden' && K.rol === 'admin') { try { empujar().catch(() => {}); } catch (x) { /* sigue */ } } };
     document.addEventListener('visibilitychange', alOcultar); window.addEventListener('pagehide', () => { try { empujar().catch(() => {}); } catch (x) { /* sigue */ } });
@@ -443,6 +456,7 @@
     pantallaLogin();
   }
   K.nube = {
+    _serializar: serializar, _aplicar: aplicar, _grandes: GRANDES, // (solo para las pruebas)
     // Para el chequeo de salud de Ajustes
     // Pregunta a Firebase si este administrador puede usar la zona privada (seguros). 'ok' | 'bloqueado' | 'error' | 'na'
     probarPrivado: async () => {

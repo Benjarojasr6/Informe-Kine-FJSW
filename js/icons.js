@@ -115,6 +115,7 @@
   /* ---------- Íconos de la interfaz (trazo, usan currentColor) ---------- */
   const UI = {
     informe: '<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/>',
+    hoy: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 14l2 2 4-4"/>',
     registrar: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
     jugadores: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><circle cx="17.5" cy="9" r="2.6"/><path d="M16.5 14.2c3 .2 4.9 2.2 4.9 5.2"/>',
     kine: '<path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/><path d="M7 12.5h3l1.2-2.4 1.8 4.2 1.2-1.8H17"/>',
@@ -137,7 +138,10 @@
     subir: '<path d="M12 16V5M7 9l5-5 5 5M5 20h14"/>',
     copiar: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
     casa: '<path d="M3.5 11.5L12 4l8.5 7.5"/><path d="M6 10v10h12V10"/><path d="M10 20v-5.5h4V20"/>',
-    atras: '<path d="M15 5l-7 7 7 7"/>'
+    atras: '<path d="M15 5l-7 7 7 7"/>',
+    lupa: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>',
+    trofeo: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5v2a3 3 0 0 0 3 3M16 6h3v2a3 3 0 0 1-3 3M12 13v4M8.5 20h7M10 17h4"/>',
+    alerta: '<path d="M12 4L21.5 20h-19z"/><path d="M12 10v4.5M12 17.4v.1"/>'
   };
   K.uiIco = (n, s) =>
     `<svg class="ui-ico" width="${s || 22}" height="${s || 22}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${UI[n] || ''}</svg>`;

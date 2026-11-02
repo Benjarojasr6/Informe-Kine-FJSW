@@ -19,7 +19,7 @@
 
   /* ======================= INFORME ======================= */
   function pInforme() {
-    const inf0 = K.inf(), inf = K.informeVista(inf0), per = periodo(), p = K.state.periodo;
+    const inf0 = K.inf(), per = periodo(), inf = K.informeVista(inf0, per), p = K.state.periodo, anioV = K.anioDePeriodo(per), anioAct = new Date().getFullYear();
     const cont = K.contar(inf, per);
     const vis = inf.indicadores.filter((i) => i.visible !== false);
     const sinFecha = inf.partidos.filter((x) => !x.fecha).length;
@@ -27,11 +27,16 @@
     const ed = K.puedeEditar();
     const avisoResp = K.rol === 'local' && (K.state.cambios >= 15 && (dias === null || dias > 7)) || (dias !== null && dias > 30)
       ? `<div class="aviso">Tus datos solo viven en este dispositivo. Haz un respaldo en <b>Ajustes → Datos</b>${dias === null ? ' (aún no has hecho ninguno)' : ` (el último fue hace ${dias} días)`}.</div>` : '';
-    const paginas = K.paginas(inf, per);
+    // Informes grandes (muchos jugadores): la vista previa se arma después de pintar la pantalla, por tramos, con un aviso “Armando informe…”.
+    // El resultado es exactamente el mismo HTML; solo cambia cuándo se arma. Con pocos jugadores sigue siendo inmediato.
+    const diferir = (inf.jugadores || []).length > K.UMBRAL_DIFERIR && !K._sinDiferir;
+    const paginas = diferir ? null : K.paginas(inf, per);
+    if (diferir) K._armar = { inf, per }; else K._armar = null;
     return `
       <div class="titulo-vista"><h1>Informe</h1><div class="fila gap wrap">${ed ? `<button class="btn sec" data-acc="abrirBitacora">${K.uiIco('registrar', 20)} Registro clínico completo</button>` : ''}<button class="btn" data-acc="imprimir">${K.uiIco('pdf', 20)} Descargar PDF</button></div></div>
       ${avisoResp}
       <div class="vista-banner"><span>Estás viendo</span><b>${e(K.vistaTexto())}</b></div>
+      ${anioV !== anioAct ? `<div class="aviso" data-aviso-anio>Estás viendo el ${anioV}. <a href="#" data-acc="anioActual">Volver al ${anioAct}</a></div>` : ''}
       <div class="card">
         <div class="fila wrap gap">
           ${ed ? K.selectorAlcance() : ''}
@@ -42,32 +47,65 @@
         ${inf._unico ? '<p class="suave" style="margin:8px 0 0">Informe único: solo jugadores con la categoría asignada. Los ajustes manuales no se incluyen.</p>' : ''}
         <p class="suave" style="margin:8px 0 0">${e(per.completo)} · ${K.fechaCorta(per.desde)} al ${K.fechaCorta(per.hasta)}</p>
       </div>
-      ${ed ? `<div class="card"><h2>Textos del informe${inf._todas ? ' general (Sub 15 a 20)' : ''}</h2>
+      ${ed ? `<div class="card"><h2>Textos del informe ${anioV}${inf._todas ? ' general (Sub 15 a 20)' : ''}</h2>
         <p class="sub">Aparecen en la última página del informe (Conclusiones y objetivos). Si el texto es largo, la letra se achica sola para que quepa (≈ 25 líneas por cuadro).${inf._todas ? ' Este texto es solo del informe general.' : ''}</p>
-        <label class="campo"><span>Conclusiones del área kinésica</span><textarea ${inf._todas ? 'data-inf-g="conclusionesTodas"' : 'data-inf="conclusiones"'} rows="4">${e(inf._todas ? inf.conclusiones : inf0.conclusiones || '')}</textarea><small class="cap-aviso" ${K.textoCabe(inf._todas ? inf.conclusiones : inf0.conclusiones) ? 'hidden' : ''} style="color:#b3261e;margin-top:4px">Este texto es demasiado largo: en el informe se cortará al final. Acórtalo un poco.</small></label>
-        <label class="campo"><span>Objetivos y proyecciones para el próximo año</span><textarea ${inf._todas ? 'data-inf-g="objetivosTodas"' : 'data-inf="objetivos"'} rows="4">${e(inf._todas ? inf.objetivos : inf0.objetivos || '')}</textarea><small class="cap-aviso" ${K.textoCabe(inf._todas ? inf.objetivos : inf0.objetivos) ? 'hidden' : ''} style="color:#b3261e;margin-top:4px">Este texto es demasiado largo: en el informe se cortará al final. Acórtalo un poco.</small></label></div>` : ''}
-      ${ed ? `<div class="card"><h2>Firma del informe</h2><label class="campo"><span>Kinesiólogo(a) responsable (aparece sobre la línea de firma)</span><select ${inf._todas ? 'data-inf-g="firmante"' : 'data-inf="firmante"'}>${(() => { const nom = []; (inf0.staff || []).forEach((s) => { if (/kinesi/i.test(s.cargo)) s.personas.forEach((p) => { if (p.nombre && !nom.includes(p.nombre)) nom.push(p.nombre); }); }); const act = inf._todas ? inf.firmante : inf0.firmante; if (act && !nom.includes(act)) nom.push(act); return '<option value="">— sin nombre —</option>' + nom.map((n) => `<option${n === act ? ' selected' : ''}>${e(n)}</option>`).join(''); })()}</select></label>
-        <p class="suave" style="margin:0">La lista sale del cargo <b>Kinesiólogo</b> del cuerpo técnico (Partidos → Cuerpo técnico): agrega o quita personas allí.</p></div>` : ''}
+        <label class="campo"><span>Conclusiones del área kinésica</span><textarea ${inf._todas ? 'data-inf-g="conclusionesTodas"' : 'data-inf="conclusiones"'} rows="4">${e(inf.conclusiones || '')}</textarea><small class="cap-aviso" ${K.textoCabe(inf.conclusiones) ? 'hidden' : ''} style="color:#b3261e;margin-top:4px">Este texto es demasiado largo: en el informe se cortará al final. Acórtalo un poco.</small></label>
+        <label class="campo"><span>Objetivos y proyecciones para el próximo año</span><textarea ${inf._todas ? 'data-inf-g="objetivosTodas"' : 'data-inf="objetivos"'} rows="4">${e(inf.objetivos || '')}</textarea><small class="cap-aviso" ${K.textoCabe(inf.objetivos) ? 'hidden' : ''} style="color:#b3261e;margin-top:4px">Este texto es demasiado largo: en el informe se cortará al final. Acórtalo un poco.</small></label>
+        <label class="check" style="margin-top:6px"><input type="checkbox" data-atenpartidos data-acc-change="atenPartidos" ${inf.atencionesPartidos ? 'checked' : ''}><span>Incluir los datos de partidos en el informe general</span></label>
+        <p class="suave" style="margin:4px 0 0">Muestra u oculta las páginas «Atenciones en partidos» y «Detalle por partido» del informe de ${anioV}. Los totales del resumen no cambian y los informes de cada partido tampoco. ${inf.atencionesPartidos ? 'Ahora están incluidas.' : 'Ahora están ocultas.'}</p></div>` : ''}
+      ${ed ? `<div class="card"><h2>Firma del informe</h2><label class="campo"><span>Kinesiólogo(a) responsable (aparece sobre la línea de firma)</span><select ${inf._todas ? 'data-inf-g="firmante"' : 'data-inf="firmante"'}>${(() => { const nom = []; (inf.staff || []).forEach((s) => { if (/kinesi/i.test(s.cargo)) s.personas.forEach((p) => { if (p.nombre && !nom.includes(p.nombre)) nom.push(p.nombre); }); }); const act = inf.firmante; if (act && !nom.includes(act)) nom.push(act); return '<option value="">— sin nombre —</option>' + nom.map((n) => `<option${n === act ? ' selected' : ''}>${e(n)}</option>`).join(''); })()}</select></label>
+        <p class="suave" style="margin:0">La lista sale del cargo <b>Kinesiólogo</b> del cuerpo técnico del ${anioV} (Partidos → Cuerpo técnico): agrega o quita personas allí.</p></div>` : ''}
       <div class="card"><h2>Descargar PDF</h2><p class="sub">Elige cuál informe quieres descargar. No importa lo que estés viendo arriba.</p>
-        <div class="pdf-opc">${(() => { const g = K.grupoDe(K.ui.cat); if (!g) return ''; const b = (alc, t, s) => `<button class="btn sec" data-acc="pdfAlcance" data-alc="${alc}">${K.uiIco('pdf', 18)} <span>${e(t)}<small>${e(s)}</small></span></button>`; return g.cats.map((c) => b(String(c), 'Informe único Sub ' + c, 'Solo jugadores de la Sub ' + c)).join('') + b('comb', 'Informe combinado ' + g.nombre, 'Las dos categorías juntas') + b('todas', 'Informe general Sub 15 a 20 · con fichas', 'Resumen de todas las categorías + la ficha de cada jugador (muchas páginas)') + b('todasRes', 'Informe general Sub 15 a 20 · resumen', 'Solo los datos de todas las categorías, sin fichas individuales'); })()}</div>
+        <div class="pdf-opc">${(() => { const g = K.grupoDe(K.ui.cat); if (!g) return ''; const b = (alc, t, s) => `<button class="btn sec" data-acc="pdfAlcance" data-alc="${alc}">${K.uiIco('pdf', 18)} <span>${e(t)}<small>${e(s)}</small></span></button>`; return g.cats.map((c) => b(String(c), 'Informe único Sub ' + c, 'Solo jugadores de la Sub ' + c)).join('') + b('comb', 'Informe combinado ' + g.nombre, 'Las dos categorías juntas') + b('todas', 'Informe general Sub 15 a 20 · con fichas', 'Resumen de todas las categorías + la ficha de cada jugador (muchas páginas)') + b('todasRes', 'Informe general Sub 15 a 20 · resumen', 'Solo los datos de todas las categorías, sin fichas individuales') + (K.torneos && K.torneos.menuPdfHTML ? K.torneos.menuPdfHTML(K.inf()) : ''); })()}</div>
         <p class="suave" style="margin:8px 0 0">El informe de partidos (por jornada, por categoría o general) se descarga en la pestaña <b>Partidos</b>.</p></div>
-      ${ed && sinFecha ? `<div class="aviso">${sinFecha} partido(s) no tienen fecha, por eso aparecen en todos los períodos. Asígnales fecha en <b>Partidos</b> para que semestres y trimestres se calculen bien.</div>` : ''}
+      ${ed && sinFecha ? `<div class="aviso">${sinFecha} partido(s) no tienen fecha: solo se cuentan en el año ${e(K.anioTexto(inf0))}. Asígnales fecha en <b>Partidos</b> para que semestres, trimestres y otros años se calculen bien.</div>` : ''}
       <div class="card">
         <div class="fila sb"><h2 style="margin:0">Totales del período</h2>${inf._unico || !ed ? '' : `<button class="btn sec chico" data-acc="ajusteManual">${K.uiIco('mas', 16)} Ajuste manual</button>`}</div>
         <p class="sub">${ed ? 'Se calculan solos desde tus registros. Toca un número para ver el detalle o sumarle un ajuste manual.' : 'Totales calculados desde los registros del área kinésica.'}</p>
         <div class="kpis">${vis.map((i) => { const v = K.valorIndicador(inf, per, i, cont); return `<div class="kpi"${ed ? ` data-acc="kpi" data-id="${i.id}"` : ''}><span class="mini-ico">${K.ico(i.icono)}</span><div><b>${v.total}</b><span>${e(i.nombre.replace(/^Total de /, ''))}</span>${v.manual ? `<small>incluye ${v.manual > 0 ? '+' : ''}${v.manual} manual</small>` : ''}</div></div>`; }).join('')}</div>
       </div>
-      <h2 style="font-family:Caladea,serif;font-size:19px;color:var(--verde-2);margin:16px 2px 8px">Vista previa del informe <span class="suave" style="font-family:Inter;font-weight:400">(${paginas.length} páginas, tamaño carta)</span></h2>
-      <div class="vista-wrap"><div class="vista-paginas">${paginas.join('')}</div></div>`;
+      <h2 style="font-family:Caladea,serif;font-size:19px;color:var(--verde-2);margin:16px 2px 8px">Vista previa del informe <span class="suave" style="font-family:Inter;font-weight:400" data-vp-n>${paginas ? `(${paginas.length} páginas, tamaño carta)` : '(tamaño carta)'}</span></h2>
+      ${diferir ? '<div class="vp-armando" data-armando role="status" aria-live="polite"><span class="pdf-rueda" aria-hidden="true"></span><span><b>Armando informe…</b> <span data-armando-n>preparando las páginas</span></span></div>' : ''}
+      <div class="vista-wrap"><div class="vista-paginas${paginas && paginas.length > 40 ? ' vp-muchas' : ''}"${diferir ? ' data-armando-pag' : ''}>${diferir ? '<section class="vp-esqueleto" aria-hidden="true"></section>' : paginas.join('')}</div></div>`;
   }
+  K.UMBRAL_DIFERIR = 24;
+  let armadoId = 0, listoRes = null;
+  K._listo = null;
+  K.informeListo = () => K._listo || Promise.resolve(true); // las pruebas esperan a que termine de armarse la vista previa
+  K.armarInforme = function (a) {
+    const id = ++armadoId, wrap = document.querySelector('.vista-paginas[data-armando-pag]');
+    if (listoRes) { listoRes(false); listoRes = null; }
+    if (!wrap) { K._listo = null; return; }
+    K._listo = new Promise((ok) => { listoRes = ok; });
+    const vivo = () => id === armadoId && wrap.isConnected;
+    const fin = (ok) => { if (id === armadoId && listoRes) { listoRes(ok); listoRes = null; } };
+    setTimeout(() => { // primero se pinta el aviso; luego se arman las páginas
+      if (!vivo()) return fin(false);
+      const pag = K.paginas(a.inf, a.per), n = pag.length, ind = document.querySelector('[data-armando]'), txt = ind && ind.querySelector('[data-armando-n]');
+      let i = 0;
+      const paso = () => {
+        if (!vivo()) return fin(false);
+        if (i === 0) { wrap.innerHTML = ''; if (n > 40) wrap.classList.add('vp-muchas'); }
+        const t0 = performance.now();
+        do { wrap.insertAdjacentHTML('beforeend', pag[i++]); } while (i < n && performance.now() - t0 < 10);
+        if (txt) txt.textContent = `${i} de ${n} páginas`;
+        if (i < n) { setTimeout(paso, 0); return; }
+        wrap.removeAttribute('data-armando-pag'); if (ind) ind.remove();
+        const c = document.querySelector('[data-vp-n]'); if (c) c.textContent = `(${n} páginas, tamaño carta)`;
+        fin(true);
+      };
+      if (n) paso(); else { wrap.innerHTML = ''; if (ind) ind.remove(); fin(true); }
+    }, 30);
+  };
   Object.assign(K.acciones, {
     imprimir() { K.imprimir(); },
     pdfAlcance(el) { K.imprimir(el.dataset.alc); },
+    atenPartidos(el) { const host = K.ui.cat && (K.ui.alcance === 'todas' || K.ui.alcance === 'todasRes') ? K.informeGrupo(K.GRUPOS[0]) : K.inf(); K.textosAnio(host, K.anioVista(), true).atencionesPartidos = !!el.checked; K.guardar(); K.render(); },
     ajusteManual() { K.formManual({}); },
     kpi(el) { if (K.puedeEditar()) kpiDetalle(el.dataset.id); }
   });
   function kpiDetalle(id) {
-    const inf = K.informeVista(K.inf()), per = periodo();
+    const per = periodo(), inf = K.informeVista(K.inf(), per);
     const ind = inf.indicadores.find((i) => i.id === id); if (!ind) return;
     const v = K.valorIndicador(inf, per, ind);
     const man = inf.manuales.filter((m) => m.indId === id && K.enPeriodo(m.fecha, per)).sort((a, b) => b.fecha.localeCompare(a.fecha));
@@ -89,7 +127,8 @@
     alcance(el) { K.ui.alcance = el.value; K.render(); },
     pack(el) { K.state.packIconos = el.value; K.guardar(); K.render(); },
     tipoPeriodo(el) { K.state.periodo.tipo = el.value; K.guardar(); K.render(); },
-    anio(el) { K.state.periodo.anio = Number(el.value) || new Date().getFullYear(); K.guardar(); K.render(); },
+    anio(el) { K.state.periodo.anio = Number(el.value) || new Date().getFullYear(); K.state.periodo.fijado = true; K.guardar(); K.render(); },
+    anioActual(el, ev) { if (ev) ev.preventDefault(); K.state.periodo.anio = new Date().getFullYear(); delete K.state.periodo.fijado; K.guardar(); K.render(); },
     desde(el) { if (!fechaOk(el.value)) return; K.state.periodo.desde = el.value; K.guardar(); K.render(); },
     hasta(el) { if (!fechaOk(el.value)) return; K.state.periodo.hasta = el.value; K.guardar(); K.render(); }
   });
@@ -103,15 +142,16 @@
     const filtrando = !!(f.tipo || f.jugador || f.q);
     if (f.tipo) regs = regs.filter((r) => r.k === f.tipo);
     if (f.jugador) regs = regs.filter((r) => r.jid === f.jugador);
-    const q = (f.q || '').trim().toLowerCase();
-    if (q) regs = regs.filter((r) => [r.t, r.j, r.d, K.fechaCorta(r.fecha)].join(' ').toLowerCase().includes(q));
+    const tk = K.norm(f.q || '').split(' ').filter(Boolean); // sin tildes ni mayúsculas, todas las palabras
+    if (tk.length) regs = regs.filter((r) => { const h = K.norm([r.t, r.j, r.d, K.fechaCorta(r.fecha)].join(' ')); return tk.every((t) => h.includes(t)); });
     K._regs = regs;
     const js = K.jugadoresCat(inf).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
     return `
       <div class="titulo-vista"><h1>Registrar</h1></div>
-      ${!inf.jugadores.length ? `<div class="aviso">Aún no hay jugadores en este informe. Agrégalos en la pestaña <b>Jugadores</b> y vuelve aquí.</div>` : ''}
+      ${!K.vivos(inf).length ? `<div class="aviso">Aún no hay jugadores en este informe. Agrégalos en la pestaña <b>Jugadores</b> y vuelve aquí.</div>` : ''}
       <div class="tiles tiles-reg">
         <button class="tile prin" data-acc="nuevaAtencion"><span class="mini-ico">${K.ico('svg:atenciones')}</span>Registrar atención</button>
+        <button class="tile" data-acc="hoyRepetir"><span class="mini-ico">${K.uiIco('copiar', 32)}</span>Repetir última atención</button>
         <button class="tile" data-acc="nuevoCaso"><span class="mini-ico">${K.ico('svg:lesion')}</span>Registrar lesión</button>
         <button class="tile" data-acc="nuevoControl"><span class="mini-ico">${K.ico('svg:control')}</span>Control médico</button>
         <button class="tile" data-acc="nuevoExamen"><span class="mini-ico">${K.ico('svg:examen')}</span>Examen</button>
@@ -120,14 +160,14 @@
       <div class="card"><div class="fila sb"><h2 style="margin:0">Últimos registros</h2><button class="btn sec chico" data-acc="abrirBitacora">Ver registro clínico completo</button></div>
         <div class="filtros-reg">
           <select data-acc-change="regFiltro" data-k="tipo" aria-label="Filtrar por tipo">${K.opts(TIPOS_REG, f.tipo)}</select>
-          <select data-acc-change="regFiltro" data-k="jugador" aria-label="Filtrar por jugador"><option value="">Todos los jugadores</option>${js.map((j) => `<option value="${j.id}"${f.jugador === j.id ? ' selected' : ''}>${e(j.nombre)}</option>`).join('')}</select>
+          ${K.selJugador('regJugador', { lista: K.itemsSelJ(js), sel: f.jugador, vacio: 'Todos los jugadores', attrs: 'data-acc-change="regFiltro" data-k="jugador"', etiqueta: 'Filtrar por jugador', reciente: false })}
           <input type="search" value="${e(f.q || '')}" placeholder="Buscar (ej. RNM, ibuprofeno, rodilla…)" data-acc-input="regTexto" aria-label="Buscar en los registros">
         </div>
         ${filtrando ? `<p class="suave" style="margin:6px 2px" data-reg-n>${regs.length} registro${regs.length === 1 ? '' : 's'} · <a href="#" data-acc="regLimpiar">Quitar filtros</a></p>` : ''}
         <div id="reg-lista">${K.listaRegistros(regs, filtrando ? 300 : 30)}</div></div>`;
   }
   Object.assign(K.acciones, {
-    nuevaAtencion() { K.formAtencion(); }, nuevoCaso() { K.formCaso(); },
+    nuevaAtencion() { K.formAtencion({ abrirSel: true }); }, nuevoCaso() { K.formCaso(); },
     nuevoControl() { K.formEvento('control'); }, nuevoExamen() { K.formEvento('examen'); },
     nuevoMedicamento() { K.formEvento('medicamento'); }, nuevaCirugia() { K.formEvento('cirugia'); },
     regFiltro(el) { K.ui.regF[el.dataset.k] = el.value; K.render(); },
@@ -141,63 +181,94 @@
 
   /* ======================= JUGADORES ======================= */
   const POSICIONES = ['Portero', 'Defensa', 'Volante', 'Delantero'];
-  K.etiquetasJugador = (j) => (j.contrato ? '<i class="chip g-leve etq">Contrato</i>' : '');
+  K.etiquetasJugador = (j) => (j.contrato ? '<i class="chip g-leve etq">Plantel</i>' : '');
   // Solo ofrece las categorías de este informe (cambiar a una de la otra pareja dejaría al jugador fuera de vista).
-  const selCat = (name, val) => { const gi = K.grupoDeInforme(K.inf()); const l = (gi ? [gi] : K.GRUPOS).reduce((a, g) => a.concat(g.cats.map((c) => 'Sub ' + c)), []); if (val && !l.includes(val)) l.push(val); return `<select name="${name}"><option value="">— elegir —</option>${l.map((c) => `<option${c === val ? ' selected' : ''}>${e(c)}</option>`).join('')}</select>`; };
+  const selCat = (name, val, todas) => { const gi = todas ? null : K.grupoDeInforme(K.inf()); const l = (gi ? [gi] : K.GRUPOS).reduce((a, g) => a.concat(g.cats.map((c) => 'Sub ' + c)), []); if (val && !l.includes(val)) l.push(val); return `<select name="${name}"><option value="">— elegir —</option>${l.map((c) => `<option${c === val ? ' selected' : ''}>${e(c)}</option>`).join('')}</select>`; };
   const selPos = (val) => { const l = POSICIONES.slice(); if (val && !l.includes(val)) l.push(val); return `<select name="posicion"><option value="">— elegir —</option>${l.map((c) => `<option${c === val ? ' selected' : ''}>${e(c)}</option>`).join('')}</select>`; };
   const selAnio = (val) => { const y = new Date().getFullYear(), l = []; for (let a = y - 11; a >= y - 22; a--) l.push(String(a)); if (val && !l.includes(String(val))) l.push(String(val)); return `<select name="nacimiento"><option value="">— elegir —</option>${l.map((c) => `<option${c === String(val) ? ' selected' : ''}>${e(c)}</option>`).join('')}</select>`; };
+  // “Pertenece a: Sub 16 · También juega en: Sub 20” (categoría base y categorías extra, siempre con los mismos nombres)
+  K.pertenenciaHTML = (j) => {
+    const tb = (j.tambien || []).filter((x) => x && String(x) !== j.categoria).map(String);
+    return j.categoria || tb.length ? `<div class="pertenece" data-pertenece>${j.categoria ? `Pertenece a: <b>${e(j.categoria)}</b>` : ''}${tb.length ? `${j.categoria ? ' · ' : ''}También juega en: <b>${e(tb.join(', '))}</b>` : ''}</div>` : '';
+  };
   K.formJugador = function (rec) {
     const inf = K.inf();
     let foto = rec ? rec.foto || '' : '';
     const catSug = (inf.categorias.match(/\d+/g) || []).map((n) => 'Sub ' + n);
     const catDef = rec ? rec.categoria || '' : K.categoriaNueva(inf);
+    const viejo = !!rec && K.sinApellidos(rec), nombresVal = rec ? (rec.nombres && !viejo ? rec.nombres : rec.nombre) : '';
     K.modal({
       titulo: rec ? 'Datos del jugador' : 'Nuevo jugador',
       cuerpo: `
         <div class="fila gap" style="margin-bottom:12px"><span class="avatar" style="width:64px;height:64px" data-prev>${foto ? `<img src="${foto}" alt="">` : e(iniciales(rec ? rec.nombre : '+'))}</span>
           <div><label class="btn sec chico" style="cursor:pointer">${K.uiIco('camara', 16)} Subir foto<input type="file" accept="image/*" hidden data-foto></label>
           <button type="button" class="btn ghost chico" data-sinfoto>Quitar</button><div class="suave">${K.rol === 'admin' ? 'Se guarda en la nube y la ve el otro kinesiólogo.' : 'Se guarda solo en este dispositivo.'}</div></div></div>
-        <label class="campo"><span>Nombre completo</span><input type="text" name="nombre" value="${e(rec ? rec.nombre : '')}" autocomplete="off"></label>
+        ${viejo ? '<div class="aviso">Este jugador se guardó con el nombre en un solo campo. Completa sus <b>apellidos</b> cuando puedas (por ahora no es obligatorio).</div>' : ''}
+        <label class="campo"><span>Nombres</span><input type="text" name="nombres" value="${e(nombresVal)}" autocomplete="off" placeholder="Ej. Juan Carlos"></label>
         <div class="grid2">
-          <label class="campo"><span>Categoría</span>${selCat('categoria', catDef)}</label>
-          <label class="campo"><span>Año de nacimiento</span>${selAnio(rec ? rec.nacimiento || '' : '')}</label>
+          <label class="campo"><span>Primer apellido</span><input type="text" name="apellido1" value="${e(rec ? rec.apellido1 || '' : '')}" autocomplete="off"></label>
+          <label class="campo"><span>Segundo apellido</span><input type="text" name="apellido2" value="${e(rec ? rec.apellido2 || '' : '')}" autocomplete="off"></label>
         </div>
+        <div class="cat-bloque cat-base">
+          <label class="campo"><span>Categoría a la que pertenece</span>${selCat('categoria', catDef, !rec)}</label>
+          <p class="ayuda-cat">Es su categoría base: ahí aparece en las listas, en los informes y tiene su ficha. Solo puede tener una. <i>Ejemplo: un Sub 16 que juega algunos partidos en la Sub 20 pertenece a la Sub 16.</i></p>
+          ${rec && rec.categoria ? '<p class="ayuda-cat">Para cambiarla desde una fecha (o pasarlo al otro informe) usa <b>Cambiar de categoría</b> en su ficha.</p>' : ''}
+        </div>
+        <label class="campo"><span>Año de nacimiento</span>${selAnio(rec ? rec.nacimiento || '' : '')}</label>
         <div class="grid2">
           <label class="campo"><span>Posición</span>${selPos(rec ? rec.posicion || '' : '')}</label>
           <label class="campo"><span>Pierna dominante</span><select name="pierna"><option value="">— elegir —</option>${K.opts(['Derecha', 'Izquierda', 'Ambas'].map((x) => [x, x]), rec ? rec.pierna || '' : '')}</select></label>
         </div>
-        <div class="campo" data-cats><span style="display:block;font-size:12.5px;font-weight:600;color:var(--suave);margin-bottom:4px">Categorías en las que juega</span>
-          <div class="fila gap wrap">${[15, 16, 18, 20].map((c) => `<label class="check" style="padding:0"><input type="checkbox" name="tb${c}" ${(rec && (rec.tambien || []).includes('Sub ' + c)) ? 'checked' : ''}><span>Sub ${c}</span></label>`).join('')}</div>
-          <p class="suave" style="margin:4px 0 0">Queda marcada la categoría principal (la de arriba). Marca otras si también juega ahí (por ejemplo un Sub 16 subido a la Sub 18): su ficha no se duplica, pero podrás anotarle minutos y atenciones en los partidos de esas categorías.</p></div>
-        <div class="campo"><span style="display:block;font-size:12.5px;font-weight:600;color:var(--suave);margin-bottom:4px">Etiqueta (opcional)</span>
-          <div class="fila gap wrap"><label class="check" style="padding:0"><input type="checkbox" name="contrato" ${rec && rec.contrato ? 'checked' : ''}><span>Jugador con contrato</span></label></div>
-          <p class="suave" style="margin:4px 0 0">Los jugadores con contrato entran al informe general de jugadores con contrato y a los informes de partido.</p></div>
+        <div class="cat-bloque cat-extra" data-cats><span class="cat-tit">También juega en <small>(solo para partidos)</small></span>
+          <div class="fila gap wrap">${[15, 16, 18, 20].map((c) => `<label class="check cat-chk" data-tb-fila="${c}"><input type="checkbox" name="tb${c}" ${(rec && (rec.tambien || []).includes('Sub ' + c)) ? 'checked' : ''}><span>Sub ${c}</span></label>`).join('')}</div>
+          <p class="ayuda-cat">Categorías extra donde puede ser convocado, sin cambiar su ficha ni su categoría. Podrás anotarle minutos y atenciones en los partidos de esas categorías. <i>Ejemplo: un Sub 16 que también juega en la Sub 20.</i></p></div>
+        <div class="campo"><span style="display:block;font-size:13px;font-weight:600;color:var(--suave);margin-bottom:4px">Etiqueta (opcional)</span>
+          <div class="fila gap wrap"><label class="check" style="padding:0"><input type="checkbox" name="contrato" ${rec && rec.contrato ? 'checked' : ''}><span>Jugador de plantel</span></label></div>
+          <p class="suave" style="margin:4px 0 0">Los jugadores de plantel entran al informe de jugadores de plantel (general, de uno o varios partidos) y a los informes de partido.</p></div>
         <label class="check"><input type="checkbox" name="activo" ${!rec || rec.activo !== false ? 'checked' : ''}><span>Incluir su ficha en el informe</span></label>`,
       botones: [
-        rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.confirmar(`¿Eliminar a ${e(rec.nombre)} y TODOS sus registros? No se puede deshacer.`, 'Eliminar', () => { eliminarJugador(rec.id); }); return true; } } : { txt: 'Cancelar', cls: 'sec' },
+        { txt: 'Cancelar', cls: 'sec' },
         {
           txt: 'Guardar',
           fn: (m, hoja) => {
-            const d = K.datos(hoja);
-            if (!d.nombre.trim()) { K.aviso('Escribe el nombre', true); return false; }
+            const d = K.datos(hoja), lim = (v) => String(v || '').trim().replace(/\s+/g, ' ');
+            const nombres = lim(d.nombres), ap1 = lim(d.apellido1), ap2 = lim(d.apellido2);
+            const falta = (n) => { K.aviso(n === 'nombres' ? 'Escribe los nombres' : n === 'apellido1' ? 'Escribe el primer apellido' : 'Escribe el segundo apellido', true); const el = hoja.querySelector(`[name=${n}]`); if (el) el.focus(); return false; };
+            if (!nombres) return falta('nombres');
+            if (!rec && !ap1) return falta('apellido1');
+            if (!rec && !ap2) return falta('apellido2');
+            const nombreFull = [nombres, ap1, ap2].filter(Boolean).join(' ');
             const propia = d.categoria.trim();
             const nPropia = Number((propia.match(/\d+/) || [])[0]), gi = K.grupoDeInforme(inf);
-            if (nPropia && gi && !gi.cats.includes(nPropia) && K.grupoDe(nPropia) && (!rec || rec.categoria !== propia)) {
-              K.aviso(`Sub ${nPropia} es del informe ${K.grupoDe(nPropia).nombre}: crea al jugador allí (elige esa categoría arriba). Si solo juega ahí a veces, deja su categoría y marca “Sub ${nPropia}” en “Categorías en las que juega”.`, true); return false;
+            if (rec && nPropia && gi && !gi.cats.includes(nPropia) && K.grupoDe(nPropia) && rec.categoria !== propia) {
+              K.aviso(`Sub ${nPropia} es del informe ${K.grupoDe(nPropia).nombre}: usa “Cambiar de categoría” en su ficha. Si solo juega ahí a veces, deja su categoría y marca “Sub ${nPropia}” en “También juega en”.`, true); return false;
             }
             const tambien = [15, 16, 18, 20].filter((c) => d['tb' + c] && 'Sub ' + c !== propia).map((c) => 'Sub ' + c);
-            const campos = { nombre: d.nombre.trim(), categoria: propia, nacimiento: d.nacimiento, posicion: d.posicion.trim(), pierna: d.pierna, foto, activo: d.activo, tambien, contrato: !!d.contrato };
-            if (rec) Object.assign(rec, campos);
-            else { const nj = Object.assign({ id: K.uid(), comentarios: '', extras: {} }, campos); inf.jugadores.push(nj); K.ui.jugadorId = nj.id; }
-            guardar('Jugador guardado');
+            const dup = K.buscarDuplicado(nombreFull, d.nacimiento, rec && rec.id);
+            if (dup && dup.bloquea) { K.mostrarDuplicado(hoja, dup); K.aviso('Ese jugador ya existe', true); return false; }
+            const par = K.buscarParecido(nombreFull, d.nacimiento, rec && rec.id);
+            if (par && !hoja._parecidoOk) { hoja._parecidoOk = true; K.mostrarParecido(hoja, par); K.aviso('Se parece a otro jugador: revisa', true); return false; }
+            const campos = { nombre: nombreFull, categoria: rec && rec.categoria && nPropia && rec.categoria !== propia ? rec.categoria : propia, nacimiento: d.nacimiento, posicion: d.posicion.trim(), pierna: d.pierna, foto, activo: d.activo, tambien, contrato: !!d.contrato };
+            if (!viejo || ap1 || ap2) Object.assign(campos, { nombres, apellido1: ap1, apellido2: ap2 }); // un jugador antiguo sin apellidos sigue con su nombre en un solo campo
+            let nuevoEn = '';
+            if (rec) {
+              Object.assign(rec, campos);
+              if (campos.categoria !== propia && nPropia) K.cambiarCategoria(inf, rec, nPropia, K.hoy()); // el cambio de categoría queda con fecha de hoy: los informes de años anteriores no cambian
+            } else {
+              const gDest = K.grupoDe(nPropia), destino = gDest ? K.informeGrupo(gDest) : inf; // el jugador nuevo se crea en el informe de su categoría
+              const nj = K.nuevoJugador(Object.assign(campos, { ingreso: Math.max(new Date().getFullYear(), K.anioTexto(destino)) + '-01-01' }));
+              destino.jugadores.push(nj); if (destino === inf) K.ui.jugadorId = nj.id; else nuevoEn = ` en el informe ${gDest.nombre}`;
+            }
+            guardar((dup ? 'Jugador guardado (ya hay otro con el mismo nombre y distinto año de nacimiento)' : 'Jugador guardado') + nuevoEn);
           }
         }
       ],
       alMontar: (m, hoja) => {
         const prev = hoja.querySelector('[data-prev]');
         const selC = hoja.querySelector('[name=categoria]');
-        const marcar = () => [15, 16, 18, 20].forEach((c) => { const cb = hoja.querySelector(`[name=tb${c}]`), propia = selC.value === 'Sub ' + c; if (propia) cb.checked = true; cb.disabled = propia; });
-        selC.addEventListener('change', () => { [15, 16, 18, 20].forEach((c) => { const cb = hoja.querySelector(`[name=tb${c}]`); if (cb.disabled) { cb.disabled = false; cb.checked = false; } }); marcar(); });
+        // la categoría base no se ofrece como “También juega en”: se oculta su casilla y queda sin marcar
+        const marcar = () => [15, 16, 18, 20].forEach((c) => { const cb = hoja.querySelector(`[name=tb${c}]`), propia = selC.value === 'Sub ' + c; if (propia) cb.checked = false; cb.disabled = propia; hoja.querySelector(`[data-tb-fila="${c}"]`).classList.toggle('oculto', propia); });
+        selC.addEventListener('change', marcar);
         marcar();
         hoja.querySelector('[data-foto]').addEventListener('change', async (ev) => {
           const f = ev.target.files[0]; if (!f) return;
@@ -207,43 +278,68 @@
       }
     });
   };
-  /* Pegar la lista de jugadores: una línea por jugador → "Nombre; año; posición" (año y posición opcionales). */
-  K.formLista = function () {
+  /* Pegar la lista de jugadores: una línea por jugador → "Nombres Apellido1 Apellido2; año; posición" (posición opcional).
+     Antes de guardar se ve cada línea como Nuevo / Duplicado / Faltan apellidos: no se descarta nada en silencio. */
+  K.formLista = function (o) {
+    o = o || {};
     const inf = K.inf();
-    const inc = [];
+    const analizar = (txt, cat) => {
+      const vistos = [], filas = [];
+      String(txt || '').split(/\r?\n/).forEach((l) => {
+        if (!l.trim()) return;
+        const partes = l.split(/\t|;/).map((x) => x.trim());
+        let anio = '', pos = '';
+        const nom = partes.filter((x) => {
+          if (!x) return false;
+          if (!anio && /^(19|20)\d\d$/.test(x)) { anio = x; return false; }
+          const pp = POSICIONES.find((q) => K.norm(q) === K.norm(x)); if (!pos && pp) { pos = pp; return false; }
+          return true;
+        }).join(' ').replace(/\s+/g, ' ');
+        const f = { linea: l.trim(), nombre: nom, anio, pos, estado: 'nuevo', det: '' };
+        const pn = K.partirNombre(nom);
+        if (!pn) { f.estado = 'faltan'; f.det = nom ? 'Escribe nombres y los dos apellidos' : 'Sin nombre'; filas.push(f); return; }
+        Object.assign(f, pn);
+        const dup = K.buscarDuplicado(nom, anio);
+        const rep = vistos.find((v) => K.norm(v.nombre) === K.norm(nom) && (!v.anio || !anio || v.anio === anio));
+        if (dup && dup.bloquea) { f.estado = 'dup'; f.det = dup.archivado ? 'Ya existe, está en el Archivo (se puede volver a inscribir desde su ficha)' : `Ya existe (${dup.j.categoria || 'sin categoría'})`; }
+        else if (rep) { f.estado = 'dup'; f.det = 'Repetido en la lista'; }
+        else { vistos.push(f); const par = K.buscarParecido(nom, anio); if (dup) f.det = 'Hay otro con el mismo nombre y distinto año de nacimiento'; else if (par) { f.par = true; f.det = `Se parece a ${par.j.nombre} (guardado sin apellidos): revisa que no sea la misma persona`; } }
+        filas.push(f);
+      });
+      return filas;
+    };
+    const ETQ = { nuevo: 'Nuevo', dup: 'Duplicado', faltan: 'Faltan apellidos' };
     K.modal({
       titulo: 'Cargar lista de jugadores',
-      cuerpo: `<p class="suave" style="margin:0 0 8px">Pega la lista de jugadores, <b>uno por línea</b>. Opcional: <i>Nombre; año de nacimiento; posición</i>. Puedes copiarla directo desde Excel.</p>
-        <label class="campo"><span>Categoría</span>${selCat('cat', K.categoriaNueva(inf))}</label>
-        <label class="campo"><span>Lista</span><textarea name="lista" rows="10" placeholder="Nombre Apellido; 2010; Volante&#10;Nombre Apellido; 2011"></textarea></label>
-        <p class="suave" data-cuenta style="margin:0">Ya hay ${inf.jugadores.length} jugador(es). Los nombres repetidos no se duplican.</p>`,
+      cuerpo: `<p class="suave" style="margin:0 0 8px">Pega la lista, <b>uno por línea</b>: <i>Nombres Apellido1 Apellido2; año de nacimiento</i> (nombre y los dos apellidos). Opcional: <i>; posición</i>. Puedes copiarla directo desde Excel.</p>
+        <label class="campo"><span>Categoría (se aplica a todos)</span>${selCat('cat', o.cat || K.categoriaNueva(inf), true)}</label>
+        <label class="campo"><span>Lista</span><textarea name="lista" rows="6" placeholder="Juan Carlos Pérez Soto; 2011&#10;Matías Rojas Díaz; 2010; Volante"></textarea></label>
+        <div data-prev class="lista-prev"></div>`,
       botones: [{ txt: 'Cancelar', cls: 'sec' }, { txt: 'Agregar jugadores', fn: (m, hoja) => {
-        const d = K.datos(hoja); let n = 0;
-        const ya = new Set(inf.jugadores.map((j) => j.nombre.trim().toLowerCase()));
-        d.lista.split('\n').forEach((l) => {
-          const [nombre, nac, pos] = l.split(/\t|;/).map((x) => (x || '').trim());
-          if (!nombre || ya.has(nombre.toLowerCase())) return;
-          ya.add(nombre.toLowerCase());
-          inf.jugadores.push({ id: K.uid(), nombre, categoria: d.cat.trim(), nacimiento: /^\d{4}$/.test(nac || '') ? nac : '', posicion: pos || '', comentarios: '', extras: {}, activo: true });
-          n++;
-        });
-        if (!n) { K.aviso('No se agregó ninguno (lista vacía o repetidos)', true); return false; }
-        guardar(n + ' jugador(es) agregados');
-      } }]
+        const d = K.datos(hoja), filas = analizar(d.lista, d.cat);
+        const n0 = Number((String(d.cat).match(/\d+/) || [])[0]);
+        if (!n0) { K.aviso('Elige la categoría', true); return false; }
+        if (filas.some((f) => f.estado === 'faltan')) { K.aviso('Hay líneas sin los dos apellidos: corrígelas arriba', true); return false; }
+        const nuevos = filas.filter((f) => f.estado === 'nuevo'), omit = filas.length - nuevos.length;
+        if (!nuevos.length) { K.aviso(filas.length ? 'No hay jugadores nuevos: todas las líneas ya existen' : 'Pega la lista primero', true); return false; }
+        const gDest = K.grupoDe(n0), destino = gDest ? K.informeGrupo(gDest) : inf;
+        const ingreso = o.ingreso || Math.max(new Date().getFullYear(), K.anioTexto(destino)) + '-01-01';
+        nuevos.forEach((f) => destino.jugadores.push(K.nuevoJugador({ nombre: f.nombre, nombres: f.nombres, apellido1: f.apellido1, apellido2: f.apellido2, categoria: d.cat.trim(), nacimiento: f.anio, posicion: f.pos, ingreso })));
+        guardar(nuevos.length + ' jugador(es) agregados' + (destino !== inf ? ` al informe ${gDest.nombre}` : '') + (omit ? ` · ${omit} ya existían (no se repitieron)` : ''));
+      } }],
+      alMontar: (m, hoja) => {
+        const ta = hoja.querySelector('[name=lista]'), prev = hoja.querySelector('[data-prev]'), btn = hoja.querySelector('footer [data-b="1"]');
+        const pintar = () => {
+          const filas = analizar(ta.value), n = filas.filter((f) => f.estado === 'nuevo').length, fa = filas.filter((f) => f.estado === 'faltan').length, du = filas.filter((f) => f.estado === 'dup').length;
+          btn.textContent = n ? `Agregar ${n} jugador${n === 1 ? '' : 'es'}` : 'Agregar jugadores';
+          prev.innerHTML = filas.length ? `<div class="lp-res"><b>${n}</b> nuevo${n === 1 ? '' : 's'}${du ? ` · <b>${du}</b> duplicado${du === 1 ? '' : 's'} (no se agregan)` : ''}${fa ? ` · <b>${fa}</b> con apellidos faltantes (corrígelas para poder agregar)` : ''}</div>
+            <div class="lp-filas">${filas.map((f) => `<div class="lp-fila ${f.estado}"><i class="chip lp-${f.par ? 'par' : f.estado}">${f.par ? 'Nuevo · revisar' : ETQ[f.estado]}</i><div><b>${e(f.nombre || f.linea)}</b><span>${e([f.anio, f.pos].filter(Boolean).join(' · '))}${f.det ? (f.anio || f.pos ? ' · ' : '') + e(f.det) : ''}</span></div></div>`).join('')}</div>` : '';
+        };
+        ta.addEventListener('input', pintar); pintar();
+        setTimeout(() => { try { ta.focus(); } catch (x) { /* nada */ } }, 60);
+      }
     });
   };
-  function eliminarJugador(id) {
-    const inf = K.inf();
-    quitar(inf.jugadores, id);
-    ['casos', 'atenciones', 'eventos'].forEach((k) => { inf[k] = inf[k].filter((x) => x.jugadorId !== id); });
-    K.state.informes.forEach((i) => {
-      i.atenciones = i.atenciones.filter((x) => x.jugadorId !== id);
-      i.partidos.forEach((p) => { delete (p.minutos || {})[id]; p.incidencias = (p.incidencias || []).filter((x) => x.jugadorId !== id); });
-    });
-    K.ui.jugadorId = null;
-    guardar('Jugador eliminado');
-  }
-
   // Mueve un jugador entre los visibles (misma categoría elegida) dentro del orden global.
   function moverJ(id, d) {
     const inf = K.inf();
@@ -313,20 +409,30 @@
     const inf = K.inf();
     if (K.ui.jugadorId && K.jugador(inf, K.ui.jugadorId)) return pFicha(K.jugador(inf, K.ui.jugadorId));
     const per = periodo();
-    const q = (K.ui.filtroJ || '').toLowerCase();
-    const js = K.ordenJugadores(inf, K.jugadoresCat(inf).filter((j) => !q || j.nombre.toLowerCase().includes(q)));
-    const mueve = K.puedeEditar() && !q && js.length > 1;
+    const q = K.norm(K.ui.filtroJ || '');
+    const est = K.estadoJugadores ? K.estadoJugadores() : { les: new Map(), ult: new Map() }, lesionado = (j) => !!(K.esLesionado && K.esLesionado(est, j));
+    const nLes = K.jugadoresCat(inf).filter(lesionado).length, solo = !!K.ui.soloLes;
+    const js = K.ordenJugadores(inf, K.jugadoresCat(inf).filter((j) => (!q || K.norm(j.nombre).includes(q)) && (!solo || lesionado(j))));
+    const puedeOrdenar = K.puedeEditar() && !q && !solo && js.length > 1, ordenando = puedeOrdenar && !!K.ui.ordenarJ, mueve = ordenando;
+    const nArch = K.archivados().length, archivo = K.ui.jtab === 'archivo';
+    const pestanas = `<div class="seg jtabs" role="tablist"><button type="button" role="tab" data-acc="jtab" data-v="inscritos" class="${archivo ? '' : 'act'}">Inscritos (${K.jugadoresCat(inf).length})</button><button type="button" role="tab" data-acc="jtab" data-v="archivo" class="${archivo ? 'act' : ''}">Archivo (${nArch})</button></div>`;
+    if (archivo) return `<div class="titulo-vista"><h1>Jugadores</h1></div><div style="margin-bottom:10px">${pestanas}</div>${K.archivoHTML()}`;
     return `
       <div class="titulo-vista"><h1>Jugadores <span class="suave" style="font-family:Inter;font-size:15px;font-weight:400">${K.ui.cat ? 'Sub ' + K.ui.cat + ' · ' : ''}(${K.jugadoresCat(inf).length})</span></h1><div class="fila gap"><button class="btn sec" data-acc="pegarLista">Pegar lista</button><button class="btn" data-acc="nuevoJugador">${K.uiIco('mas', 18)} Agregar</button></div></div>
+      <div style="margin-bottom:10px">${pestanas}</div>
+      <div class="fila gap wrap" style="margin-bottom:10px"><button type="button" class="th-chip${solo ? ' on' : ''}" data-acc="soloLes" aria-pressed="${solo}">Solo lesionados <small>${nLes}</small></button></div>
       ${K.jugadoresCat(inf).length > 6 ? `<input type="search" placeholder="Buscar jugador…" value="${e(K.ui.filtroJ || '')}" data-acc-input="buscarJ" style="margin-bottom:10px">` : ''}
-      ${js.length > 1 && K.puedeEditar() ? `<p class="suave" style="margin:0 2px 8px;font-size:13px">Este es el orden de las fichas en el informe (${inf.ordenManual ? 'manual' : 'por categoría y nombre'}). Arrastra <b>⠿</b> o usa las flechas para cambiarlo.${inf.ordenManual ? ' <a href="#" data-acc="ordenAZ">Volver al orden por nombre</a>' : ''}</p>` : ''}
+      ${js.length > 1 && K.puedeEditar() ? `<div class="fila sb wrap gap" style="margin:0 0 8px"><p class="suave" style="margin:0 2px;flex:1 1 220px">Orden de las fichas en el informe: ${inf.ordenManual ? 'manual' : 'por categoría y nombre'}.${ordenando ? ' Arrastra <b>⠿</b> o usa las flechas.' : ''}${inf.ordenManual ? ' <a href="#" data-acc="ordenAZ">Volver al orden por nombre</a>' : ''}</p>${puedeOrdenar || K.ui.ordenarJ ? `<button type="button" class="btn ${ordenando ? '' : 'sec '}chico" data-acc="ordenarJ" aria-pressed="${ordenando}">${ordenando ? 'Listo' : 'Ordenar'}</button>` : ''}</div>` : ''}
       <div class="card" style="padding:6px 12px">${js.length ? `<div class="lista"${mueve ? ' data-arr="jugadores"' : ''}>${js.map((j) => {
         const c = K.contar(inf, per, j.id).porFuente, z = K.casosJugador(inf, per, j).length;
-        return `<div class="item" data-acc="abrirJugador" data-id="${j.id}"${mueve ? ' data-arr-item' : ''}>${mueve ? `<button class="grip" data-grip aria-label="Arrastrar para cambiar el orden" title="Arrastra para cambiar el orden">${K.uiIco('arrastrar', 20)}</button>` : ''}${avatar(j)}<div class="txt"><b>${e(j.nombre)}${j.activo === false ? ' <span class="suave">(fuera del informe)</span>' : ''} ${K.etiquetasJugador(j)}</b><span>${e([j.categoria, j.posicion, j.nacimiento].filter(Boolean).join(' · ') || 'Sin datos')}</span></div>
-          <div style="text-align:right;font-size:12px;color:var(--suave)"><b style="color:var(--verde-2);font-size:15px">${c.atenciones}</b> atenc.${z ? `<br>${z} caso(s)` : ''}</div>${mueve ? `<button class="btn ghost chico" data-acc="subirJ" data-id="${j.id}" aria-label="Subir">${K.uiIco('arriba', 18)}</button><button class="btn ghost chico" data-acc="bajarJ" data-id="${j.id}" aria-label="Bajar">${K.uiIco('abajo', 18)}</button>` : ''}</div>`;
-      }).join('')}</div>` : `<p class="vacio-msg">${inf.jugadores.length ? 'Nadie coincide con la búsqueda.' : 'Agrega a tus jugadores para empezar a registrar atenciones y armar sus fichas.'}</p>`}</div>`;
+        const ua = est.ult.get(j.id) || '';
+        return `<div class="item" data-acc="abrirJugador" data-id="${j.id}"${mueve ? ' data-arr-item' : ''}>${mueve ? `<button class="grip" data-grip aria-label="Arrastrar para cambiar el orden" title="Arrastra para cambiar el orden">${K.uiIco('arrastrar', 20)}</button>` : ''}${avatar(j)}<div class="txt"><b>${e(j.nombre)}${j.activo === false ? ' <span class="suave">(fuera del informe)</span>' : ''} ${lesionado(j) ? '<i class="chip g-grave etq" data-lesionado>Lesionado</i>' : ''}${lesionado(j) && (est.les.get(j.id) || []).some((c) => c.conmocion) ? '<i class="chip g-grave etq" data-conmocion>Conmoción</i>' : ''}${K.etiquetasJugador(j)}</b><span>${e([j.categoria, j.posicion, j.nacimiento].filter(Boolean).join(' · ') || 'Sin datos')}</span><span class="ult-at">${ua ? 'Últ. atención ' + K.fechaCorta(ua) : 'Sin atenciones'}</span></div>
+          <div style="text-align:right;font-size:13px;color:var(--suave)"><b style="color:var(--verde-2);font-size:15px">${c.atenciones}</b> atenc.${z ? `<br>${z} caso(s)` : ''}</div>${mueve ? `<button class="btn ghost chico" data-acc="subirJ" data-id="${j.id}" aria-label="Subir">${K.uiIco('arriba', 18)}</button><button class="btn ghost chico" data-acc="bajarJ" data-id="${j.id}" aria-label="Bajar">${K.uiIco('abajo', 18)}</button>` : ''}</div>`;
+      }).join('')}</div>` : `<p class="vacio-msg">${solo && !q ? 'Nadie está lesionado en esta categoría.' : K.vivos(inf).length ? 'Nadie coincide con la búsqueda.' : 'Agrega a tus jugadores para empezar a registrar atenciones y armar sus fichas.'}</p>`}</div>`;
   }
   Object.assign(K.acciones, {
+    soloLes() { K.ui.soloLes = !K.ui.soloLes; K.render(); },
+    ordenarJ() { K.ui.ordenarJ = !K.ui.ordenarJ; K.render(); },
     nuevoJugador() { K.formJugador(); },
     pegarLista() { K.formLista(); },
     abrirJugador(el) { K.ui.jugadorId = el.dataset.id; K.render(); window.scrollTo(0, 0); },
@@ -338,9 +444,13 @@
     editarJugador() { K.formJugador(K.jugador(K.inf(), K.ui.jugadorId)); }
   });
 
-  function pFicha(j) {
-    const inf = K.inf(), per = periodo();
-    const regs = K.registros(inf, j.id); K._regs = regs;
+  function pFicha(j0) {
+    const inf = K.inf(), per = periodo(), anioV = K.anioDePeriodo(per);
+    // comentarios y campos adicionales del año que se está viendo (la ficha del informe de otro año muestra los de ese año)
+    const tj = K.textosJugador(inf, j0, anioV), j = Object.assign({}, j0, { comentarios: tj.comentarios || '', extras: tj.extras || j0.extras || {} });
+    const otrosAnios = []; if (K.anioTextoJ(inf, j0) !== anioV && j0.comentarios) otrosAnios.push([K.anioTextoJ(inf, j0), j0.comentarios]);
+    Object.keys(j0.anios || {}).forEach((y) => { if (Number(y) !== anioV && j0.anios[y] && j0.anios[y].comentarios) otrosAnios.push([Number(y), j0.anios[y].comentarios]); });
+    otrosAnios.sort((a, b) => b[0] - a[0]);
     const casos = inf.casos.filter((c) => c.jugadorId === j.id).sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''));
     const extras = inf.camposExtra.map((c) => {
       const v = (j.extras || {})[c.id];
@@ -350,29 +460,38 @@
       else ctl = `<label class="campo"><span>${e(c.titulo)}${c.tipo === 'lista' ? ' (una por línea)' : ''}</span><textarea data-extra="${c.id}">${e(v == null ? '' : v)}</textarea></label>`;
       return ctl;
     }).join('');
+    const arch = !K.inscrito(j0);
     return `
-      <div class="titulo-vista"><div class="fila gap"><button class="btn sec chico" data-acc="volverJugadores">${K.uiIco('atras', 16)} Jugadores</button></div><div class="fila gap wrap"><button class="btn sec chico" data-acc="editarJugador">${K.uiIco('editar', 16)} Datos y foto</button></div></div>
-      <div class="fila gap" style="margin-bottom:12px">${avatar(j, 'grande')}<div><h1 style="font-family:Caladea,serif;font-size:23px;color:var(--verde-2)">${e(j.nombre)} ${K.etiquetasJugador(j)}</h1><div class="suave">${e([j.categoria, j.posicion, j.nacimiento].filter(Boolean).join(' · '))}</div>${(() => { const cj = K.catsJugadas(j, per), ck = Object.keys(cj).sort((a, b) => b - a), otras = (j.tambien || []).filter((x) => !ck.includes(String((/\d+/.exec(x) || [])[0]))); return ck.length || (j.tambien || []).length ? `<div class="suave">Categorías en que ha jugado${ck.length ? ': ' + ck.map((c) => `Sub ${c} (${cj[c]} partido${cj[c] === 1 ? '' : 's'})`).join(', ') : ''}${!ck.length ? ': aún sin partidos' : ''}${(j.tambien || []).length ? ' · También juega en ' + e((j.tambien || []).join(', ')) : ''}</div>` : ''; })()}</div></div>
-      <div class="tiles compactos">
+      <div class="titulo-vista"><div class="fila gap"><button class="btn sec chico" data-acc="volverJugadores">${K.uiIco('atras', 16)} ${arch ? 'Archivo' : 'Jugadores'}</button></div><div class="fila gap wrap"><button class="btn sec chico" data-acc="editarJugador">${K.uiIco('editar', 16)} Datos y foto</button></div></div>
+      ${K.cintilloArchivado(j0)}
+      <div class="fila gap" style="margin-bottom:12px">${avatar(j, 'grande')}<div><h1 style="font-family:Caladea,serif;font-size:23px;color:var(--verde-2)">${e(j.nombre)} ${K.etiquetasJugador(j)}</h1><div class="suave">${e([j.posicion, j.nacimiento].filter(Boolean).join(' · '))}</div>${K.pertenenciaHTML(j)}${(() => { const cj = K.catsJugadas(j, per), ck = Object.keys(cj).sort((a, b) => b - a); return ck.length ? `<div class="suave">Categorías en que ha jugado: ${ck.map((c) => `Sub ${c} (${cj[c]} partido${cj[c] === 1 ? '' : 's'})`).join(', ')}</div>` : ''; })()}</div></div>
+      ${K.fichaResumen ? K.fichaResumen(inf, j0) : ''}
+      ${arch ? '' : `<div class="tiles compactos">
         <button class="tile prin" data-acc="jAtencion"><span class="mini-ico">${K.ico('img:atenciones')}</span>Atención</button>
         <button class="tile" data-acc="jCaso"><span class="mini-ico">${K.ico('svg:lesion')}</span>Lesión / molestia</button>
         <button class="tile" data-acc="jControl"><span class="mini-ico">${K.ico('svg:control')}</span>Control</button>
         <button class="tile" data-acc="jExamen"><span class="mini-ico">${K.ico('svg:examen')}</span>Examen</button>
         <button class="tile" data-acc="jMed"><span class="mini-ico">${K.ico('svg:medicamento')}</span>Medicamento</button>
         <button class="tile" data-acc="jCiru"><span class="mini-ico">${K.ico('svg:cirugia')}</span>Cirugía</button>
-      </div>
-      ${K.kineEstadoHTML ? K.kineEstadoHTML(inf, j) : ''}
+      </div>`}
+      ${arch || !K.ultimaAtencion ? '' : (() => { const u = K.ultimaAtencion(j0.id); return u ? `<button type="button" class="btn sec ficha-repetir" data-acc="jRepetir">${K.uiIco('copiar', 18)} <span>Repetir última atención <small>(${K.fechaCorta(u.fecha)} · ${e(Object.keys(u.trat || {}).map((id) => (K.trat(inf, id) || { nombre: '' }).nombre).filter(Boolean).slice(0, 3).join(', ') || 'sin intervenciones')})</small></span></button>` : ''; })()}
+      ${K.kineEstadoHTML && !arch ? K.kineEstadoHTML(inf, j) : ''}
+      ${K.fichaClinica.antecedentes(inf, j0)}
       <div class="card"><h2>Ficha en el informe</h2><p class="sub">${e(per.completo)}. Se actualiza sola con cada registro.</p>
         <div class="vista-wrap"><div class="vista-paginas"><section class="pagina p-ficha"><div class="panel">${K.fichaHTML(inf, per, j)}</div></section></div></div></div>
-      <div class="card"><h2>Comentarios</h2>
-        <label class="campo"><span>Comentarios (aparecen en la ficha)</span><textarea data-campo="comentarios">${e(j.comentarios || '')}</textarea></label></div>
+      <div class="card"><h2>Comentarios${anioV !== new Date().getFullYear() ? ' ' + anioV : ''}</h2>
+        <label class="campo"><span>Comentarios (aparecen en la ficha)</span><textarea data-campo="comentarios">${e(j.comentarios || '')}</textarea></label>
+        ${otrosAnios.length ? `<div class="suave" style="margin-top:8px"><b>Comentarios de años anteriores</b>${otrosAnios.map(([y, c]) => `<p style="margin:4px 0"><b>${y}:</b> ${e(c).replace(/\n/g, '<br>')}</p>`).join('')}</div>` : ''}</div>
       ${extras ? `<div class="card"><h2>Información adicional</h2>${extras}</div>` : ''}
-      <div class="card"><h2>Lesiones y molestias</h2>${casos.length ? `<div class="lista">${casos.map((c) => `<div class="item" data-acc="editCaso" data-id="${c.id}"><span class="mini-ico">${K.ico(c.tipo === 'lesion' ? 'svg:lesion' : 'svg:molestia')}</span><div class="txt"><b>${e(c.titulo)}</b><span>${c.tipo === 'lesion' ? 'Lesión' : 'Molestia'} · ${K.fechaCorta(c.inicio)}${K.duracionCaso(c) ? ' · ' + K.duracionCaso(c) : ''}${c.zonas && c.zonas.length ? ' · ' + e(c.zonas.map(K.nombreZona).join(', ')) : ''}</span></div><span class="chip g-${c.gravedad || 'leve'}">${K.GRAVEDADES[K.gravClave(c.gravedad)]}</span></div>`).join('')}</div>` : '<p class="vacio-msg">Sin lesiones ni molestias registradas.</p>'}</div>
-      <div class="card"><h2>Registros del jugador</h2>${K.listaRegistros(regs, 40)}</div>`;
+      <div class="card"><h2>Lesiones y molestias</h2>${casos.length ? `<div class="lista">${casos.map((c) => `<div class="item" data-acc="editCaso" data-id="${c.id}"><span class="mini-ico">${K.ico(c.tipo === 'lesion' ? 'svg:lesion' : 'svg:molestia')}</span><div class="txt"><b>${e(c.titulo)}${c.conmocion ? ' <i class="chip g-grave etq" data-conmocion>Conmoción</i>' : ''}</b><span>${c.tipo === 'lesion' ? 'Lesión' : 'Molestia'} · ${K.fechaCorta(c.inicio)}${K.duracionCaso(c) ? ' · ' + K.duracionCaso(c) : ''}${c.zonas && c.zonas.length ? ' · ' + e(c.zonas.map(K.nombreZona).join(', ')) : ''}${K.clinico.resumen(c) ? ' · ' + e(K.clinico.resumen(c)) : ''}</span></div><span class="chip g-${c.gravedad || 'leve'}">${K.GRAVEDADES[K.gravClave(c.gravedad)]}</span></div>`).join('')}</div>` : '<p class="vacio-msg">Sin lesiones ni molestias registradas.</p>'}</div>
+      ${K.fichaClinica.documentos(inf, j0)}
+      ${K.fichaClinica.seguro(inf, j0)}
+      ${K.histCard ? K.histCard(inf, j0) : ''}
+      ${K.puedeEditar() ? K.tarjetaEstado(j0) : ''}`;
   }
   const cj = () => K.ui.jugadorId;
   Object.assign(K.acciones, {
-    jAtencion() { K.formAtencion({ jugadorId: cj() }); }, jCaso() { K.formCaso({ jugadorId: cj() }); },
+    jAtencion() { K.formAtencion({ jugadorId: cj() }); }, jRepetir() { K.formAtencion({ jugadorId: cj(), repetir: true }); }, jCaso() { K.formCaso({ jugadorId: cj() }); },
     jControl() { K.formEvento('control', { jugadorId: cj() }); }, jExamen() { K.formEvento('examen', { jugadorId: cj() }); },
     jMed() { K.formEvento('medicamento', { jugadorId: cj() }); }, jCiru() { K.formEvento('cirugia', { jugadorId: cj() }); },
     editCaso(el) { K.formCaso({ rec: K.inf().casos.find((c) => c.id === el.dataset.id) }); }
@@ -380,7 +499,7 @@
 
   /* ======================= CALENDARIO ======================= */
   K.formCargo = function (rec) {
-    const inf = K.inf();
+    const inf = K.inf(), ST = () => K.textosAnio(inf, K.anioVista(), true).staff; // el cuerpo técnico es del año que se está viendo
     const filas = (rec ? rec.personas : [{ nombre: '', ocasional: false }]);
     const fila = (p) => `<div class="fila gap" style="margin-bottom:8px" data-persona><input type="text" class="grow" placeholder="Nombre" value="${e(p.nombre)}" data-pn><label class="check" style="padding:0;white-space:nowrap"><input type="checkbox" data-po ${p.ocasional ? 'checked' : ''}><span>Apoyo</span></label><button type="button" class="btn ghost chico" data-quitar aria-label="Quitar">${K.uiIco('cerrar', 16)}</button></div>`;
     K.modal({
@@ -390,14 +509,14 @@
         <div data-personas>${filas.map(fila).join('')}</div>
         <button type="button" class="btn sec chico" data-mas>${K.uiIco('mas', 16)} Agregar persona</button>`,
       botones: [
-        rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.confirmar('¿Eliminar este cargo?', 'Eliminar', () => { quitar(inf.staff, rec.id); guardar('Cargo eliminado'); }); return true; } } : { txt: 'Cancelar', cls: 'sec' },
+        rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.confirmar('¿Eliminar este cargo?', 'Eliminar', () => { quitar(ST(), rec.id); guardar('Cargo eliminado'); }); return true; } } : { txt: 'Cancelar', cls: 'sec' },
         {
           txt: 'Guardar',
           fn: (m, hoja) => {
             const cargo = hoja.querySelector('[name=cargo]').value.trim();
             if (!cargo) { K.aviso('Escribe el cargo', true); return false; }
             const personas = Array.from(hoja.querySelectorAll('[data-persona]')).map((r) => ({ nombre: r.querySelector('[data-pn]').value.trim(), ocasional: r.querySelector('[data-po]').checked })).filter((p) => p.nombre);
-            if (rec) { rec.cargo = cargo; rec.personas = personas; } else inf.staff.push({ id: K.uid(), cargo, personas });
+            if (rec) { rec.cargo = cargo; rec.personas = personas; } else ST().push({ id: K.uid(), cargo, personas });
             guardar('Cuerpo técnico guardado');
           }
         }
@@ -413,15 +532,19 @@
     const inf = K.inf();
     K.migrarPartidos(inf);
     if (K.ui.partidoId) { const pp = inf.partidos.find((x) => x.id === K.ui.partidoId); if (pp && K.pPartidoInforme) return K.pPartidoInforme(pp); K.ui.partidoId = null; }
+    if (K.ui.torneoId && K.pTorneoFicha) { const ft = K.pTorneoFicha(); if (ft) return ft; K.ui.torneoId = null; }
+    const stAnio = K.textosAnio(inf, K.anioVista()).staff || [];
+    if (K.partidosTabsHTML && K.ui.partTab === 'torneos') return `<div class="titulo-vista"><h1>Partidos</h1></div>${K.partidosTabsHTML(inf)}${K.torneosListaHTML(inf)}`;
     return `
       <div class="titulo-vista"><h1>Partidos</h1></div>
+      ${K.partidosTabsHTML ? K.partidosTabsHTML(inf) : ''}
       ${K.partidosCalendarioHTML(inf)}
-      ${(() => { const per = periodo(), fuera = inf.partidos.filter((x) => !K.partidoEnPeriodo(x, per)); return fuera.length ? `<div class="aviso">${fuera.length} partido(s) tienen fecha fuera del período del informe (<b>${e(per.completo)}</b>), por eso no aparecen en el informe: ${fuera.map((x) => e(x.rival || 'Partido') + ' (' + e(K.fechaCorta(x.fecha)) + ')').join(', ')}. Revisa la fecha o cambia el período en Informe.</div>` : ''; })()}
+      ${(() => { const per = periodo(), fuera = inf.partidos.filter((x) => !K.partidoEnPeriodo(x, per, inf)); return fuera.length ? `<div class="aviso">${fuera.length} partido(s) tienen fecha fuera del período del informe (<b>${e(per.completo)}</b>), por eso no aparecen en el informe: ${fuera.map((x) => e(x.rival || 'Partido') + ' (' + e(K.fechaCorta(x.fecha)) + ')').join(', ')}. Revisa la fecha o cambia el período en Informe.</div>` : ''; })()}
       ${K.partidosListaHTML(inf)}
       ${K.partidosGeneralHTML()}
       <div class="card"><div class="fila sb"><h2 style="margin:0">Cuerpo técnico</h2><button class="btn sec chico" data-acc="nuevoCargo">${K.uiIco('mas', 16)} Agregar cargo</button></div>
-        <p class="sub">Puedes poner varias personas por cargo y marcar a quienes colaboraron solo de vez en cuando.</p>
-        ${inf.staff.length ? `<div class="lista">${inf.staff.map((s) => `<div class="item" data-acc="editCargo" data-id="${s.id}"><div class="txt"><b>${e(s.cargo)}</b><span>${s.personas.map((p) => e(p.nombre) + (p.ocasional ? ' (apoyo)' : '')).join(' · ') || 'Sin personas'}</span></div>
+        <p class="sub">Puedes poner varias personas por cargo y marcar a quienes colaboraron solo de vez en cuando. Es el cuerpo técnico de ${K.anioVista()}.</p>
+        ${stAnio.length ? `<div class="lista">${stAnio.map((s) => `<div class="item" data-acc="editCargo" data-id="${s.id}"><div class="txt"><b>${e(s.cargo)}</b><span>${s.personas.map((p) => e(p.nombre) + (p.ocasional ? ' (apoyo)' : '')).join(' · ') || 'Sin personas'}</span></div>
           <button class="btn ghost chico" data-acc="subirC" data-id="${s.id}" aria-label="Subir">${K.uiIco('arriba', 18)}</button><button class="btn ghost chico" data-acc="bajarC" data-id="${s.id}" aria-label="Bajar">${K.uiIco('abajo', 18)}</button></div>`).join('')}</div>` : '<p class="vacio-msg">Sin cargos todavía.</p>'}</div>`;
   }
   Object.assign(K.acciones, {
@@ -429,20 +552,20 @@
     bajarP(el, ev) { ev.stopPropagation(); moverP(el.dataset.id, 1); },
     ordenFecha(el, ev) { if (ev) ev.preventDefault(); const inf = K.inf(); const orden = K.jornadas(inf).sort((a, b) => (a.fecha || '9999').localeCompare(b.fecha || '9999')); inf.partidos = [].concat(...orden.map((j) => j.ps)).concat(inf.partidos.filter((p) => !orden.some((j) => j.ps.includes(p)))); inf.ordenPartidos = false; guardar('Orden por fecha restablecido'); },
     nuevoCargo() { K.formCargo(); },
-    editCargo(el) { K.formCargo(K.inf().staff.find((s) => s.id === el.dataset.id)); },
-    subirC(el, ev) { ev.stopPropagation(); mover(K.inf().staff, el.dataset.id, -1); guardar(); },
-    bajarC(el, ev) { ev.stopPropagation(); mover(K.inf().staff, el.dataset.id, 1); guardar(); }
+    editCargo(el) { K.formCargo(K.textosAnio(K.inf(), K.anioVista(), true).staff.find((s) => s.id === el.dataset.id)); },
+    subirC(el, ev) { ev.stopPropagation(); mover(K.textosAnio(K.inf(), K.anioVista(), true).staff, el.dataset.id, -1); guardar(); },
+    bajarC(el, ev) { ev.stopPropagation(); mover(K.textosAnio(K.inf(), K.anioVista(), true).staff, el.dataset.id, 1); guardar(); }
   });
 
   /* ======================= AJUSTES ======================= */
   const botonIcono = (i, sel) => `<span class="ico-opt"><button type="button" class="btn sec chico" data-ico="${e(i)}" style="padding:4px;width:46px;height:46px;${i === sel ? 'border-width:3px' : 'border-color:var(--linea)'}"><span class="mini-ico" style="width:32px;height:32px">${K.ico(i)}</span></button>${i.startsWith('custom:') ? `<button type="button" class="ico-del" data-ico-del="${e(i.slice(7))}" aria-label="Quitar ícono">×</button>` : ''}</span>`;
   const botonesPack = () => K.PACKS.map(([id, t]) => `<button type="button" class="btn chico${K.packIconos() === id ? '' : ' sec'}" data-pack="${id}">${t}</button>`).join('');
   const gridIconos = (sel) => K.iconosPack(K.packIconos()).map((i) => botonIcono(i, sel)).join('');
-  const pickerIcono = (sel) => `<div class="campo"><span style="display:block;font-size:12.5px;font-weight:600;color:var(--suave);margin-bottom:4px">Ícono (<span data-n-iconos>${K.iconosPack(K.packIconos()).length}</span> disponibles en este estilo)</span>
-    <div class="fila gap wrap" style="margin-bottom:8px" data-packs><span class="suave" style="font-size:12.5px">Estilo:</span>${botonesPack()}</div>
+  const pickerIcono = (sel) => `<div class="campo"><span style="display:block;font-size:13px;font-weight:600;color:var(--suave);margin-bottom:4px">Ícono (<span data-n-iconos>${K.iconosPack(K.packIconos()).length}</span> disponibles en este estilo)</span>
+    <div class="fila gap wrap" style="margin-bottom:8px" data-packs><span class="suave" style="font-size:13px">Estilo:</span>${botonesPack()}</div>
     <input type="hidden" data-icono-val value="${e(sel)}"><div class="fila wrap" style="gap:6px" data-iconos>${gridIconos(sel)}</div>
     <label class="btn sec chico" style="cursor:pointer;margin-top:8px">${K.uiIco('subir', 16)} Agregar ícono propio a este estilo<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden data-ico-subir></label>
-    <div class="suave" style="font-size:12px;margin-top:4px">Sube una imagen cuadrada (PNG o SVG). Quedará disponible en el estilo que tengas elegido.</div></div>`;
+    <div class="suave" style="font-size:13px;margin-top:4px">Sube una imagen cuadrada (PNG o SVG). Quedará disponible en el estilo que tengas elegido.</div></div>`;
   const bindPicker = (hoja) => {
     const refrescar = () => {
       const sel = hoja.querySelector('[data-icono-val]').value;
@@ -481,7 +604,7 @@
     K.modal({
       titulo: rec ? 'Indicador' : 'Nuevo indicador',
       cuerpo: `<label class="campo"><span>Nombre</span><input type="text" name="nombre" value="${e(rec ? rec.nombre : '')}" placeholder="Ej. Total de evaluaciones"></label>
-        <div class="campo"><span style="display:block;font-size:12.5px;font-weight:600;color:var(--suave);margin-bottom:4px">Dónde aparece</span>${K.seg('grupo', [['general', 'Resumen general'], ['tratamiento', 'Tratamientos']], rec ? rec.grupo : 'general')}</div>
+        <div class="campo"><span style="display:block;font-size:13px;font-weight:600;color:var(--suave);margin-bottom:4px">Dónde aparece</span>${K.seg('grupo', [['general', 'Resumen general'], ['tratamiento', 'Tratamientos']], rec ? rec.grupo : 'general')}</div>
         ${pickerIcono(rec ? rec.icono : 'svg:estrella')}
         <p class="aviso">${auto ? 'Este indicador se calcula solo desde tus registros. Puedes sumarle ajustes manuales desde la pestaña Informe.' : 'Este indicador es manual: se llena con “Ajuste manual” (en Informe o Registrar) y suma por fecha, así respeta los períodos.'}</p>
         <label class="check"><input type="checkbox" name="visible" ${!rec || rec.visible !== false ? 'checked' : ''}><span>Mostrar en el informe</span></label>`,
@@ -585,6 +708,7 @@
       <div class="card"><div class="fila sb"><h2 style="margin:0">Campos adicionales de la ficha</h2><button class="btn sec chico" data-acc="nuevoExtra">${K.uiIco('mas', 16)} Nuevo</button></div>
         <p class="sub">Para cualquier dato extra que quieran sumar a cada jugador (lo iremos definiendo).</p>
         ${inf.camposExtra.length ? `<div class="lista">${inf.camposExtra.map((c) => `<div class="item" data-acc="editExtra" data-id="${c.id}"><div class="txt"><b>${e(c.titulo)}</b><span>${({ texto: 'Texto libre', lista: 'Lista', numero: 'Número', 'si-no': 'Sí / No' })[c.tipo]}</span></div></div>`).join('')}</div>` : '<p class="vacio-msg" style="padding:8px">Aún no hay campos adicionales.</p>'}</div>
+      ${K.tarjetaTemporada ? K.tarjetaTemporada() : ''}
       <div class="card"><h2>Datos y respaldo</h2>
         <p class="sub">${K.rol === 'admin' ? 'La información está en la nube y se comparte con el otro kinesiólogo. Descargar un respaldo es opcional (una copia de seguridad en tu equipo).' : 'La información se guarda solo en este dispositivo.'} Respaldo más reciente: <b>${dias}</b>.</p>
         <div class="fila wrap gap"><button class="btn chico" data-acc="exportarTodo">${K.uiIco('descargar', 16)} Respaldo completo</button>
@@ -593,6 +717,7 @@
         <hr class="sep">
         <div class="fila wrap gap">${demo ? `<button class="btn peligro chico" data-acc="quitarDemo">Quitar datos de ejemplo</button>` : `<button class="btn sec chico" data-acc="cargarDemo">Cargar datos de ejemplo</button>`}</div>
         <p class="suave" style="margin-top:8px">Los datos de ejemplo sirven para ver cómo queda el informe; se pueden quitar con un toque.</p></div>
+      ${K.scat5 && K.scat5.tarjetaDocumentos ? K.scat5.tarjetaDocumentos() : ''}
       ${K.tarjetaSalud ? K.tarjetaSalud() : ''}
       ${K.tarjetaAcceso ? K.tarjetaAcceso() : ''}
       ${K.tarjetaCuenta ? K.tarjetaCuenta() : ''}
@@ -622,14 +747,15 @@
     const per = periodo();
     const top = document.getElementById('top');
     document.body.classList.toggle('inicio', !K.ui.cat);
-    top.innerHTML = `<img src="img/insignia-512.png" alt=""><div class="tit"><b>Kinesiología Fútbol Joven SW</b><span>${K.ui.cat ? (K.rol === 'tecnico' ? e(K.vistaTexto()) : 'Sub ' + K.ui.cat + ' · informe ' + e(inf.nombre)) + ' · ' + e(per.completo) : 'Inicio'}</span></div>${K.chipNube ? K.chipNube() : ''}${K.rol === 'tecnico' ? K.selectorVista() : K.selectorCat()}`;
-    document.getElementById('nav').innerHTML = K.PANTALLAS.map(([id, t]) => `<button data-nav="${id}" class="${(K.ui.pantalla === 'bitacora' ? 'informe' : K.ui.pantalla) === id ? 'act' : ''}" aria-label="${t}">${K.uiIco(id, 24)}<span>${t}</span></button>`).join('');
+    top.innerHTML = `<img src="img/insignia-512.png" alt=""><div class="tit"><b>Kinesiología Fútbol Joven SW</b><span>${K.ui.cat ? (K.rol === 'tecnico' ? e(K.vistaTexto()) : 'Sub ' + K.ui.cat + ' · informe ' + e(inf.nombre)) + ' · ' + e(per.completo) : 'Inicio'}</span></div>${K.chipNube ? K.chipNube() : ''}${K.botonBuscar ? K.botonBuscar() : ''}${K.rol === 'tecnico' ? K.selectorVista() : K.selectorCat()}`;
+    document.getElementById('nav').innerHTML = K.PANTALLAS.map(([id, t]) => `<button data-nav="${id}" class="${(K.ui.pantalla === 'bitacora' ? 'informe' : K.ui.pantalla === 'temporada' ? 'ajustes' : K.ui.pantalla) === id ? 'act' : ''}" aria-label="${t}">${K.uiIco(id, 24)}<span>${t}</span></button>`).join('');
     if (!K.puedeEditar()) K.ui.pantalla = 'informe';
-    const pant = K.ui.pantalla === 'bitacora' && K.pBitacora ? ['bitacora', 'Registro clínico', K.pBitacora] : K.PANTALLAS.find((p) => p[0] === K.ui.pantalla) || K.PANTALLAS[0];
+    const pant = K.ui.pantalla === 'bitacora' && K.pBitacora ? ['bitacora', 'Registro clínico', K.pBitacora] : K.ui.pantalla === 'temporada' && K.pTemporada ? ['temporada', 'Nueva temporada', K.pTemporada] : K.PANTALLAS.find((p) => p[0] === K.ui.pantalla) || K.PANTALLAS[0];
     const y = window.scrollY;
     document.getElementById('view').innerHTML = K.ui.cat ? pant[2]() : K.rol === 'tecnico' ? K.inicioTecnico() : K.inicioHTML();
     K.escalar();
     window.scrollTo(0, y);
+    if (K._armar) { const a = K._armar; K._armar = null; K.armarInforme(a); } else if (armadoId && listoRes) { armadoId++; listoRes(false); listoRes = null; } // otra pantalla: se cancela el armado en curso
     if (K.postRender) K.postRender();
   };
   K.refrescar = () => K.render();
@@ -644,7 +770,7 @@
 
   document.addEventListener('click', (ev) => {
     const nav = ev.target.closest('[data-nav]');
-    if (nav) { K.ui.pantalla = nav.dataset.nav; if (K.ui.pantalla !== 'jugadores') K.ui.jugadorId = null; if (K.ui.pantalla !== 'calendario') K.ui.partidoId = null; K.render(); window.scrollTo(0, 0); return; }
+    if (nav) { K.ui.pantalla = nav.dataset.nav; if (K.ui.pantalla !== 'jugadores') K.ui.jugadorId = null; if (K.ui.pantalla !== 'calendario') { K.ui.partidoId = null; K.ui.torneoId = null; } K.render(); window.scrollTo(0, 0); return; }
     const reg = ev.target.closest('[data-reg]');
     if (reg && !ev.target.closest('[data-acc]')) { K.acciones.reg(reg); return; }
     const a = ev.target.closest('#view [data-acc]');
@@ -655,9 +781,11 @@
     if (!K.state || !t.closest('#view')) return;
     if (t.dataset.accChange && K.acciones[t.dataset.accChange]) return K.acciones[t.dataset.accChange](t, ev);
     const inf = K.inf();
-    if (t.dataset.inf) { inf[t.dataset.inf] = t.value; K.guardar(); K.render(); return; }
-    if (t.dataset.infG) { K.informeGrupo(K.GRUPOS[0])[t.dataset.infG] = t.value; K.guardar(); K.render(); return; }
-    if (t.dataset.campo) { const j = K.jugador(inf, K.ui.jugadorId); j[t.dataset.campo] = t.value; K.guardar(); K.render(); return; }
+    // conclusiones, objetivos y firma se guardan en el año del período que se está viendo
+    const destino = (o, c) => (K.CAMPOS_ANIO.includes(c) ? K.textosAnio(o, K.anioVista(), true) : o);
+    if (t.dataset.inf) { destino(inf, t.dataset.inf)[t.dataset.inf] = t.value; K.guardar(); K.render(); return; }
+    if (t.dataset.infG) { const b = K.informeGrupo(K.GRUPOS[0]); destino(b, t.dataset.infG)[t.dataset.infG] = t.value; K.guardar(); K.render(); return; }
+    if (t.dataset.campo) { const j = K.jugador(inf, K.ui.jugadorId); (t.dataset.campo === 'comentarios' ? K.textosJugador(inf, j, K.anioVista(), true) : j)[t.dataset.campo] = t.value; K.guardar(); K.render(); return; }
     if (t.dataset.extra) { const j = K.jugador(inf, K.ui.jugadorId); j.extras = j.extras || {}; j.extras[t.dataset.extra] = t.type === 'checkbox' ? t.checked : t.value; K.guardar(); K.render(); return; }
     if (t.dataset.importar !== undefined && t.files && t.files[0]) {
       const f = t.files[0];
