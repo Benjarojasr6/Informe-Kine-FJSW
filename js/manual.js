@@ -143,6 +143,11 @@
       <li><b>Seguro en el exterior:</b> al registrar una activación del seguro puedes anotar el país, la cobertura (seguro del club o de viaje) y la póliza. En la pestaña Viaje del torneo se ven las activaciones de los inscritos durante el torneo.</li>
       <li><b>Renombrar o eliminar:</b> si cambias el nombre del torneo se actualiza en todos sus partidos. Al eliminarlo, los partidos <b>no se borran</b>: quedan sin torneo (hay un aviso para <b>Deshacer</b>).</li>
       <li><b>Lo que ya tenías:</b> los partidos que antes tenían un torneo escrito se ordenaron solos en fichas de torneo; los informes salen igual que antes.</li></ul>`],
+    ['Novedades de la versión 1.6.5', `<ul>
+      <li><b>Informe de un partido en Partidos:</b> en la tarjeta “Informe de todos los partidos” ahora también eliges un partido de la categoría seleccionada arriba (el más reciente sale primero) y descargas solo su informe con <b>Informe del partido</b>. Si ese día jugaron varias categorías, hay un botón extra para sacarlo con todas juntas.</li></ul>`],
+    ['Novedades de la versión 1.6.4', `<ul>
+      <li><b>Orden en los informes:</b> cuando un informe trae más de una categoría, siempre parte por la más grande (Sub 20, luego Sub 18, etc.) y dentro de cada categoría va en orden alfabético. Vale para los informes de jugadores de plantel, minutos y lesiones por jugador, fichas del informe y lesiones del seguimiento. Si ordenaste la lista de jugadores a mano, ese orden se respeta dentro de cada categoría.</li>
+      <li><b>Partidos:</b> “Jugadores de plantel” quedó en su propia tarjeta, separada de “Informe de todos los partidos”, para no confundirlos.</li></ul>`],
     ['Novedades de la versión 1.6.3', `<ul>
       <li><b>SCAT5 más corto en los informes de partido:</b> la tabla de conmociones del informe muestra solo un resumen. El informe completo de cada jugador se abre con <b>Ver informe SCAT5 completo</b> (en la pantalla del partido y en la ficha del torneo).</li>
       <li><b>Informe SCAT5 solo:</b> botón <b>Informe SCAT5 (PDF)</b> en la pantalla del partido: una ficha completa por cada conmoción de ese partido, sin el resto del informe. Antes también se sacaba desde la ficha del jugador y desde Kine.</li></ul>`],

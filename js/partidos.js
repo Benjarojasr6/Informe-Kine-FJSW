@@ -121,16 +121,35 @@
 
   /* ---------- Informe de todos los partidos (por categoría o general) ---------- */
   const ALCANCES = [['todas', 'Todas las categorías (Sub 15 a Sub 20)', [15, 16, 18, 20]], ['15', 'Solo Sub 15', [15]], ['16', 'Solo Sub 16', [16]], ['15-16', 'Sub 15 y Sub 16 juntas', [15, 16]], ['18', 'Solo Sub 18', [18]], ['20', 'Solo Sub 20', [20]], ['18-20', 'Sub 18 y Sub 20 juntas', [18, 20]]];
+  // Informe de UN partido de la categoría elegida arriba (Sub 20, Sub 18…): se elige el partido de la lista y se descarga solo ese
+  const partidosDeCat = () => {
+    const inf = K.inf(), c = K.ui.cat ? Number(K.ui.cat) : 0;
+    return K.jornadas(inf).filter((jn) => (jn.jugado || jn.ps.some((p) => incs(p).length)) && (!c || jn.ps.some((p) => Number(p.cat) === c)))
+      .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || a.rival.localeCompare(b.rival, 'es'));
+  };
+  const vistaCat = (jn) => { const c = K.ui.cat ? String(K.ui.cat) : ''; return c && jn.ps.some((p) => String(p.cat || '') === c) ? c : jn.ps.length === 1 ? String(jn.ps[0].cat || '') : 'comb'; };
+  function informePartidoCatHTML() {
+    const js = partidosDeCat(), cat = K.ui.cat ? 'Sub ' + K.ui.cat : '';
+    if (!js.length) return `<h3 class="kc-sub" style="margin-top:14px">Informe de un partido${cat ? ' · ' + e(cat) : ''}</h3><p class="sub">Aún no hay partidos jugados${cat ? ' de la ' + e(cat) : ''}.</p>`;
+    const v = estado().partCat && js.some((j) => j.jid === estado().partCat) ? estado().partCat : js[0].jid, jn = js.find((j) => j.jid === v) || js[0];
+    const resTxt = (j) => j.ps.filter((p) => !K.ui.cat || Number(p.cat) === Number(K.ui.cat)).map((p) => (p.res ? p.res : '')).filter(Boolean).join(' · ');
+    return `<h3 class="kc-sub" style="margin-top:14px" data-inf-partido>Informe de un partido${cat ? ' · ' + e(cat) : ''}</h3>
+      <p class="sub">El informe kinésico de un solo partido${cat ? ' de la ' + e(cat) : ''}: atenciones, minutos jugados y observaciones.</p>
+      <div class="fila gap wrap"><select data-acc-change="partCatSel" style="width:auto;min-width:220px;flex:1">${K.opts(js.map((j) => [j.jid, `${j.rival} · ${j.fecha ? fc(j.fecha) : 'sin fecha'}${resTxt(j) ? ' · ' + resTxt(j) : ''}`]), v)}</select>
+        <button class="btn" data-acc="partCatPdf">${K.uiIco('pdf', 16)} Informe del partido${cat ? ' ' + e(cat) : ''}</button></div>
+      ${jn.ps.length > 1 ? `<div class="fila gap wrap" style="margin-top:8px"><button class="btn sec chico" data-acc="partCatCombPdf">${K.uiIco('pdf', 16)} Con todas las categorías de ese día (${jn.ps.map((p) => 'Sub ' + p.cat).join(' y ')})</button></div>` : ''}`;
+  }
   K.partidosGeneralHTML = function () {
     const sel = estado().general || 'todas', per = K.resolverPeriodo(K.state.periodo);
     return `<div class="card"><h2>Informe de todos los partidos</h2>
       <p class="sub">Un solo documento con todos los partidos del período (<b>${e(per.completo)}</b>): resultados, atenciones, intervenciones, minutos jugados y lesiones por jugador. Elige la categoría o el informe general.</p>
       <div class="fila gap wrap"><select data-acc-change="partGenSel" style="width:auto;min-width:220px;flex:1">${K.opts(ALCANCES.map((a) => [a[0], a[1]]), sel)}</select><button class="btn" data-acc="partGenPdf">${K.uiIco('pdf', 16)} Descargar PDF</button></div>
-      ${(() => { const pl = contratados(); return pl.length ? `<h3 class="kc-sub" style="margin-top:14px">Jugadores de plantel</h3><p class="sub">Informe general de todos los jugadores de plantel (resumen y partidos de cada uno).</p>
+      ${informePartidoCatHTML()}</div>
+      ${(() => { const pl = contratados(); return pl.length ? `<div class="card" data-pl-card><h2>Jugadores de plantel</h2><p class="sub">Informe general de todos los jugadores de plantel (resumen y partidos de cada uno).</p>
         <button class="btn sec" data-acc="contratoPdf">${K.uiIco('pdf', 16)} Informe de todos los jugadores de plantel</button>
         ${(() => { const js = jornadasJugadas(); if (!js.length) return ''; const v = estado().plPartido || (js[0].inf.id + '|' + js[0].jn.jid); return `<p class="sub" style="margin-top:12px">Informe de un partido con todos los jugadores de plantel que jugaron en él.</p>
         <div class="fila gap wrap"><select data-acc-change="plPartidoSel" style="width:auto;min-width:220px;flex:1">${K.opts(js.map(({ inf, jn }) => [inf.id + '|' + jn.jid, `${jn.rival} · ${jn.fecha ? fc(jn.fecha) : 'sin fecha'} · ${jn.ps.map((p) => (p.cat ? 'Sub ' + p.cat : 'Sin cat.')).join(' / ')}`]), v)}</select><button class="btn sec" data-acc="contratoPartidoPdf">${K.uiIco('pdf', 16)} Informe del partido</button></div>`; })()}
-        ${seleccionPlantelHTML()}` : ''; })()}</div>`;
+        ${seleccionPlantelHTML()}</div>` : ''; })()}`;
   };
   // Lista con casillas para sacar el informe de jugadores de plantel solo de los partidos elegidos.
   const selPlantel = () => { const e0 = estado(); if (!Array.isArray(e0.plSel)) e0.plSel = []; return e0.plSel; };
@@ -160,7 +179,7 @@
   const catJ = (j, per) => { if (!K.tieneHistorial(j)) return j.categoria || ''; const n = K.catPeriodo(j, per.desde, per.hasta); return n ? 'Sub ' + n : j.categoria || ''; };
   K.contratoGeneralHTML = function () {
     const per = K.resolverPeriodo(K.state.periodo), pl = contratados(per), kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
-    const datos = pl.map(({ j, inf: i0 }) => {
+    const datos = pl.slice().sort((a, b) => K.cmpCatNombre(catJ(a.j, per), a.j.nombre, catJ(b.j, per), b.j.nombre)).map(({ j, inf: i0 }) => {
       const filas = [];
       K.state.informes.forEach((inf) => { K.jornadas(inf); inf.partidos.forEach((p) => {
         const min = Number((p.minutos || {})[j.id]) || 0, inc = incs(p).filter((i) => i.jugadorId === j.id);
@@ -191,7 +210,7 @@
         filas.push({ g, p, min, inc });
       });
     });
-    filas.sort((a, b) => a.g.j.nombre.localeCompare(b.g.j.nombre, 'es'));
+    filas.sort((a, b) => K.cmpCatNombre(a.p.cat, a.g.j.nombre, b.p.cat, b.g.j.nombre));
     const res = jn.ps.map((p) => (p.res ? (p.cat ? 'Sub ' + p.cat + ' ' : '') + p.res : '')).filter(Boolean).join(' · ');
     const kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
     const src = logoSrc(jn);
@@ -226,7 +245,7 @@
           filas.push({ g, p, min: Number((p.minutos || {})[id]) || 0, inc: incs(p).filter((i) => i.jugadorId === id) });
         });
       });
-      filas.sort((a, b) => a.g.j.nombre.localeCompare(b.g.j.nombre, 'es') || (Number(b.p.cat) || 0) - (Number(a.p.cat) || 0));
+      filas.sort((a, b) => K.cmpCatNombre(a.p.cat, a.g.j.nombre, b.p.cat, b.g.j.nombre));
       items.push({ inf, jn, filas });
     });
     items.sort((a, b) => (a.jn.fecha || '9999').localeCompare(b.jn.fecha || '9999') || a.jn.rival.localeCompare(b.jn.rival, 'es'));
@@ -346,7 +365,7 @@
       Object.keys(p.minutos || {}).forEach((id) => { const m = Number(p.minutos[id]) || 0; if (m > 0 && K.jugadorGlobal(id)) { const o = get(id); o.partidos++; o.min += m; if (p.cat) o.cats.add(p.cat); } });
       incs(p).forEach((i) => { if (!K.jugadorGlobal(i.jugadorId)) return; const o = get(i.jugadorId); o.at++; if (i.retiro) o.ret++; if (p.cat) o.cats.add(p.cat); });
     });
-    const jf = Object.keys(jug).map((id) => { const g = K.jugadorGlobal(id), o = jug[id]; o.nombre = g.j.nombre; o.cat = catJ(g.j, per); o.les = g.inf.casos.filter((c) => c.jugadorId === id && c.tipo === 'lesion' && K.enPeriodo(c.inicio, per)).length; return o; }).sort((a, b) => (b.min - a.min) || a.nombre.localeCompare(b.nombre, 'es'));
+    const jf = Object.keys(jug).map((id) => { const g = K.jugadorGlobal(id), o = jug[id]; o.nombre = g.j.nombre; o.cat = catJ(g.j, per); o.les = g.inf.casos.filter((c) => c.jugadorId === id && c.tipo === 'lesion' && K.enPeriodo(c.inicio, per)).length; return o; }).sort((a, b) => K.cmpCatNombre(a.cat, a.nombre, b.cat, b.nombre));
     const tablaJ = jf.length ? `<h2 class="bit-h2">Minutos jugados y lesiones por jugador</h2><table class="kt"><thead><tr><th>Jugador</th><th>Categoría</th><th>Partidos</th><th>Minutos</th><th>Atenc. en partido</th><th>Se retiró</th><th>Lesiones del período</th></tr></thead><tbody>${jf.map((o) => `<tr><td><b>${e(o.nombre)}</b>${o.cats.size > 1 ? `<small>Jugó en ${Array.from(o.cats).sort().map((c) => 'Sub ' + c).join(' y ')}</small>` : ''}</td><td>${e(o.cat)}</td><td class="n">${o.partidos}</td><td class="n">${o.min}</td><td class="n">${o.at}</td><td class="n">${o.ret}</td><td class="n">${o.les}</td></tr>`).join('')}</tbody></table>` : '';
     const nombresInterv = Object.keys(r.interv).map((id) => [(K.trat(infRef, id) || { nombre: id }).nombre, r.interv[id]]).sort((a, b) => b[1] - a[1]).slice(0, 8);
     const zonas = {}; r.lista.forEach((i) => { if (i.zona) { const z = zonaTxt(i.zona); zonas[z] = (zonas[z] || 0) + 1; } });
@@ -860,6 +879,9 @@
     },
     contratoPdf() { K.pdf.documento(K.contratoGeneralHTML(), `Informe kinésico Jugadores de plantel ${K.resolverPeriodo(K.state.periodo).completo}`); },
     contratoPartidoPdf() { const js = jornadasJugadas(); if (!js.length) return; const v = estado().plPartido || (js[0].inf.id + '|' + js[0].jn.jid), x = js.find((q) => q.inf.id + '|' + q.jn.jid === v) || js[0]; K.pdf.documento(K.contratoPartidoHTML(x.inf.id + '|' + x.jn.jid), `Informe kinésico Jugadores de plantel vs ${x.jn.rival}`); },
+    partCatSel(el) { estado().partCat = el.value; K.render(); },
+    partCatPdf() { const js = partidosDeCat(); const jn = js.find((j) => j.jid === estado().partCat) || js[0]; if (!jn) return; const vista = vistaCat(jn); K.pdf.documento(htmlPartido(jn, vista), nombrePdfPartido(jn, vista)); },
+    partCatCombPdf() { const js = partidosDeCat(); const jn = js.find((j) => j.jid === estado().partCat) || js[0]; if (!jn) return; K.pdf.documento(htmlPartido(jn, 'comb'), nombrePdfPartido(jn, 'comb')); },
     partGenSel(el) { estado().general = el.value; },
     partGenPdf() { const c = estado().general || 'todas', al = ALCANCES.find((a) => a[0] === c) || ALCANCES[0]; K.pdf.documento(htmlGeneral(c), `Informe kinésico partidos ${al[1]} ${K.resolverPeriodo(K.state.periodo).completo}`); },
     vaciarPartidos(el, ev) {

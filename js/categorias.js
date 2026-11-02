@@ -16,6 +16,9 @@
     return c ? v.filter((j) => { const n = K.catNum(j); return n === null || n === c; }) : v;
   };
   // Orden de los jugadores: manual (flechas en Jugadores) o por categoría y nombre.
+  // Orden de los informes con más de una categoría: primero la categoría más grande (Sub 20 antes que Sub 18) y dentro de ella alfabético.
+  K.numCat = (c) => Number((/\d+/.exec(String(c == null ? '' : c)) || [])[0]) || 0;
+  K.cmpCatNombre = (catA, nomA, catB, nomB) => (K.numCat(catB) - K.numCat(catA)) || String(nomA || '').localeCompare(String(nomB || ''), 'es');
   K.ordenJugadores = (inf, arr) => (inf.ordenManual ? arr.slice() : arr.slice().sort((a, b) => (a.categoria || '').localeCompare(b.categoria || '', 'es') || a.nombre.localeCompare(b.nombre, 'es')));
   K.enCat = (inf, jid) => {
     if (!K.ui.cat) return true;

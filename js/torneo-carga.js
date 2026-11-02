@@ -76,7 +76,7 @@
       if (!ret && c.partidoId && c.incId) { const p = K.state.informes.map((x) => (x.partidos || []).find((q) => q.id === c.partidoId)).find(Boolean), inc = p && (p.incidencias || []).find((q) => q.id === c.incId); if (inc && K.part.jugando(inc.momento)) ret = inc.retiro ? 'Se retiró' : 'Siguió jugando'; }
       out.push({ c, j: g.j, nueva: nuevas.has(c.id), retiro: ret, zona: (c.zonas || []).map((z) => (K.nombreZonaLimpia || K.nombreZona)(z)).join(', ') });
     }));
-    return out.sort((a, b) => a.j.nombre.localeCompare(b.j.nombre, 'es') || (a.c.inicio || '').localeCompare(b.c.inicio || ''));
+    return out.sort((a, b) => K.cmpCatNombre(a.j.categoria, a.j.nombre, b.j.categoria, b.j.nombre) || (a.c.inicio || '').localeCompare(b.c.inicio || ''));
   }
   // Estado de un caso (alta, retorno o sigue en baja)
   function estadoCaso(c) {

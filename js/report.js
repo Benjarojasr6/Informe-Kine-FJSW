@@ -327,7 +327,9 @@
   }
 
   function fichas(inf, per) {
-    const todos = K.ordenJugadores(inf, inf.jugadores.filter((j) => j.activo !== false));
+    // Informe con varias categorías: primero la más grande; dentro de cada una, alfabético (o el orden manual de la lista, si la ordenaste a mano)
+    const base = K.ordenJugadores(inf, inf.jugadores.filter((j) => j.activo !== false)), pos = new Map(base.map((j, i) => [j, i]));
+    const todos = base.slice().sort((a, b) => (K.numCat(b.categoria) - K.numCat(a.categoria)) || (inf.ordenManual ? pos.get(a) - pos.get(b) : a.nombre.localeCompare(b.nombre, 'es')));
     const propios = todos.filter((j) => !j._inv), inv = todos.filter((j) => j._inv);
     const out = [];
     // Ficha del jugador propio: usa todos sus registros (de cualquier categoría); el resto del informe sigue por categoría.
@@ -414,7 +416,7 @@
     const sub = subtitulo(inf, per), out = [];
     const ids = new Set(inf.jugadores.filter((j) => j.activo !== false).map((j) => j.id));
     const lesiones = inf.casos.filter((c) => c.tipo === 'lesion' && ids.has(c.jugadorId) && c.inicio && c.inicio <= per.hasta && (!c.alta || c.alta >= per.desde))
-      .sort((a, b) => { const ja = K.jugador(inf, a.jugadorId), jb = K.jugador(inf, b.jugadorId); return ja.nombre.localeCompare(jb.nombre, 'es') || a.inicio.localeCompare(b.inicio); });
+      .sort((a, b) => { const ja = K.jugador(inf, a.jugadorId), jb = K.jugador(inf, b.jugadorId); return K.cmpCatNombre(ja.categoria, ja.nombre, jb.categoria, jb.nombre) || a.inicio.localeCompare(b.inicio); });
     const asis = (inf.asistencias || []).filter((a) => ids.has(a.jugadorId) && K.enPeriodo(a.fecha, per));
     const kpi = (v, t) => `<div class="eq-kpi"><b>${v}</b><span>${t}</span></div>`;
     if (lesiones.length || asis.length) {
