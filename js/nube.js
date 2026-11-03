@@ -464,6 +464,16 @@
       try { await db.collection('informes').doc(K.state.informes[0].id).collection('privado').limit(1).get(); if (privBloq) { privBloq = false; programarPush(); } return 'ok'; } // si ya pegó las reglas nuevas, vuelve a intentar subir los seguros
       catch (x) { if (x && x.code === 'permission-denied') { privBloq = true; return 'bloqueado'; } return 'error'; }
     },
+    // Chat entre administradores (colección "chat"). null si no hay sesión de administrador.
+    chatApi: () => ((K.rol === 'admin' && db && auth && auth.currentUser) ? {
+      escuchar(ok, mal) {
+        return db.collection('chat').orderBy('ts', 'desc').limit(100).onSnapshot((snap) => {
+          ok(snap.docs.map((d) => { const x = d.data(); return { id: d.id, texto: x.texto || '', firma: x.firma || '', uid: x.uid || '', disp: x.disp || '', ts: x.ts && x.ts.toMillis ? x.ts.toMillis() : Date.now(), pendiente: d.metadata.hasPendingWrites }; }).reverse());
+        }, mal);
+      },
+      enviar(m) { return db.collection('chat').add({ texto: String(m.texto).slice(0, 1000), firma: String(m.firma || '').slice(0, 24), uid: auth.currentUser.uid, disp: String(m.disp || '').slice(0, 20), ts: FV.serverTimestamp() }); },
+      borrar(id) { return db.collection('chat').doc(id).delete(); }
+    } : null),
     // Sube ya lo pendiente (sin esperar el retraso normal). Se usa al cerrar/ocultar la app y antes de actualizarla.
     vaciar: () => { clearTimeout(tPush); return empujar().catch(() => {}); },
     estado: () => ({ online: navigator.onLine, pendientes: enVuelo, listo: listoFlag, segBloq: privBloq, ultimaSync }),

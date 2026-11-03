@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.6.9';
+  K.version = '1.7.0';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -320,7 +320,7 @@
     const str = (v) => (typeof v === 'string' ? v : v == null || typeof v === 'object' ? '' : String(v));
     const plano = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
     ['conclusiones', 'objetivos', 'conclusionesTodas', 'objetivosTodas', 'firmante'].forEach((c) => { if (inf[c] !== undefined && typeof inf[c] !== 'string') inf[c] = str(inf[c]); });
-    if (inf.atencionesPartidos !== undefined && typeof inf.atencionesPartidos !== 'boolean') delete inf.atencionesPartidos;
+    ['atencionesPartidos', 'regLesionados', 'lesActuales'].forEach((c) => { if (inf[c] !== undefined && typeof inf[c] !== 'boolean') delete inf[c]; });
     if (inf.ordenJ !== undefined && !['nombre', 'apellido', 'posicion', 'manual'].includes(inf.ordenJ)) delete inf.ordenJ;
     ['anioTexto', 'tempIniciada'].forEach((c) => { if (inf[c] !== undefined) { inf[c] = Number(inf[c]); if (!ANIO_OK(inf[c])) delete inf[c]; } });
     const limpiarStaff = (st) => arrObj(st).filter((x) => x && typeof x === 'object' && ID_OK(x.id)).map((x) => ({ id: x.id, cargo: str(x.cargo), personas: arrObj(x.personas).filter((p) => p && typeof p === 'object').map((p) => ({ nombre: str(p.nombre), ocasional: p.ocasional === true })) }));
@@ -331,7 +331,7 @@
         const o = {};
         ['conclusiones', 'objetivos', 'conclusionesTodas', 'objetivosTodas', 'firmante'].forEach((c) => { if (a[c] !== undefined) o[c] = str(a[c]); });
         if (a.staff !== undefined) o.staff = limpiarStaff(a.staff);
-        if (typeof a.atencionesPartidos === 'boolean') o.atencionesPartidos = a.atencionesPartidos;
+        ['atencionesPartidos', 'regLesionados', 'lesActuales'].forEach((c) => { if (typeof a[c] === 'boolean') o[c] = a[c]; });
         out[y] = o;
       });
       inf.anios = out;
@@ -381,6 +381,7 @@
           return { id, nombre: txt(x.nombre, 60) };
         }).filter((x) => x.nombre);
         t.viaje = t.viaje === true;
+        if (t.enInforme !== undefined && typeof t.enInforme !== 'boolean') delete t.enInforme; // v1.7.0: false = el torneo no sale en el informe general
         const L = plano(t.logistica) ? t.logistica : {};
         t.logistica = {
           altitud: NUM_OK(L.altitud, 0, 9000) ? Math.round(Number(L.altitud)) : '', huso: NUM_OK(L.huso, -14, 14) ? Number(L.huso) : '',

@@ -241,7 +241,7 @@
     });
     (inf.asistencias || []).forEach((a) => {
       if (a.jugadorId !== j.id) return;
-      const k = a.v === 'si' ? (a.t === 'RD' ? 'rd' : 'sk') : ({ pauta: 'pauta', descanso: 'descanso', control: 'control', examen: 'examen', procedimiento: 'proc', enfermedad: 'enf' }[a.no] || 'no');
+      const k = a.v === 'si' ? (a.t === 'RD' ? 'rd' : 'sk') : ({ pauta: 'pauta', descanso: 'descanso', control: 'control', examen: 'examen', procedimiento: 'proc', enfermedad: 'enf', kineparticular: 'kineext', kineseguro: 'kineext' }[a.no] || 'no');
       poner(a.fecha, k, K.kineAsisTxt(a));
     });
     inf.eventos.forEach((x) => { if (x.jugadorId === j.id && K.evRealizado(x)) { if (x.tipo === 'control') poner(x.fecha, 'control', 'Control: ' + (x.nombre || '')); if (x.tipo === 'examen') poner(x.fecha, 'examen', 'Examen: ' + (x.nombre || '')); if (x.tipo === 'cirugia') poner(x.fecha, 'cirugia', 'Cirugía: ' + (x.nombre || '')); } });

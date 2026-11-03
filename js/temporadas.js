@@ -185,9 +185,11 @@
 
   /* ---------- Textos por año ---------- */
   // “Vivos” = los de siempre en el informe (pertenecen a inf.anioTexto); los otros años viven en inf.anios[año].
-  K.CAMPOS_ANIO = ['conclusiones', 'objetivos', 'conclusionesTodas', 'objetivosTodas', 'firmante', 'staff', 'atencionesPartidos'];
+  K.CAMPOS_ANIO = ['conclusiones', 'objetivos', 'conclusionesTodas', 'objetivosTodas', 'firmante', 'staff', 'atencionesPartidos', 'regLesionados', 'lesActuales'];
   // “Incluir los datos de partidos en el informe general” (atencionesPartidos, true/false por año): sin valor guardado, apagada hasta el 2026 y encendida desde el 2027.
   K.ATEN_PARTIDOS_DESDE = 2027;
+  // v1.7.0: “Incluir el registro de lesionados / los lesionados actuales en el informe” (true/false por año; sin valor guardado = incluidos)
+  K.opcInforme = (host, anio, campo) => { const T = K.textosAnio(host, anio); return typeof T[campo] === 'boolean' ? T[campo] : true; };
   K.atencionesPartidos = (host, anio) => { const T = K.textosAnio(host, anio); return typeof T.atencionesPartidos === 'boolean' ? T.atencionesPartidos : Number(anio) >= K.ATEN_PARTIDOS_DESDE; };
   const VACIAR = ['conclusiones', 'objetivos', 'conclusionesTodas', 'objetivosTodas']; // al rotar se vacían; staff y firmante se mantienen
   K.anioTexto = (inf) => Number(inf.anioTexto) || Number(inf.anio) || new Date().getFullYear();
@@ -211,6 +213,7 @@
     const previo = inf.anios[anio]; // si ya había algo archivado de ese año, vuelve a ser lo vivo
     VACIAR.forEach((c) => { inf[c] = previo && typeof previo[c] === 'string' ? previo[c] : ''; });
     if (typeof (previo && previo.atencionesPartidos) === 'boolean') inf.atencionesPartidos = previo.atencionesPartidos; else delete inf.atencionesPartidos; // la casilla es de cada año
+    ['regLesionados', 'lesActuales'].forEach((c) => { if (typeof (previo && previo[c]) === 'boolean') inf[c] = previo[c]; else delete inf[c]; });
     if (previo) { if (Array.isArray(previo.staff)) inf.staff = previo.staff; if (typeof previo.firmante === 'string') inf.firmante = previo.firmante; delete inf.anios[anio]; }
     inf.anioTexto = anio;
     return inf;

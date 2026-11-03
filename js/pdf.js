@@ -56,7 +56,7 @@
       let t = K.fuentesCSS();
       if (t) {
         const base = new URL('index.html', document.baseURI);
-        const urls = Array.from(new Set(Array.from(t.matchAll(/url\(\s*['"]?([^)'"]+?)['"]?\s*\)/g)).map((m) => m[1])));
+        const urls = Array.from(new Set(Array.from(t.matchAll(/url\(\s*['"]?([^)'"]+?)['"]?\s*\)/g)).map((m) => m[1]))).filter((u) => !/^data:/i.test(u));
         for (const u of urls) { const d = await aDataURL(new URL(u, base).href); t = t.split(u).join(d); }
         out += t + '\n';
       }

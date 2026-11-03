@@ -268,6 +268,26 @@
       if (les) { r.diasBaja += K.diasBajaCaso(c, per); if (c.alta) dr.push(dif(c.inicio, c.alta)); else if (c.semanas !== '' && c.semanas != null && !isNaN(Number(c.semanas))) dr.push(Math.round(Number(c.semanas) * 7)); }
     });
     if (dr.length) r.retorno = Math.round(dr.reduce((a, b) => a + b, 0) / dr.length);
+    // v1.7.0: lesiones más comunes por categoría, tipo de tejido afectado y casos por semana
+    const catDe = (jid) => { const j = inf.jugadores.find((x) => x.id === jid); if (!j) return ''; if (K.tieneHistorial && K.tieneHistorial(j)) { const n = K.catPeriodo(j, per.desde, per.hasta); if (n) return 'Sub ' + n; } return j.categoria || ''; };
+    const lunes = (iso) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
+    const ini0 = lunes(per.desde), nSem = Math.min(110, Math.max(1, Math.floor(dif(ini0, K.hastaPer(per)) / 7) + 1));
+    r.semanas = { desde: ini0, les: new Array(nSem).fill(0), mol: new Array(nSem).fill(0) };
+    r.tejidos = {}; r.sinTejido = 0; const porCat = {};
+    casos.forEach((c) => {
+      const w = Math.floor(dif(ini0, c.inicio) / 7); if (w >= 0 && w < nSem) (c.tipo === 'lesion' ? r.semanas.les : r.semanas.mol)[w]++;
+      const tj = K.tejidosDe ? K.tejidosDe(c) : []; if (tj.length) tj.forEach((k) => { r.tejidos[k] = (r.tejidos[k] || 0) + 1; }); else r.sinTejido++;
+      if (c.tipo !== 'lesion') return;
+      const cat = catDe(c.jugadorId) || 'Sin categoría', clave = K.norm(String(c.titulo || '').trim()) || 'sin diagnóstico';
+      const o = (porCat[cat] = porCat[cat] || { cat, total: 0, d: {} });
+      o.total++; const x = (o.d[clave] = o.d[clave] || { txt: String(c.titulo || '').trim() || 'Sin diagnóstico', n: 0 }); x.n++;
+    });
+    r.lesPorCat = Object.keys(porCat).map((k) => { const o = porCat[k]; return { cat: o.cat, total: o.total, top: Object.keys(o.d).map((q) => [o.d[q].txt.charAt(0).toUpperCase() + o.d[q].txt.slice(1), o.d[q].n]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es')).slice(0, 5) }; })
+      .sort((a, b) => K.numCat(b.cat) - K.numCat(a.cat) || String(a.cat).localeCompare(String(b.cat), 'es'));
+    // v1.6.11: disponibilidad del plantel = % de los días del período en que los jugadores NO estuvieron de baja por lesión
+    // (la suma de días de baja de todos los jugadores puede pasar de 365, por eso no se muestra sola).
+    const act = inf.jugadores.filter((j) => j.activo !== false), dp = K.diasPeriodo(per);
+    r.disp = act.length ? Math.max(0, Math.min(100, Math.round(100 * (1 - act.reduce((t, j) => t + Math.min(K.bajaJugador(inf, per, j).dias, dp), 0) / (act.length * dp))))) : null;
     // ranking de zonas (agrupando lado derecho e izquierdo bajo su nombre)
     r.top = Object.keys(r.zonas).map((id) => [K.nombreZona(id), r.zonas[id]]).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'es')).slice(0, 8);
     // medicamentos entregados (total por nombre)
@@ -291,10 +311,10 @@
   /* ---------- Asistencia a kinesiología (pestaña Kine) ---------- */
   // Cada registro diario: v 'si' (asistió) o 'no' (no asistió: pauta en casa, descanso o no asiste). Sin registro = no se entrena.
   // Sesiones esperadas = días marcados, sin contar los de descanso.
-  // Motivos de "no asistió". Descanso, pauta en casa y las citas en el mismo horario del entrenamiento (control, examen, procedimiento) no se cuentan como sesión esperada. La enfermedad sí cuenta como no asistida (se informan sus días).
-  K.MOTIVOS_NO = [['noasiste', 'No asiste'], ['descanso', 'Descanso'], ['control', 'Control médico · mismo horario del entrenamiento'], ['examen', 'Examen · mismo horario del entrenamiento'], ['procedimiento', 'Procedimiento · mismo horario del entrenamiento'], ['enfermedad', 'Enfermedad (fiebre, virus…)']];
-  K.MOTIVOS_NO_CORTO = { pauta: 'Pauta en casa', noasiste: 'No asiste', descanso: 'Descanso', control: 'Control médico', examen: 'Examen', procedimiento: 'Procedimiento', enfermedad: 'Enfermedad' };
-  K.NO_EXCLUYE = ['descanso', 'control', 'examen', 'procedimiento', 'pauta']; // la pauta en casa no penaliza
+  // Motivos de "no asistió". Descanso, pauta en casa, las citas en el mismo horario del entrenamiento (control, examen, procedimiento) y la kinesiología externa (particular o por el seguro) no se cuentan como sesión esperada. La enfermedad sí cuenta como no asistida (se informan sus días).
+  K.MOTIVOS_NO = [['noasiste', 'No asiste'], ['descanso', 'Descanso'], ['control', 'Control médico · mismo horario del entrenamiento'], ['examen', 'Examen · mismo horario del entrenamiento'], ['procedimiento', 'Procedimiento · mismo horario del entrenamiento'], ['enfermedad', 'Enfermedad (fiebre, virus…)'], ['kineparticular', 'Kinesiología externa particular'], ['kineseguro', 'Kinesiología externa por el seguro']];
+  K.MOTIVOS_NO_CORTO = { pauta: 'Pauta en casa', noasiste: 'No asiste', descanso: 'Descanso', control: 'Control médico', examen: 'Examen', procedimiento: 'Procedimiento', enfermedad: 'Enfermedad', kineparticular: 'Kine externa particular', kineseguro: 'Kine externa por el seguro' };
+  K.NO_EXCLUYE = ['descanso', 'control', 'examen', 'procedimiento', 'pauta', 'kineparticular', 'kineseguro']; // la pauta en casa no penaliza
   K.asisEsperada = (a) => a.v === 'si' || (a.v === 'no' && !K.NO_EXCLUYE.includes(a.no));
   // Controles, exámenes y cirugías con fecha posterior a hoy todavía no ocurrieron: no cuentan en totales.
   K.evRealizado = (e) => !['control', 'examen', 'cirugia'].includes(e.tipo) || !e.fecha || e.fecha <= K.hoy();

@@ -25,10 +25,12 @@
   K.modoOrdenJ = (inf) => (K.ORDENES_J.some((o) => o[0] === inf.ordenJ) ? inf.ordenJ : inf.ordenManual ? 'manual' : 'nombre');
   // Apellidos del jugador: los campos apellido1/apellido2 si existen; si no, las dos últimas palabras del nombre (o la última si son dos)
   K.apellidoDe = (j) => {
-    if (j.apellido1) return [j.apellido1, j.apellido2 || '', j.nombres || ''].join(' ').trim();
+    if (j.apellido1) return [j.apellido1, j.apellido2, j.nombres].filter(Boolean).join(' ').trim();
     const w = String(j.nombre || '').trim().split(/\s+/).filter(Boolean);
     return w.length >= 3 ? w.slice(-2).concat(w.slice(0, -2)).join(' ') : w.length === 2 ? w[1] + ' ' + w[0] : w[0] || '';
   };
+  // v1.6.10: con el orden por apellido, la lista muestra “Luna Isaías” en vez de “Isaías Luna”
+  K.nombreVisto = (inf, j) => (K.modoOrdenJ(inf) === 'apellido' ? K.apellidoDe(j) || j.nombre : j.nombre);
   const POS_ORDEN = ['portero', 'defensa', 'volante', 'delantero'];
   const posRango = (j) => { const i = POS_ORDEN.indexOf(K.norm(j.posicion || '')); return i >= 0 ? i : j.posicion ? POS_ORDEN.length : POS_ORDEN.length + 1; };
   K.ordenJugadores = (inf, arr) => {
@@ -152,7 +154,7 @@
     const T = K.textosAnio(base, anio);
     const v = Object.assign({}, base, { id: 'todas', nombre: 'Sub 15-20', categorias: 'Sub 15 a Sub 20', jugadores, casos: unir('casos'), atenciones: unir('atenciones'), eventos: unir('eventos'),
       asistencias: unir('asistencias'), seguros: unir('seguros'), segEventos: unir('segEventos'), partidos: [].concat(...infs.map((i) => i.partidos || [])), manuales: [], camposExtra: base.camposExtra || [], tratamientos: trat, indicadores: ind,
-      conclusiones: T.conclusionesTodas || '', objetivos: T.objetivosTodas || '', staff: T.staff || [], firmante: T.firmante || '', atencionesPartidos: K.atencionesPartidos(base, anio), ordenManual: false, ordenPartidos: false, _unico: true, _todas: true, _anio: anio });
+      conclusiones: T.conclusionesTodas || '', objetivos: T.objetivosTodas || '', staff: T.staff || [], firmante: T.firmante || '', atencionesPartidos: K.atencionesPartidos(base, anio), regLesionados: K.opcInforme(base, anio, 'regLesionados'), lesActuales: K.opcInforme(base, anio, 'lesActuales'), ordenManual: false, ordenPartidos: false, _unico: true, _todas: true, _anio: anio });
     return v;
   };
   // Categoría en la que ocurrió un registro (atención o molestia de partido): la del partido; sin partido, vale la del jugador.
@@ -224,7 +226,7 @@
   // Pone en la vista los textos del año del período (conclusiones, objetivos, cuerpo técnico y firma).
   const conTextos = (v, host, anio) => {
     const T = K.textosAnio(host, anio);
-    return Object.assign(v, { conclusiones: T.conclusiones || '', objetivos: T.objetivos || '', staff: T.staff || [], firmante: T.firmante, atencionesPartidos: K.atencionesPartidos(host, anio), _anio: anio });
+    return Object.assign(v, { conclusiones: T.conclusiones || '', objetivos: T.objetivos || '', staff: T.staff || [], firmante: T.firmante, atencionesPartidos: K.atencionesPartidos(host, anio), regLesionados: K.opcInforme(host, anio, 'regLesionados'), lesActuales: K.opcInforme(host, anio, 'lesActuales'), _anio: anio });
   };
   K.informeVista = (inf, per) => {
     per = per || K.resolverPeriodo(K.state.periodo);

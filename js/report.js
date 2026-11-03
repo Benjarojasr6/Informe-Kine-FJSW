@@ -233,8 +233,8 @@
   const lineasDe = (t, ancho) => Math.max(1, Math.ceil(String(t).length / ancho));
   K.fichaPlan = function (inf, per, j, casosIn) {
     const casos = casosIn || K.casosJugador(inf, per, j).sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
-    const mol = casos.filter((c) => c.tipo !== 'lesion').map((c) => { const dm = K.duracionCaso(c); return { g: c.gravedad || 'leve', t: c.titulo + tagCat(c, j) + conLado(c) + (c.contexto ? ` (${c.contexto})` : '') + (/sin limitar/.test(dm) ? ` (${dm})` : '') + (K.limitaTxt(c) ? ` · limita entrenamiento: ${K.limitaTxt(c)}` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
-    const les = casos.filter((c) => c.tipo === 'lesion').map((c) => { const d = K.duracionCaso(c); return { g: c.gravedad || 'moderada', t: c.titulo + tagCat(c, j) + conLado(c) + (c.contexto ? ` – ${c.contexto}` : '') + (d ? ` (${d})` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
+    const mol = casos.filter((c) => c.tipo !== 'lesion').map((c) => { const dm = K.duracionCaso(c); return { g: c.gravedad || 'leve', t: c.titulo + tagCat(c, j) + conLado(c) + K.tagTorneo(inf, c) + (c.contexto ? ` (${c.contexto})` : '') + (/sin limitar/.test(dm) ? ` (${dm})` : '') + (K.limitaTxt(c) ? ` · limita entrenamiento: ${K.limitaTxt(c)}` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
+    const les = casos.filter((c) => c.tipo === 'lesion').map((c) => { const d = K.duracionCaso(c); return { g: c.gravedad || 'moderada', t: c.titulo + tagCat(c, j) + conLado(c) + K.tagTorneo(inf, c) + (c.contexto ? ` – ${c.contexto}` : '') + (d ? ` (${d})` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
     const hh = K.historialJugador(inf, j, per);
     const altoHist = (h, campo) => { const enP = h.lista.filter((x) => K.enPeriodo(x[campo], per)).slice(-4).length, ant = h.lista.filter((x) => !K.enPeriodo(x[campo], per)).slice(-3).length; return 76 + (enP + ant) * 15.5 + (ant ? 22 : 0); };
     // alto libre para los dos cuadros (columna 403 px, separaciones 23 px) y lo que ocupa cada ítem (≈48 caracteres por línea, 15,5 px por línea)
@@ -313,7 +313,7 @@
       <div class="detalle-casos">${arr.map((c) => {
         const d = K.duracionCaso(c);
         const z = (c.zonas || []).map(K.nombreZona).join(', ');
-        return `<div class="tarjeta caso"><i class="dot g-${K.gravClave(c.gravedad)}"></i><div><b>${e(c.titulo)}${e(tagCat(c, j))}</b>
+        return `<div class="tarjeta caso"><i class="dot g-${K.gravClave(c.gravedad)}"></i><div><b>${e(c.titulo)}${e(tagCat(c, j))}${e(K.tagTorneo(inf, c))}</b>
           <span>${c.tipo === 'lesion' ? 'Lesión' : 'Molestia'} · ${K.GRAVEDADES[K.gravClave(c.gravedad)]}${c.contexto ? ' · ' + e(c.contexto) : ''}${c.mecanismo ? ' · ' + e(K.ocurrioTxt(c)) : ''}</span>
           ${K.limitaTxt(c) ? `<span>Limita entrenamiento: ${e(K.limitaTxt(c))}</span>` : ''}${K.origenCasoTxt(c) ? `<span>${e(K.origenCasoTxt(c))}</span>` : ''}
           <span>${e(K.fechaCorta(c.inicio))}${d ? ' · ' + e(d) : ''}${z ? ' · ' + e(z) : ''}</span></div></div>`;
@@ -364,6 +364,11 @@
     return `<div class="bh">${items.map(([n, v, c]) => `<div class="bh-f"><span class="bh-n">${e(n)}</span><div class="bh-t"><i style="width:${Math.round(100 * v / m)}%;background:${c || color || '#2f7a4a'}"></i></div><b>${v}</b></div>`).join('')}</div>`;
   };
   const panelEq = (tit, cuerpo, cls) => `<div class="eq-panel ${cls || ''}"><h3>${e(tit)}</h3>${cuerpo}</div>`;
+  // Tipo de tejido afectado: Muscular, Tendón, Ligamento, Óseo… (cada tejido marcado cuenta 1; los casos sin dato van aparte)
+  const tejidosHTML = (r) => {
+    const items = K.TEJIDOS.map(([k, n]) => [n, r.tejidos[k] || 0]).filter((x) => x[1]).concat(r.sinTejido ? [['Sin dato', r.sinTejido, '#8a9a90']] : []);
+    return items.length ? barrasH(items, 0, '#2f7a4a') + '<p class="nota-grav">Lesiones y molestias. Un caso con dos tejidos cuenta en ambos.</p>' : '<p class="vacio-eq">Sin casos en el período.</p>';
+  };
   function equipoPaginas(inf, per) {
     const r = K.estadisticasEquipo(inf, per);
     const sub = subtitulo(inf, per);
@@ -374,8 +379,9 @@
     const kpi = (v, t) => `<div class="eq-kpi"><b>${v}</b><span>${t}</span></div>`;
     const g = r.grav, mc = r.mec, tr = r.terreno;
     const p1 = pagina('p-resumen p-equipo', `<h2>Análisis de lesiones</h2>${sub}
-      <div class="eq-kpis">${kpi(r.lesiones, 'lesiones')}${kpi(r.molestias, 'molestias')}${kpi(r.diasBaja, 'días de baja')}${kpi(r.retorno == null ? '--' : r.retorno + ' d', 'retorno promedio')}</div>
+      <div class="eq-kpis">${kpi(r.lesiones, 'lesiones')}${kpi(r.molestias, 'molestias')}${kpi(r.disp == null ? '--' : r.disp + '%', 'disponibilidad del plantel')}${kpi(r.retorno == null ? '--' : r.retorno + ' d', 'retorno promedio')}</div>
       <div class="eq-kpis eq-kpis-2">${kpi(r.limCasos, 'molestias que limitaron el entrenamiento')}${kpi(r.limDias, 'días de entrenamiento limitado')}</div>
+      <p class="kn-nota" style="margin:-4px 2px 8px">Disponibilidad del plantel: porcentaje de los días del período en que los jugadores no estuvieron de baja por una lesión.</p>
       ${panelEq('Casos por mes', meses)}
       <div class="eq-2">
         ${panelEq('Por gravedad', barrasH(K.GRAV_ORDEN.filter((k) => k !== 'pordefinir' || g.pordefinir).map((k) => [K.GRAVEDADES[k], g[k], K.COLORES_GRAV[k]]), 0) + '<p class="nota-grav">Días fuera: mínima 1-3 · leve 4-7 · moderada 8-28 · grave más de 28.</p>')}
@@ -383,8 +389,19 @@
       </div>
       <div class="eq-2">
         ${panelEq('Terreno de juego', barrasH(K.TERRENOS.map((t) => [t, tr[t]]).concat([['Sin dato', tr.sin, '#8a9a90']])))}
-        ${panelEq('Medicamentos entregados', r.meds.length ? barrasH(r.meds, 0, '#e9b95f') : '<p class="vacio-eq">Sin medicamentos registrados.</p>')}
+        ${panelEq('Tipo de tejido afectado', tejidosHTML(r))}
       </div>`);
+    // Página nueva (v1.7.0): lesiones más comunes por categoría y casos por semana
+    const sem = r.semanas, maxS = Math.max(1, ...sem.les.map((v, i) => v + sem.mol[i]));
+    const finS = (i) => { const d = new Date(sem.desde + 'T12:00:00'); d.setDate(d.getDate() + 7 * i); return d.toISOString().slice(0, 10); };
+    const semanas = `<div class="sem-graf">${sem.les.map((v, i) => { const t = v + sem.mol[i]; return `<div class="sem-c" title="Semana del ${e(K.fechaCorta(finS(i)))}: ${v} lesiones, ${sem.mol[i]} molestias"><em>${t || ''}</em><div class="sem-b" style="height:${Math.round(100 * t / maxS)}%"><i class="mol" style="flex:${sem.mol[i]}"></i><i class="les" style="flex:${v}"></i></div></div>`; }).join('')}</div>
+      <div class="sem-eje">${sem.les.map((v, i) => `<span>${i % 4 === 0 ? 'S' + (i + 1) : ''}</span>`).join('')}</div>
+      <div class="mes-leyenda"><span><i class="les"></i>Lesiones</span><span><i class="mol"></i>Molestias</span><span class="suave">S1 = semana del ${e(K.fechaCorta(sem.desde))} (lunes a domingo)</span></div>`;
+    const porCat = r.lesPorCat.length ? r.lesPorCat.map((o) => panelEq(`${o.cat} · ${o.total} lesion${o.total === 1 ? '' : 'es'}`, barrasH(o.top.map(([n, v]) => [n, v]), o.top[0][1], '#2f7a4a'), 'eq-cat')).join('') : '<p class="vacio-eq">Sin lesiones registradas en el período.</p>';
+    const p1b = pagina('p-resumen p-equipo', `<h2>Estadísticas de lesiones</h2>${sub}
+      ${panelEq('Casos por semana', semanas)}
+      <h3 class="eq-h3">Lesiones más comunes por categoría</h3>
+      <div class="eq-cats">${porCat}</div>`);
     // Página 2: zonas del cuerpo
     const max = Math.max(1, ...Object.keys(r.zonas).map((k) => r.zonas[k]));
     const mapa = K.mapaCorporal({ calor: r.zonas, calorMax: max, pagina: true });
@@ -407,7 +424,7 @@
     const caja = (tit, txt) => `<div class="eq-texto"><h3>${e(tit)}</h3><div class="eq-papel">${txt ? `<p${tamano(ajustar(txt))}>${e(ajustar(txt)).replace(/\n/g, '<br>')}</p>` : `<p class="vacio-eq">${K._paraPdf ? '&nbsp;' : K.puedeEditar && !K.puedeEditar() ? 'Sin texto registrado.' : 'Escribe este texto en la app (pestaña Informe → Textos del informe).'}</p>`}</div></div>`;
     const p3 = pagina('p-resumen p-equipo', `<h2>Conclusiones y objetivos</h2>${sub}${caja('Conclusiones del área kinésica', inf.conclusiones)}${caja('Objetivos y proyecciones para el próximo año', inf.objetivos)}
       <div class="eq-firma"><div></div>${inf.firmante ? `<b>${e(inf.firmante)}</b>` : ''}<span>Kinesiólogo(a) responsable · Santiago Wanderers</span></div>`);
-    return [p1, p2, p3];
+    return [p1, p1b, p2, p3];
   }
 
 
@@ -422,32 +439,36 @@
     if (lesiones.length || asis.length) {
       const si = asis.filter((a) => a.v === 'si').length, esp = asis.filter(K.asisEsperada).length;
       const pct = esp ? Math.round(100 * si / esp) : null;
-      const cnt = { SK: 0, 'RD · K': 0, 'RD · K+PF': 0, 'RD · K+PA': 0, RD: 0, 'No asistió': 0, 'Pauta en casa': 0, Descanso: 0, 'Control / examen / procedimiento': 0, Enfermedad: 0 };
+      const cnt = { SK: 0, 'RD · K': 0, 'RD · K+PF': 0, 'RD · K+PA': 0, RD: 0, 'No asistió': 0, 'Pauta en casa': 0, 'Kine externa particular': 0, 'Kine externa por el seguro': 0, Descanso: 0, 'Control / examen / procedimiento': 0, Enfermedad: 0 };
       asis.forEach((a) => {
         if (a.v === 'si') { if (a.t === 'RD') cnt[a.sub === 'K' ? 'RD · K' : a.sub === 'KPF' ? 'RD · K+PF' : a.sub === 'KPA' ? 'RD · K+PA' : 'RD']++; else cnt.SK++; }
-        else cnt[a.no === 'pauta' ? 'Pauta en casa' : a.no === 'descanso' ? 'Descanso' : ['control', 'examen', 'procedimiento'].includes(a.no) ? 'Control / examen / procedimiento' : a.no === 'enfermedad' ? 'Enfermedad' : 'No asistió']++;
+        else cnt[a.no === 'pauta' ? 'Pauta en casa' : a.no === 'kineparticular' ? 'Kine externa particular' : a.no === 'kineseguro' ? 'Kine externa por el seguro' : a.no === 'descanso' ? 'Descanso' : ['control', 'examen', 'procedimiento'].includes(a.no) ? 'Control / examen / procedimiento' : a.no === 'enfermedad' ? 'Enfermedad' : 'No asistió']++;
       });
-      const col = { SK: '#2f9e5a', 'RD · K': '#3b82e0', 'RD · K+PF': '#1f5fbf', 'RD · K+PA': '#13438f', RD: '#3b82e0', 'No asistió': '#6b7570', 'Pauta en casa': '#aeb7b2', Descanso: '#cfd6d2', 'Control / examen / procedimiento': '#8d6fc4', Enfermedad: '#b08a5a' };
+      const col = { SK: '#2f9e5a', 'RD · K': '#3b82e0', 'RD · K+PF': '#1f5fbf', 'RD · K+PA': '#13438f', RD: '#3b82e0', 'No asistió': '#6b7570', 'Pauta en casa': '#aeb7b2', 'Kine externa particular': '#14a3a3', 'Kine externa por el seguro': '#0e7c7c', Descanso: '#cfd6d2', 'Control / examen / procedimiento': '#8d6fc4', Enfermedad: '#b08a5a' };
       const meses = K.mesesPeriodo(per);
       const porMes = meses.map((m) => asis.filter((a) => a.v === 'si' && a.fecha.slice(0, 7) === m.clave).length);
       const altas = lesiones.filter((c) => c.alta && K.enPeriodo(c.alta, per)).length;
-      const curso = lesiones.filter((c) => !c.alta).length;
+      const actuales = lesiones.filter((c) => !c.alta), curso = actuales.length; // v1.6.11: lesionados actuales = los del período que aún no tienen alta
       out.push(pagina('p-resumen p-equipo', `<h2>Seguimiento kinésico</h2>${sub}
-        <div class="eq-kpis">${kpi(lesiones.length, 'lesiones en seguimiento')}${kpi(curso, 'aún en baja')}${kpi(altas, 'altas en el período')}${kpi(pct == null ? '--' : pct + '%', 'asistencia a kinesiología')}</div>
+        <div class="eq-kpis">${kpi(lesiones.length, 'lesionados del período')}${kpi(curso, 'lesionados actuales (sin alta)')}${kpi(altas, 'altas en el período')}${kpi(pct == null ? '--' : pct + '%', 'asistencia a kinesiología')}</div>
         <div class="eq-kpis eq-kpis-2">${kpi(si, 'sesiones realizadas')}${kpi(esp, 'sesiones esperadas')}</div>
         ${panelEq('Sesiones y asistencia por tipo', barrasH(Object.keys(cnt).filter((k) => cnt[k] || ['SK', 'No asistió'].includes(k)).map((k) => [k, cnt[k], col[k]]), 0))}
         ${panelEq('Sesiones realizadas por mes', K.barrasMini(porMes, meses.map(K.etiquetaMes), 90))}
-        <p class="kn-nota">SK: sesión de kinesiología · RD: reintegro deportivo (K: kinesiología, K+PF: + preparación física, K+PA: + preparador de arqueros). El porcentaje no cuenta los días de descanso.</p>`));
+        <p class="kn-nota">SK: sesión de kinesiología · RD: reintegro deportivo (K: kinesiología, K+PF: + preparación física, K+PA: + preparador de arqueros). El porcentaje no cuenta los días de descanso ni la kinesiología externa (particular o por el seguro).</p>`));
       const fila = (c) => {
         const j = K.jugador(inf, c.jugadorId), a = K.asistenciaKine(inf, j.id, { desde: c.inicio > per.desde ? c.inicio : per.desde, hasta: per.hasta });
         const est = c.alta ? 'Alta ' + K.fechaCorta(c.alta) : K.kineEstadoTxt(c);
         const cir = c.cirugia === true || inf.eventos.some((x) => x.tipo === 'cirugia' && x.casoId === c.id);
-        return `<tr><td><b>${e(j.nombre)}</b><small>${e(j.categoria || '')}</small></td><td>${e(c.titulo)}${e(conLado(c))}<small>${e(K.fechaCorta(c.inicio))}</small></td><td class="n">${K.diasBajaCaso(c, per)}</td>
+        return `<tr><td><b>${e(j.nombre)}</b><small>${e(j.categoria || '')}</small></td><td>${e(c.titulo)}${e(conLado(c))}${e(K.tagTorneo(inf, c))}<small>${e(K.fechaCorta(c.inicio))}</small></td><td class="n">${K.diasBajaCaso(c, per)}</td>
           <td>${e(est)}${c.estadoNota ? `<small>${e(c.estadoNota)}</small>` : ''}</td><td class="n">${a.pct == null ? '--' : `<span class="kn-pct ${K.kineSemaforo(a.pct)}">${a.pct}%</span>`}</td><td class="n">${cir ? 'Sí' : 'No'}</td><td class="n">${c.recidiva === true ? 'Sí' : 'No'}</td></tr>`;
       };
-      chunkH(lesiones, (c) => { const j = K.jugador(inf, c.jugadorId) || {}; const est = (c.alta ? 'Alta 00-00-0000' : K.kineEstadoTxt(c)) + (c.estadoNota ? ' ' + c.estadoNota : ''); return 40 + 13 * (Math.max(lin(j.nombre, 18), lin((c.titulo || '') + conLado(c), 24), lin(est, 38)) - 1); }, 10, 780).forEach((arr, i) => { if (!arr.length) return;
-        out.push(pagina('p-resumen p-equipo', `<h2>Lesionados en seguimiento${i ? ' <small>(cont.)</small>' : ''}</h2>${sub}
-          <table class="kn-t"><thead><tr><th>Jugador</th><th>Diagnóstico y fecha</th><th>Días de baja</th><th>Estado y comentarios</th><th>% asist.</th><th>Cirugía</th><th>Recidiva</th></tr></thead><tbody>${arr.map(fila).join('')}</tbody></table>`)); });
+      // v1.6.11: dos listas distintas. 1) Registro de todos los lesionados del período (con o sin alta). 2) Lesionados actuales: los del período que aún no tienen alta.
+      const altura = (c) => { const j = K.jugador(inf, c.jugadorId) || {}; const est = (c.alta ? 'Alta 00-00-0000' : K.kineEstadoTxt(c)) + (c.estadoNota ? ' ' + c.estadoNota : ''); return 40 + 13 * (Math.max(lin(j.nombre, 18), lin((c.titulo || '') + conLado(c) + K.tagTorneo(inf, c), 24), lin(est, 38)) - 1); };
+      const tabla = (arr) => `<table class="kn-t"><thead><tr><th>Jugador</th><th>Diagnóstico y fecha</th><th>Días de baja</th><th>Estado y comentarios</th><th>% asist.</th><th>Cirugía</th><th>Recidiva</th></tr></thead><tbody>${arr.map(fila).join('')}</tbody></table>`;
+      const lista = (tit, nota, casos) => chunkH(casos, altura, 10, 750).forEach((arr, i) => { if (!arr.length) return;
+        out.push(pagina('p-resumen p-equipo', `<h2>${tit}${i ? ' <small>(cont.)</small>' : ''}</h2>${sub}<p class="kn-nota" style="margin:2px 2px 8px">${nota}</p>${tabla(arr)}`)); });
+      if (inf.regLesionados !== false) lista('Registro de lesionados del período', `Todos los jugadores que tuvieron una lesión en el período (${lesiones.length}), con o sin alta.`, lesiones);
+      if (inf.lesActuales !== false) lista('Lesionados actuales', `Jugadores con lesión del período que aún no tienen alta (${curso}). Es el seguimiento a la fecha del informe.`, actuales);
     }
     // Atenciones durante los partidos (informe de partido de la pestaña Partidos). La casilla “Incluir los datos de partidos en el informe general” (Informe → Textos) las muestra u oculta; los totales del resumen no cambian.
     const conInc = inf.atencionesPartidos === false ? [] : inf.partidos.filter((p) => p.fecha && K.enPeriodo(p.fecha, per) && K.resumenPartido(inf, p).n).sort((a, b) => a.fecha.localeCompare(b.fecha));
@@ -495,8 +516,8 @@
   K.paginas = function (inf, per) {
     const previo = K._idx; K._idx = new Map(); // índice por jugador, solo durante este armado
     try {
-      const eq = equipoPaginas(inf, per); // análisis (2 páginas) · seguimiento kinésico y seguro · conclusiones
-      const todas = [portada(inf, per)].concat(calendarioPaginas(inf, per), resumenPaginas(inf, per), eq.slice(0, 2), kinePaginas(inf, per), eq.slice(2), inf._sinFichas ? [] : fichas(inf, per));
+      const eq = equipoPaginas(inf, per); // análisis (3 páginas) · seguimiento kinésico y seguro · conclusiones
+      const todas = [portada(inf, per)].concat(calendarioPaginas(inf, per), resumenPaginas(inf, per), eq.slice(0, 3), kinePaginas(inf, per), eq.slice(3), inf._sinFichas ? [] : fichas(inf, per));
       return todas.map((h, i) => h.replace('<!--PIE-->', i === 0 ? '' : PIE(i + 1)));
     } finally { K._idx = previo; }
   };

@@ -10,6 +10,11 @@
     get() { try { return localStorage.getItem(LS) || ''; } catch (x) { return ''; } },
     set(v) { try { localStorage.setItem(LS, v); } catch (x) { /* sin almacenamiento */ } }
   };
+  // v1.7.0: “Aplazar 1 día”: no se vuelve a mostrar el aviso durante 24 horas (solo en este dispositivo)
+  const LS_APL = 'kine_rec_aplazo';
+  const aplazadoHasta = () => { try { return Number(localStorage.getItem(LS_APL)) || 0; } catch (x) { return 0; } };
+  K.aplazarRespaldo = () => { try { localStorage.setItem(LS_APL, String(Date.now() + 24 * 3600 * 1000)); } catch (x) { /* sin almacenamiento */ } };
+  K.respaldoAplazado = () => aplazadoHasta() > Date.now();
   const iso = (d) => `${d.getFullYear()}-${K.pad(d.getMonth() + 1)}-${K.pad(d.getDate())}`;
   const ultimoDia = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() === d.getDate();
 
@@ -44,6 +49,7 @@
   function avisar() {
     if (mostrado || !K.state || !K.state.informes || !K.puedeEditar || !K.puedeEditar()) return;
     if (K.hayModal && K.hayModal()) return;
+    if (K.respaldoAplazado()) return;
     const r = K.recordatorioPendiente();
     if (!r) return;
     mostrado = true;
@@ -52,7 +58,7 @@
       `<li class="${r.respaldoHecho ? 'hecho' : ''}"><b>${r.respaldoHecho ? '✓' : '1.'} Descargar el respaldo completo</b><span>Es tu copia de seguridad: un archivo con todo lo registrado. Guárdalo en tu correo o en Drive.</span></li>`,
       r.informe ? `<li class="${r.informeHecho ? 'hecho' : ''}"><b>${r.informeHecho ? '✓' : '2.'} Descargar el informe ${e(r.periodo.replace(/^el /, 'del '))}</b><span>En Informe → “Descargar PDF”, con el período elegido.</span></li>` : ''
     ].join('');
-    const botones = [{ txt: 'Más tarde', cls: 'sec' }];
+    const botones = [{ txt: 'Más tarde', cls: 'sec' }, { txt: 'Aplazar 1 día', cls: 'sec', fn: () => { K.aplazarRespaldo(); K.aviso('Listo: te lo recordamos de nuevo dentro de 24 horas'); } }];
     if (r.informe && !r.informeHecho) botones.push({
       txt: 'Ir al informe', cls: 'sec',
       fn: () => {

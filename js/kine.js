@@ -224,10 +224,10 @@
       <h3 class="kc-sub">${s.dia ? 'Fechas del ' + e(fc(s.dia)) + ' <a href="#" data-acc="kineDia" data-f="">ver todas</a>' : s.cal === 'prox' ? 'Próximas fechas' : 'Fechas recientes y próximas'}</h3>
       ${filas || `<p class="vacio-msg" style="padding:10px">${s.dia ? 'No hay fechas ese día.' : s.cal === 'prox' ? 'Sin fechas próximas por ahora.' : 'Sin fechas por ahora. Se agregan desde la ficha de cada lesionado (toca su nombre) o al registrar un control, examen o cirugía con fecha futura.'}</p>`}`;
   }
-  // El calendario va plegado (lo diario es la lista de lesionados); se abre con un toque y se acuerda si quedó abierto.
+  // v1.6.11: el calendario va primero y abierto (se puede plegar con un toque y se acuerda si quedó plegado).
   function calendarioPlegable(les) {
     const s = ks(), hoy = K.hoy(), prox = fechasImportantes(les).filter((x) => x.f >= hoy).length;
-    return `<details class="card kc-det" data-kc-det${s.calAbierto ? ' open' : ''}><summary><span><b>Fechas importantes</b> <small class="suave">${prox ? prox + ' próxima' + (prox === 1 ? '' : 's') : 'sin próximas'}</small></span></summary>${calendarioKine(les)}</details>`;
+    return `<details class="card kc-det" data-kc-det${s.calAbierto === false ? '' : ' open'}><summary><span><b>Fechas importantes</b> <small class="suave">${prox ? prox + ' próxima' + (prox === 1 ? '' : 's') : 'sin próximas'}</small></span></summary>${calendarioKine(les)}</details>`;
   }
 
   /* ---------- Seguimiento (lista + calendario) ---------- */
@@ -245,7 +245,7 @@
       if (it.cat !== cat) { cat = it.cat; filas += `<h3 class="kf-cat">Sub ${cat}</h3>`; }
       filas += filaKine(it);
     });
-    return `${alerta}
+    return `${calendarioPlegable(todos)}${alerta}
       <div class="card" data-kine-les><div class="fila sb wrap gap"><h2 style="margin:0">Lesionados <span class="suave" style="font-weight:400">(${les.length})</span></h2>
         <div class="fila gap kf-dia"><button class="btn ghost chico" data-acc="kineFechaMas" data-d="-1" aria-label="Día anterior">${K.uiIco('atras', 18)}</button>
           <input type="date" value="${e(s.fecha)}" data-acc-change="kineFecha" aria-label="Día de asistencia">
@@ -253,8 +253,7 @@
           ${s.fecha !== hoy ? '<button class="btn sec chico" data-acc="kineFechaMas" data-d="0">Hoy</button>' : ''}</div></div>
         ${les.length && ed ? `<div class="fila sb wrap gap kf-todos"><button type="button" class="btn" data-acc="kineTodosAsisten"${sinMarcar > 0 ? '' : ' disabled'}>${K.uiIco('ok', 18)} Todos asistieron${sinMarcar > 0 ? ` (${sinMarcar})` : ''}</button><span class="suave" data-kf-res>${e(fc(s.fecha))} · ${nSi} asistieron · ${nNo} no · ${nPa} pauta en casa · ${sinMarcar} sin marcar</span></div>` : ''}
         <details class="kf-ayuda"><summary>¿Qué significan los íconos?</summary><p class="sub" style="margin-top:6px">${nL ? `${nL} con <b class="as-Lt">L</b> (día de la lesión). ` : ''}✓ asistió · ✗ no asistió · <i class="as-casa">🏠</i> pauta en casa · <b class="as-Lt">L</b> día de la lesión. <b>SK</b> sesión de kinesiología, <b>RD</b> reintegro deportivo (<b>K</b> kine, <b>K+PF</b> kine + preparación física o <b>K+PA</b> kine + preparador de arqueros). Un toque marca; tocar de nuevo lo quita. “Todos asistieron” marca solo a quienes aún no tienen marca ese día.</p></details>
-        ${les.length ? filas : '<p class="vacio-msg">No hay lesionados. Cuando registres una lesión (Registrar → Registrar lesión) aparecerá aquí hasta que le des el alta.</p>'}</div>
-      ${calendarioPlegable(todos)}`;
+        ${les.length ? filas : '<p class="vacio-msg">No hay lesionados. Cuando registres una lesión (Registrar → Registrar lesión) aparecerá aquí hasta que le des el alta.</p>'}</div>`;
   }
 
   /* ---------- Informe semanal ---------- */

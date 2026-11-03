@@ -557,3 +557,15 @@
 .sc5-evs { margin-top: 6px; }
 .sc-mo { display: block; font-size: 8px; color: var(--suave); }
 .sc-comp-t td small.sc-t { display: block; margin: 1px auto 0; width: fit-content; }
+
+/* v1.7.0: estadísticas por semana y lesiones por categoría */
+.sem-graf { display: flex; align-items: flex-end; gap: 1.5px; height: 1.7in; padding-top: 14px; border-bottom: 1px solid #c5d0c9; }
+.sem-c { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.sem-c em { font-style: normal; font-size: 7px; color: #2e3833; line-height: 1; margin-bottom: 1px; }
+.sem-b { width: 100%; display: flex; flex-direction: column; min-height: 0; }
+.sem-b i { display: block; width: 100%; min-height: 0; }
+.sem-b i.les { background: #1d5a33; } .sem-b i.mol { background: #8fbf9f; }
+.sem-eje { display: flex; gap: 1.5px; margin-top: 2px; } .sem-eje span { flex: 1; min-width: 0; font-size: 7px; color: #4a564f; text-align: left; white-space: nowrap; overflow: visible; }
+.eq-h3 { font-family: Caladea, Georgia, serif; font-size: 15px; margin: .14in 0 .06in; color: #154c2b; }
+.eq-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .eq-cats .eq-panel { margin: 0; }
+.eq-cat .bh-n { font-size: 10px; }

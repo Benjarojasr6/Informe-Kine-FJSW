@@ -129,7 +129,35 @@
     jug.forEach((p) => { const x = parseRes(p.res); if (!x) return; conRes++; if (x[0] > x[1]) g++; else if (x[0] === x[1]) em++; else pe++; });
     return { partidos: ps.length, jugados: jug.length, pendientes: ps.length - jug.length, g, e: em, p: pe, conRes, atenciones: r.atenciones.length, lesiones: r.casos.filter((c) => c.tipo === 'lesion').length, molestias: r.casos.filter((c) => c.tipo !== 'lesion').length, inscritos: (t.inscritos || []).length };
   }
-  K.torneos = { lista, buscar, estado, normalizar, migrar, aplicarAPartido, propagar, eliminar, registros, kpis, partidosDe, jornadasDe, faseNombre, catsDe, parseRes, fasesBase, enRango, puedeEd, fechasTxt, dondeTxt, catsTxt, estadoChip };
+  /* ---------- v1.7.0: torneo dentro o fuera del informe general, y marca “(Torneo X)” en lo que ocurrió durante el torneo ---------- */
+  // t.enInforme === false: los partidos del torneo y sus atenciones, molestias y lesiones (lo de `registros`) NO salen en el informe general
+  // (siguen en la ficha de cada jugador y en el informe del propio torneo). Con el torneo incluido (lo normal), esos casos llevan “(Torneo X)”.
+  function aplicarAVista(v) {
+    if (!v || !K.state || !K.state.informes) return v;
+    const ex = { casos: new Set(), atenciones: new Set(), partidos: new Set() }, tag = { casos: {}, atenciones: {} };
+    let hayTorneos = false, algunoFuera = false;
+    K.state.informes.forEach((inf) => lista(inf).forEach((t) => {
+      hayTorneos = true;
+      const r = registros(inf, t);
+      if (t.enInforme === false) { algunoFuera = true; r.casos.forEach((c) => ex.casos.add(c.id)); r.atenciones.forEach((a) => ex.atenciones.add(a.id)); partidosDe(inf, t).forEach((p) => ex.partidos.add(p.id)); }
+      else { r.casos.forEach((c) => { if (!(c.id in tag.casos)) tag.casos[c.id] = t.nombre; }); r.atenciones.forEach((a) => { if (!(a.id in tag.atenciones)) tag.atenciones[a.id] = t.nombre; }); }
+    }));
+    if (!hayTorneos || (!algunoFuera && !Object.keys(tag.casos).length && !Object.keys(tag.atenciones).length)) return v;
+    const w = Object.assign({}, v);
+    if (algunoFuera) {
+      const f = (arr, set) => (Array.isArray(arr) ? arr.filter((x) => !set.has(x.id)) : arr);
+      w.casos = f(v.casos, ex.casos); w.atenciones = f(v.atenciones, ex.atenciones); w.partidos = f(v.partidos, ex.partidos);
+      if (v._fichaCasos) w._fichaCasos = f(v._fichaCasos, ex.casos);
+      if (v._fichaAtenciones) w._fichaAtenciones = f(v._fichaAtenciones, ex.atenciones);
+    }
+    w._tn = tag;
+    return w;
+  }
+  K.tagTorneo = (inf, c) => (inf && inf._tn && c && inf._tn.casos[c.id] ? ` (Torneo ${inf._tn.casos[c.id]})` : '');
+  const iv0 = K.informeVista;
+  if (iv0) K.informeVista = function () { return aplicarAVista(iv0.apply(this, arguments)); };
+  const enInforme = (t) => t.enInforme !== false;
+  K.torneos = { enInforme, aplicarAVista, lista, buscar, estado, normalizar, migrar, aplicarAPartido, propagar, eliminar, registros, kpis, partidosDe, jornadasDe, faseNombre, catsDe, parseRes, fasesBase, enRango, puedeEd, fechasTxt, dondeTxt, catsTxt, estadoChip };
   // Torneos ya usados (para sugerirlos); sigue existiendo por compatibilidad.
   K.torneosGuardados = () => { const s = new Set(); K.state.informes.forEach((i) => { (i.partidos || []).forEach((p) => { if (p.torneo) s.add(p.torneo); }); lista(i).forEach((t) => s.add(t.nombre)); }); return [...s].sort((a, b) => a.localeCompare(b, 'es')); };
   // Texto corto “Torneo · Fase” de un partido (para listas y encabezados)
@@ -143,7 +171,7 @@
     return `<div class="card" data-torneos-lista><div class="fila sb wrap gap"><h2 style="margin:0">Torneos (${ts.length})</h2><button class="btn" data-acc="torneoNuevo">${K.uiIco('mas', 16)} Nuevo torneo</button></div>
       <p class="sub">Copa Libertadores, torneos amistosos, giras… Cada torneo tiene su propia ficha con sus fases, partidos, jugadores inscritos y datos del viaje. Un partido se asocia a un torneo al crearlo o editarlo.</p>
       ${ts.length ? `<div class="lista">${ts.map((t) => { const n = partidosDe(inf, t).length, ni = (t.inscritos || []).length; return `<div class="item tn-it" data-acc="torneoAbrir" data-id="${e(t.id)}"><span class="mini-ico tn-ico">${K.uiIco('trofeo', 26)}</span>
-        <div class="txt"><b>${e(t.nombre)}</b><span>${e(t.tipo)}${dondeTxt(t) ? ' · ' + e(dondeTxt(t)) : ''} · ${e(fechasTxt(t))}</span><span>${e(catsTxt(t, inf))} · ${n} partido${n === 1 ? '' : 's'} · ${ni} inscrito${ni === 1 ? '' : 's'}${t.viaje ? ' · viaje' : ''}</span></div>${estadoChip(t)}</div>`; }).join('')}</div>`
+        <div class="txt"><b>${e(t.nombre)}</b><span>${e(t.tipo)}${dondeTxt(t) ? ' · ' + e(dondeTxt(t)) : ''} · ${e(fechasTxt(t))}</span><span>${e(catsTxt(t, inf))} · ${n} partido${n === 1 ? '' : 's'} · ${ni} inscrito${ni === 1 ? '' : 's'}${t.viaje ? ' · viaje' : ''}${t.enInforme === false ? ' · fuera del informe' : ''}</span></div>${estadoChip(t)}</div>`; }).join('')}</div>`
         : '<p class="vacio-msg">Aún no hay torneos. Toca <b>Nuevo torneo</b> para crear el primero (por ejemplo Copa Libertadores Sub 20).</p>'}</div>${K.torneos.comparacionHTML ? K.torneos.comparacionHTML(inf) : ''}`;
   };
 
@@ -166,6 +194,8 @@
         <h3 class="kc-sub" style="margin-top:10px">Fases</h3>
         <p style="margin:4px 0 0">${(t.fases || []).length ? t.fases.map((f) => `<i class="chip">${e(f.nombre)}</i>`).join(' ') : '<span class="suave">Sin fases definidas.</span>'}</p>
         ${t.notas ? `<h3 class="kc-sub" style="margin-top:10px">Notas</h3><p style="margin:4px 0 0;white-space:pre-line">${e(t.notas)}</p>` : ''}</div>
+      <div class="card" data-tn-informe><div class="fila sb wrap gap"><h2 style="margin:0">En el informe general</h2>${puedeEd() ? `<button type="button" class="kc-switch${enInforme(t) ? ' on' : ''}" role="switch" aria-checked="${enInforme(t)}" aria-label="Incluir este torneo en el informe general" data-acc="torneoEnInforme" data-id="${e(t.id)}"><i></i></button>` : ''}</div>
+        <p class="sub" style="margin:6px 0 0">${enInforme(t) ? '<b>Incluido.</b> Sus partidos, atenciones, molestias y lesiones salen en el informe general, y las molestias y lesiones del torneo llevan entre paréntesis <b>(Torneo ' + e(t.nombre) + ')</b>.' : '<b>No incluido.</b> Sus partidos, atenciones, molestias y lesiones no salen en el informe general. Siguen en la ficha de cada jugador y en el informe del torneo.'}</p></div>
       ${prox ? `<div class="card"><h2>Próximo partido</h2><div class="lista">${itemJornada(inf, prox)}</div></div>` : ''}
       <p style="margin:6px 2px"><a href="#" data-acc="torneoEliminar" data-id="${e(t.id)}" class="tn-elim">Eliminar este torneo</a> <span class="suave">(los partidos no se borran: quedan sin torneo)</span></p>`;
   }
@@ -385,6 +415,7 @@
     torneoNuevo() { if (puedeEd()) formTorneo(null); },
     torneoAbrir(el, ev) { if (ev && ev.preventDefault) ev.preventDefault(); const t = tId(el); if (!t) return; K.ui.torneoId = t.id; K.ui.torneoTab = 'resumen'; K.ui.partidoId = null; K.render(); window.scrollTo(0, 0); },
     torneoVolver() { K.ui.torneoId = null; K.ui.partTab = 'torneos'; K.render(); window.scrollTo(0, 0); },
+    torneoEnInforme(el, ev) { if (ev) ev.preventDefault(); const t = tId(el); if (!t || !puedeEd()) return; if (enInforme(t)) t.enInforme = false; else delete t.enInforme; K.guardar(); K.render(); K.aviso(enInforme(t) ? 'Torneo incluido en el informe general' : 'Torneo fuera del informe general'); },
     torneoEditar(el) { const t = tId(el); if (t) formTorneo(t); },
     torneoEliminar(el, ev) { if (ev) ev.preventDefault(); const t = tId(el); if (t && puedeEd()) pedirEliminar(K.inf(), t); },
     torneoAddPartido(el) { const t = tId(el); if (t && puedeEd()) K.formPartido(null, { torneoId: t.id, fase: el.dataset.fase || '' }); },
