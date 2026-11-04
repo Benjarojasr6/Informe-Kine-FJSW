@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.7.1';
+  K.version = '1.7.2';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
