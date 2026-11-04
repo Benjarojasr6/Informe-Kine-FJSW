@@ -731,6 +731,8 @@
         <div class="fila wrap gap">${demo ? `<button class="btn peligro chico" data-acc="quitarDemo">Quitar datos de ejemplo</button>` : `<button class="btn sec chico" data-acc="cargarDemo">Cargar datos de ejemplo</button>`}</div>
         <p class="suave" style="margin-top:8px">Los datos de ejemplo sirven para ver cómo queda el informe; se pueden quitar con un toque.</p></div>
       ${K.scat5 && K.scat5.tarjetaDocumentos ? K.scat5.tarjetaDocumentos() : ''}
+      ${K.tarjetaImportAsis ? K.tarjetaImportAsis() : ''}
+      ${K.tarjetaAvisos ? K.tarjetaAvisos() : ''}
       ${K.tarjetaSalud ? K.tarjetaSalud() : ''}
       ${K.tarjetaAcceso ? K.tarjetaAcceso() : ''}
       ${K.tarjetaCuenta ? K.tarjetaCuenta() : ''}

@@ -1318,3 +1318,12 @@ input[type=date][data-kd] { cursor: pointer; }
 .chat-fila { display: flex; gap: 6px; align-items: flex-end; }
 .chat-fila textarea { flex: 1; font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--linea); border-radius: 8px; resize: none; }
 @media print { #k-chat { display: none !important; } }
+
+/* v1.7.1: calendario de Kine: los días con fechas importantes llevan borde verde; el de hoy va relleno. */
+.kc.tiene { border: 2px solid var(--verde); }
+.kc.hoy { background: var(--verde-claro); }
+.kc.hoy.tiene { border-color: var(--verde); }
+.kc.sel { background: #cfe3d4; border-color: var(--verde-2); }
+.kc-ley u.borde { width: 12px; height: 10px; border-radius: 3px; border: 2px solid var(--verde); background: #fff; }
+/* v1.7.1: los rótulos de las tarjetas de números empiezan con mayúscula (Días perdidos 2026, Lesiones en su carrera…) */
+#view .kpi span::first-letter, #view .fr-k span::first-letter, #view .kpi small::first-letter, .hoja .kpi span::first-letter, .hoja .fr-k span::first-letter { text-transform: uppercase; }

@@ -442,9 +442,9 @@
       const cnt = { SK: 0, 'RD · K': 0, 'RD · K+PF': 0, 'RD · K+PA': 0, RD: 0, 'No asistió': 0, 'Pauta en casa': 0, 'Kine externa particular': 0, 'Kine externa por el seguro': 0, Descanso: 0, 'Control / examen / procedimiento': 0, Enfermedad: 0 };
       asis.forEach((a) => {
         if (a.v === 'si') { if (a.t === 'RD') cnt[a.sub === 'K' ? 'RD · K' : a.sub === 'KPF' ? 'RD · K+PF' : a.sub === 'KPA' ? 'RD · K+PA' : 'RD']++; else cnt.SK++; }
-        else cnt[a.no === 'pauta' ? 'Pauta en casa' : a.no === 'kineparticular' ? 'Kine externa particular' : a.no === 'kineseguro' ? 'Kine externa por el seguro' : a.no === 'descanso' ? 'Descanso' : ['control', 'examen', 'procedimiento'].includes(a.no) ? 'Control / examen / procedimiento' : a.no === 'enfermedad' ? 'Enfermedad' : 'No asistió']++;
+        else cnt[a.no === 'pauta' ? 'Pauta en casa' : a.no === 'kineparticular' ? 'Kine externa particular' : a.no === 'kineseguro' ? 'Kine externa por el seguro' : a.no === 'descanso' ? 'Descanso' : a.no === 'entrenocompleto' ? 'Entrenamiento completo' : ['control', 'examen', 'procedimiento'].includes(a.no) ? 'Control / examen / procedimiento' : a.no === 'enfermedad' ? 'Enfermedad' : 'No asistió']++;
       });
-      const col = { SK: '#2f9e5a', 'RD · K': '#3b82e0', 'RD · K+PF': '#1f5fbf', 'RD · K+PA': '#13438f', RD: '#3b82e0', 'No asistió': '#6b7570', 'Pauta en casa': '#aeb7b2', 'Kine externa particular': '#14a3a3', 'Kine externa por el seguro': '#0e7c7c', Descanso: '#cfd6d2', 'Control / examen / procedimiento': '#8d6fc4', Enfermedad: '#b08a5a' };
+      const col = { SK: '#2f9e5a', 'RD · K': '#3b82e0', 'RD · K+PF': '#1f5fbf', 'RD · K+PA': '#13438f', RD: '#3b82e0', 'No asistió': '#6b7570', 'Pauta en casa': '#aeb7b2', 'Kine externa particular': '#14a3a3', 'Kine externa por el seguro': '#0e7c7c', Descanso: '#cfd6d2', 'Entrenamiento completo': '#9ccfae', 'Control / examen / procedimiento': '#8d6fc4', Enfermedad: '#b08a5a' };
       const meses = K.mesesPeriodo(per);
       const porMes = meses.map((m) => asis.filter((a) => a.v === 'si' && a.fecha.slice(0, 7) === m.clave).length);
       const altas = lesiones.filter((c) => c.alta && K.enPeriodo(c.alta, per)).length;

@@ -143,6 +143,12 @@
       <li><b>Seguro en el exterior:</b> al registrar una activación del seguro puedes anotar el país, la cobertura (seguro del club o de viaje) y la póliza. En la pestaña Viaje del torneo se ven las activaciones de los inscritos durante el torneo.</li>
       <li><b>Renombrar o eliminar:</b> si cambias el nombre del torneo se actualiza en todos sus partidos. Al eliminarlo, los partidos <b>no se borran</b>: quedan sin torneo (hay un aviso para <b>Deshacer</b>).</li>
       <li><b>Lo que ya tenías:</b> los partidos que antes tenían un torneo escrito se ordenaron solos en fichas de torneo; los informes salen igual que antes.</li></ul>`],
+    ['Novedades de la versión 1.7.1', `<ul>
+      <li><b>Entrenamiento completo (EC):</b> nuevo motivo en la asistencia de Kine, para el día en que el jugador entrenó completo con el equipo y no pasó por kine. No cuenta como falta y en el informe sale como “Entrenamiento completo”.</li>
+      <li><b>Importar asistencia:</b> en Ajustes hay una tarjeta nueva para cargar de una vez la asistencia desde un archivo preparado (por ejemplo, desde el Excel). Solo suma los días que no tienen registro: lo que ya está en la app nunca se cambia, ves un resumen con las diferencias antes de agregar y se descarga una copia de seguridad.</li>
+      <li><b>Aviso de examen:</b> un día antes de cada examen agendado, la app avisa “Mañana hay examen: llama hoy al seguro”. Sale al abrir la app (una vez al día) y, si activas las notificaciones en Ajustes → Avisos de examen, también como notificación del dispositivo. La app no puede avisar sola si está cerrada: el aviso aparece apenas la abres.</li>
+      <li><b>Calendario de Kine:</b> los días con fechas importantes tienen el borde verde; el día de hoy va relleno.</li>
+      <li><b>Mayúsculas:</b> los rótulos de las tarjetas de números (por ejemplo “Días perdidos 2026” en la ficha del jugador) ahora empiezan con mayúscula.</li></ul>`],
     ['Novedades de la versión 1.7.0', `<ul>
       <li><b>Informe · Estadísticas de lesiones:</b> página nueva con las <b>lesiones más comunes por categoría</b>, el <b>tipo de lesión según el tejido</b> (muscular, óseo, tendón, ligamento…) y los <b>casos por semana</b>. Se quitaron los medicamentos entregados del informe.</li>
       <li><b>Listas de lesionados opcionales:</b> en la pantalla Informe hay dos casillas para incluir o no <b>Registro de lesionados del período</b> y <b>Lesionados actuales</b>. El detalle siempre queda en la ficha individual.</li>

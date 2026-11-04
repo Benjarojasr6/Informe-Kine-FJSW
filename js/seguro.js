@@ -220,9 +220,9 @@
   /* ---------- Calendario anual de asistencia ---------- */
   const AC = {
     cirugia: ['Cirugía', '#1f2937'], hosp: ['Hospitalización', '#b3202a'], examen: ['Examen', '#f08a24'], control: ['Control', '#7b4fb8'], proc: ['Otro procedimiento', '#c2479b'],
-    kineext: ['Kinesiología externa', '#14a3a3'], enf: ['Enfermedad', '#b08a5a'], rd: ['Reintegro deportivo (RD)', '#3b82e0'], sk: ['Kinesiología (SK)', '#2f9e5a'], no: ['No asistió', '#6b7570'], pauta: ['Pauta en casa', '#aeb7b2'], descanso: ['Descanso', '#dde2df']
+    kineext: ['Kinesiología externa', '#14a3a3'], enf: ['Enfermedad', '#b08a5a'], rd: ['Reintegro deportivo (RD)', '#3b82e0'], sk: ['Kinesiología (SK)', '#2f9e5a'], no: ['No asistió', '#6b7570'], pauta: ['Pauta en casa', '#aeb7b2'], descanso: ['Descanso', '#dde2df'], ec: ['Entrenamiento completo', '#9ccfae']
   };
-  const PRIO = ['cirugia', 'hosp', 'examen', 'control', 'proc', 'kineext', 'rd', 'sk', 'enf', 'no', 'pauta', 'descanso'];
+  const PRIO = ['cirugia', 'hosp', 'examen', 'control', 'proc', 'kineext', 'rd', 'sk', 'enf', 'no', 'pauta', 'ec', 'descanso'];
   const LESION_COL = '#f6c4c8';
   function diasDe(inf, j, anio) {
     const m = {}, hoy = K.hoy();
@@ -241,7 +241,7 @@
     });
     (inf.asistencias || []).forEach((a) => {
       if (a.jugadorId !== j.id) return;
-      const k = a.v === 'si' ? (a.t === 'RD' ? 'rd' : 'sk') : ({ pauta: 'pauta', descanso: 'descanso', control: 'control', examen: 'examen', procedimiento: 'proc', enfermedad: 'enf', kineparticular: 'kineext', kineseguro: 'kineext' }[a.no] || 'no');
+      const k = a.v === 'si' ? (a.t === 'RD' ? 'rd' : 'sk') : ({ pauta: 'pauta', descanso: 'descanso', control: 'control', examen: 'examen', procedimiento: 'proc', enfermedad: 'enf', kineparticular: 'kineext', kineseguro: 'kineext', entrenocompleto: 'ec' }[a.no] || 'no');
       poner(a.fecha, k, K.kineAsisTxt(a));
     });
     inf.eventos.forEach((x) => { if (x.jugadorId === j.id && K.evRealizado(x)) { if (x.tipo === 'control') poner(x.fecha, 'control', 'Control: ' + (x.nombre || '')); if (x.tipo === 'examen') poner(x.fecha, 'examen', 'Examen: ' + (x.nombre || '')); if (x.tipo === 'cirugia') poner(x.fecha, 'cirugia', 'Cirugía: ' + (x.nombre || '')); } });
