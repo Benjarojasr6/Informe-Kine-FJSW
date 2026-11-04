@@ -76,8 +76,24 @@
   const analizar = (html) => { const d = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html'); return d.body; };
 
   /* ---------- Dibujo de un trozo de HTML ---------- */
-  function svgURL(css, inner, w, h, esc, desplazo, estiloBase) {
-    const s = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(w * esc)}" height="${Math.round(h * esc)}" viewBox="0 0 ${w} ${h}"><foreignObject x="0" y="0" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px;overflow:hidden;position:relative;${estiloBase || ''}"><style>/*<![CDATA[*/${css}/*]]>*/</style><div style="width:${w}px;margin-top:${-(desplazo || 0)}px">${inner}</div></div></foreignObject></svg>`;
+  /* Tres maneras de armar el dibujo, porque el Safari del iPhone/iPad no siempre escala igual el HTML que va dentro de un SVG:
+     A) el SVG escala el contenido (viewBox más chico que el tamaño final) — es lo normal en Chrome, Firefox y Safari de escritorio;
+     B) el SVG ya tiene el tamaño final y el escalado lo hace el propio HTML (transform: scale) — para cuando el navegador ignora el viewBox;
+     C) el SVG se arma a tamaño normal y se agranda recién al pasarlo al lienzo — la imagen sale más suave, pero del tamaño correcto.
+     Antes de armar el PDF se prueba con un dibujo de 20 px cuál de las tres sale bien en este dispositivo (modoSVG). */
+  function svgURL(css, inner, w, h, esc, desplazo, estiloBase, modo) {
+    modo = modo || 'A';
+    const dentro = `<style>/*<![CDATA[*/${css}/*]]>*/</style><div style="width:${w}px;margin-top:${-(desplazo || 0)}px">${inner}</div>`;
+    const base = estiloBase || '';
+    let s;
+    if (modo === 'B') {
+      const W = Math.round(w * esc), H = Math.round(h * esc);
+      s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><foreignObject x="0" y="0" width="${W}" height="${H}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${W}px;height:${H}px;overflow:hidden;position:relative"><div style="width:${w}px;height:${h}px;overflow:hidden;position:relative;transform:scale(${esc});transform-origin:0 0;${base}">${dentro}</div></div></foreignObject></svg>`;
+    } else if (modo === 'C') {
+      s = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><foreignObject x="0" y="0" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px;overflow:hidden;position:relative;${base}">${dentro}</div></foreignObject></svg>`;
+    } else {
+      s = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(w * esc)}" height="${Math.round(h * esc)}" viewBox="0 0 ${w} ${h}"><foreignObject x="0" y="0" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px;overflow:hidden;position:relative;${base}">${dentro}</div></foreignObject></svg>`;
+    }
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
   }
   function cargarImagen(src) {
@@ -97,6 +113,22 @@
     ctx.clearRect(x, y, w, h); ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h);
     ctx.drawImage(im, x, y, w, h);
     im.src = ''; im = null;
+  }
+  // Prueba rápida: un cuadro negro de 10 px dentro de un dibujo de 20 px, ampliado al doble. Si el cuadro cubre el lugar esperado, el modo sirve.
+  let modoElegido = null;
+  async function probarModo(modo) {
+    const N = 20, E = 2, c = document.createElement('canvas'); c.width = N * E; c.height = N * E;
+    const x = c.getContext('2d', { willReadFrequently: true }); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    await dibujar(x, svgURL('', '<div style="width:10px;height:10px;background:#000"></div>', N, N, E, 0, 'background:#fff;', modo), 0, 0, c.width, c.height);
+    const a = x.getImageData(15, 15, 1, 1).data, b = x.getImageData(36, 36, 1, 1).data, d = x.getImageData(25, 5, 1, 1).data;
+    return a[0] < 90 && b[0] > 200 && d[0] > 200;
+  }
+  async function modoSVG() {
+    if (modoElegido) return modoElegido;
+    if (K.pdf && K.pdf.forzarModo) return (modoElegido = K.pdf.forzarModo);
+    let m = 'A';
+    try { for (const t of ['A', 'B', 'C']) { if (await probarModo(t)) { m = t; break; } } } catch (x) { m = 'A'; }
+    return (modoElegido = m);
   }
   async function aJPEG(canvas) {
     const blob = await new Promise((ok, mal) => { try { canvas.toBlob((b) => (b ? ok(b) : mal(new Error('lienzo bloqueado'))), 'image/jpeg', CALIDAD); } catch (x) { mal(x); } });
@@ -232,16 +264,17 @@
 
   K.pdf = {
     limpiarCache() { cache.css = null; },
+    modo() { return modoSVG(); },
     // Páginas ya diseñadas en tamaño carta (cada texto HTML es una <section class="pagina">).
     paginas(htmls, titulo) {
       return generar(titulo, async () => {
-        const css = await cssEmbebido(), out = [];
+        const css = await cssEmbebido(), out = [], modo = await modoSVG();
         for (let i = 0; i < htmls.length; i++) {
           if (cancelado) return out;
           progreso(`Página ${i + 1} de ${htmls.length}`, i / htmls.length);
           const body = analizar(htmls[i]); await incrustarImagenes(body);
           const [c, ctx] = nuevoLienzo(LW, LH);
-          await dibujar(ctx, svgURL(css, aXHTML(body.firstElementChild), LW, LH, ESCALA, 0, ''), 0, 0, c.width, c.height);
+          await dibujar(ctx, svgURL(css, aXHTML(body.firstElementChild), LW, LH, ESCALA, 0, '', modo), 0, 0, c.width, c.height);
           out.push({ jpg: await aJPEG(c), w: c.width, h: c.height });
           c.width = c.height = 1; await pausa(0);
         }
@@ -251,7 +284,7 @@
     // Documento largo (informe de partido, informe semanal, registro clínico): se corta en páginas con márgenes.
     documento(html, titulo) {
       return generar(titulo, async () => {
-        const css = await cssEmbebido(), out = [];
+        const css = await cssEmbebido(), out = [], modo = await modoSVG();
         const fuente = getComputedStyle(document.body).font.replace(/"/g, "'");
         const ancho = Math.round(LW - 2 * MARGEN), alto = Math.round(LH - 2 * MARGEN - 14);
         const body = analizar(html); await incrustarImagenes(body);
@@ -277,7 +310,7 @@
           const [t, b] = tramos[i], h = Math.max(1, b - t);
           const [c, ctx] = nuevoLienzo(LW, LH);
           const fx = MARGEN * ESCALA, fy = MARGEN * ESCALA;
-          await dibujar(ctx, svgURL(css, inner, ancho, h, ESCALA, t, base), fx, fy, ancho * ESCALA, h * ESCALA);
+          await dibujar(ctx, svgURL(css, inner, ancho, h, ESCALA, t, base, modo), fx, fy, ancho * ESCALA, h * ESCALA);
           ctx.fillStyle = '#6b776f'; ctx.font = `${8.5 * ESCALA}px Inter, Arial, sans-serif`; ctx.textBaseline = 'alphabetic';
           ctx.textAlign = 'left'; ctx.fillText('Santiago Wanderers · Kinesiología Fútbol Joven SW', fx, (LH - 0.3 * PX) * ESCALA);
           ctx.textAlign = 'right'; ctx.fillText(`${i + 1} / ${tramos.length}`, (LW - MARGEN) * ESCALA, (LH - 0.3 * PX) * ESCALA);

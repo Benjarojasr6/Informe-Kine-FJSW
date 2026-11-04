@@ -391,17 +391,6 @@
         ${panelEq('Terreno de juego', barrasH(K.TERRENOS.map((t) => [t, tr[t]]).concat([['Sin dato', tr.sin, '#8a9a90']])))}
         ${panelEq('Tipo de tejido afectado', tejidosHTML(r))}
       </div>`);
-    // Página nueva (v1.7.0): lesiones más comunes por categoría y casos por semana
-    const sem = r.semanas, maxS = Math.max(1, ...sem.les.map((v, i) => v + sem.mol[i]));
-    const finS = (i) => { const d = new Date(sem.desde + 'T12:00:00'); d.setDate(d.getDate() + 7 * i); return d.toISOString().slice(0, 10); };
-    const semanas = `<div class="sem-graf">${sem.les.map((v, i) => { const t = v + sem.mol[i]; return `<div class="sem-c" title="Semana del ${e(K.fechaCorta(finS(i)))}: ${v} lesiones, ${sem.mol[i]} molestias"><em>${t || ''}</em><div class="sem-b" style="height:${Math.round(100 * t / maxS)}%"><i class="mol" style="flex:${sem.mol[i]}"></i><i class="les" style="flex:${v}"></i></div></div>`; }).join('')}</div>
-      <div class="sem-eje">${sem.les.map((v, i) => `<span>${i % 4 === 0 ? 'S' + (i + 1) : ''}</span>`).join('')}</div>
-      <div class="mes-leyenda"><span><i class="les"></i>Lesiones</span><span><i class="mol"></i>Molestias</span><span class="suave">S1 = semana del ${e(K.fechaCorta(sem.desde))} (lunes a domingo)</span></div>`;
-    const porCat = r.lesPorCat.length ? r.lesPorCat.map((o) => panelEq(`${o.cat} · ${o.total} lesion${o.total === 1 ? '' : 'es'}`, barrasH(o.top.map(([n, v]) => [n, v]), o.top[0][1], '#2f7a4a'), 'eq-cat')).join('') : '<p class="vacio-eq">Sin lesiones registradas en el período.</p>';
-    const p1b = pagina('p-resumen p-equipo', `<h2>Estadísticas de lesiones</h2>${sub}
-      ${panelEq('Casos por semana', semanas)}
-      <h3 class="eq-h3">Lesiones más comunes por categoría</h3>
-      <div class="eq-cats">${porCat}</div>`);
     // Página 2: zonas del cuerpo
     const max = Math.max(1, ...Object.keys(r.zonas).map((k) => r.zonas[k]));
     const mapa = K.mapaCorporal({ calor: r.zonas, calorMax: max, pagina: true });
@@ -424,7 +413,7 @@
     const caja = (tit, txt) => `<div class="eq-texto"><h3>${e(tit)}</h3><div class="eq-papel">${txt ? `<p${tamano(ajustar(txt))}>${e(ajustar(txt)).replace(/\n/g, '<br>')}</p>` : `<p class="vacio-eq">${K._paraPdf ? '&nbsp;' : K.puedeEditar && !K.puedeEditar() ? 'Sin texto registrado.' : 'Escribe este texto en la app (pestaña Informe → Textos del informe).'}</p>`}</div></div>`;
     const p3 = pagina('p-resumen p-equipo', `<h2>Conclusiones y objetivos</h2>${sub}${caja('Conclusiones del área kinésica', inf.conclusiones)}${caja('Objetivos y proyecciones para el próximo año', inf.objetivos)}
       <div class="eq-firma"><div></div>${inf.firmante ? `<b>${e(inf.firmante)}</b>` : ''}<span>Kinesiólogo(a) responsable · Santiago Wanderers</span></div>`);
-    return [p1, p1b, p2, p3];
+    return { analisis: p1, zonas: p2, conclusiones: p3 };
   }
 
 
@@ -449,7 +438,7 @@
       const porMes = meses.map((m) => asis.filter((a) => a.v === 'si' && a.fecha.slice(0, 7) === m.clave).length);
       const altas = lesiones.filter((c) => c.alta && K.enPeriodo(c.alta, per)).length;
       const actuales = lesiones.filter((c) => !c.alta), curso = actuales.length; // v1.6.11: lesionados actuales = los del período que aún no tienen alta
-      out.push(pagina('p-resumen p-equipo', `<h2>Seguimiento kinésico</h2>${sub}
+      if (K.bloqueOn(inf, 'kine')) out.push(pagina('p-resumen p-equipo', `<h2>Seguimiento kinésico</h2>${sub}
         <div class="eq-kpis">${kpi(lesiones.length, 'lesionados del período')}${kpi(curso, 'lesionados actuales (sin alta)')}${kpi(altas, 'altas en el período')}${kpi(pct == null ? '--' : pct + '%', 'asistencia a kinesiología')}</div>
         <div class="eq-kpis eq-kpis-2">${kpi(si, 'sesiones realizadas')}${kpi(esp, 'sesiones esperadas')}</div>
         ${panelEq('Sesiones y asistencia por tipo', barrasH(Object.keys(cnt).filter((k) => cnt[k] || ['SK', 'No asistió'].includes(k)).map((k) => [k, cnt[k], col[k]]), 0))}
@@ -485,7 +474,7 @@
       if (!corto) chunkH(res, ({ p }) => 40 + 13 * (Math.max(lin(p.rival, 30), lin((p.torneo || '') + ' · Sub 16 · Visita · ' + (p.res || ''), 45)) - 1), 14, 780).forEach((arr, i) => out.push(pagina('p-resumen p-equipo', `<h2>Detalle por partido${i ? ' <small>(cont.)</small>' : ''}</h2>${sub}${tabla(arr)}`)));
     }
     // Conmociones cerebrales (SCAT5): solo si hubo alguna en el período; sin ellas el informe queda igual que siempre.
-    const conm = K.conmocion ? K.conmocion.filas(inf.partidos.filter((p) => p.fecha && K.enPeriodo(p.fecha, per))) : [];
+    const conm = K.conmocion && K.bloqueOn(inf, 'conmociones') ? K.conmocion.filas(inf.partidos.filter((p) => p.fecha && K.enPeriodo(p.fecha, per))) : [];
     if (conm.length) {
       const nRet = conm.filter((r) => r.sc.retirado).length, nUrg = conm.filter((r) => K.conmocion.hayBandera(r.sc)).length, nJug = new Set(conm.map((r) => r.inc.jugadorId)).size;
       chunkH(conm, (r) => 46 + 12 * (Math.max(lin(K.conmocion.puntajes(r.sc).join(' · '), 30) + (r.sc.evals && K.scat5 ? K.scat5.lineasEvals(r.sc).reduce((n, l) => n + lin(l, 30), 0) : 0), lin(Object.keys(r.sc.banderas).join(' '), 22) - 1, lin(Object.keys(r.sc.signos).join(' '), 32) - 1) - 1), 8, 700).forEach((arr, i) => out.push(pagina('p-resumen p-equipo', `<h2>Conmociones cerebrales (SCAT5)${i ? ' <small>(cont.)</small>' : ''}</h2>${sub}
@@ -495,7 +484,7 @@
     // Uso del seguro (sin datos personales). Solo si hay eventos en el período (los ven únicamente los administradores).
     const sev = (inf.segEventos || []).filter((x) => ids.has(x.jugadorId) && K.enPeriodo(x.fecha, per));
     const sini = (inf.seguros || []).filter((x) => ids.has(x.jugadorId) && x.activacion && K.enPeriodo(x.activacion, per)).length; // activaciones iniciales (sin datos personales)
-    if (sev.length || sini) {
+    if (K.bloqueOn(inf, 'seguro') && (sev.length || sini)) {
       const c = {}, ex = {}, pr = {};
       sev.forEach((x) => { c[x.tipo] = (c[x.tipo] || 0) + 1; if (x.tipo === 'examen') ex[x.detalle || 'Sin nombre'] = (ex[x.detalle || 'Sin nombre'] || 0) + 1; if (x.tipo === 'procedimiento') pr[x.detalle || 'Sin nombre'] = (pr[x.detalle || 'Sin nombre'] || 0) + 1; });
       const ses = sev.filter((x) => x.tipo === 'kinesiologia').reduce((a, x) => a + (Number(x.cantidad) || 1), 0);
@@ -516,8 +505,9 @@
   K.paginas = function (inf, per) {
     const previo = K._idx; K._idx = new Map(); // índice por jugador, solo durante este armado
     try {
-      const eq = equipoPaginas(inf, per); // análisis (3 páginas) · seguimiento kinésico y seguro · conclusiones
-      const todas = [portada(inf, per)].concat(calendarioPaginas(inf, per), resumenPaginas(inf, per), eq.slice(0, 3), kinePaginas(inf, per), eq.slice(3), inf._sinFichas ? [] : fichas(inf, per));
+      const eq = equipoPaginas(inf, per), on = (id) => K.bloqueOn(inf, id); // cada parte del informe se puede apagar (Informe → Qué incluir)
+      const todas = [portada(inf, per)].concat(on('calendario') ? calendarioPaginas(inf, per) : [], on('resumen') ? resumenPaginas(inf, per) : [], on('analisis') ? [eq.analisis] : [],
+        on('epi') && K.epiPaginas ? K.epiPaginas(inf, per) : [], on('zonas') ? [eq.zonas] : [], kinePaginas(inf, per), on('conclusiones') ? [eq.conclusiones] : [], K.sinFichas(inf) ? [] : fichas(inf, per));
       return todas.map((h, i) => h.replace('<!--PIE-->', i === 0 ? '' : PIE(i + 1)));
     } finally { K._idx = previo; }
   };

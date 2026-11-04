@@ -44,7 +44,7 @@
     try { per = K.resolverPeriodo(K.state.periodo); inf = K.informeVista(K.inf(), per); } finally { K.ui.alcance = previo; }
     K._paraPdf = true; // en el PDF no se imprimen los textos de ayuda de la pantalla
     let pag; try { pag = K.paginas(inf, per); } finally { K._paraPdf = false; }
-    return K.pdf.paginas(pag, `Informe kinésico ${inf.nombre}${inf._sinFichas ? ' (resumen sin fichas)' : ''} - ${per.completo}`);
+    return K.pdf.paginas(pag, `Informe kinésico ${inf.nombre}${K.sinFichas(inf) ? ' (resumen sin fichas)' : ''} - ${per.completo}`);
   };
 
   /* ---------- Datos de ejemplo ---------- */

@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.7.2';
+  K.version = '1.8.0';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -321,6 +321,9 @@
     const plano = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
     ['conclusiones', 'objetivos', 'conclusionesTodas', 'objetivosTodas', 'firmante'].forEach((c) => { if (inf[c] !== undefined && typeof inf[c] !== 'string') inf[c] = str(inf[c]); });
     ['atencionesPartidos', 'regLesionados', 'lesActuales'].forEach((c) => { if (inf[c] !== undefined && typeof inf[c] !== 'boolean') delete inf[c]; });
+    // v1.8.0: qué páginas incluye el informe (botones on/off): { epi: true, fichas: false, … }; solo booleanos
+    const bloquesOk = (v) => { if (!plano(v)) return undefined; const o = {}; Object.keys(v).forEach((k) => { if (/^[a-zA-Z]{1,30}$/.test(k) && typeof v[k] === 'boolean') o[k] = v[k]; }); return o; };
+    if (inf.bloques !== undefined) { const o = bloquesOk(inf.bloques); if (o) inf.bloques = o; else delete inf.bloques; }
     if (inf.ordenJ !== undefined && !['nombre', 'apellido', 'posicion', 'manual'].includes(inf.ordenJ)) delete inf.ordenJ;
     ['anioTexto', 'tempIniciada'].forEach((c) => { if (inf[c] !== undefined) { inf[c] = Number(inf[c]); if (!ANIO_OK(inf[c])) delete inf[c]; } });
     const limpiarStaff = (st) => arrObj(st).filter((x) => x && typeof x === 'object' && ID_OK(x.id)).map((x) => ({ id: x.id, cargo: str(x.cargo), personas: arrObj(x.personas).filter((p) => p && typeof p === 'object').map((p) => ({ nombre: str(p.nombre), ocasional: p.ocasional === true })) }));
@@ -332,6 +335,7 @@
         ['conclusiones', 'objetivos', 'conclusionesTodas', 'objetivosTodas', 'firmante'].forEach((c) => { if (a[c] !== undefined) o[c] = str(a[c]); });
         if (a.staff !== undefined) o.staff = limpiarStaff(a.staff);
         ['atencionesPartidos', 'regLesionados', 'lesActuales'].forEach((c) => { if (typeof a[c] === 'boolean') o[c] = a[c]; });
+        if (a.bloques !== undefined) { const bo = bloquesOk(a.bloques); if (bo) o.bloques = bo; }
         out[y] = o;
       });
       inf.anios = out;

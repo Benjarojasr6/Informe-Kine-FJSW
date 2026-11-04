@@ -221,7 +221,7 @@
             retirado: !!d.retirado, reemplazo: K.segValor(hoja, 'reemplazo') === 'si', deriva: d.deriva, rtpInicio: d.rtpInicio, informoOrg: !!d.informoOrg, informeReemplazo: (d.informeReemplazo || '').trim(), notas: (d.notas || '').trim()
           });
           if (sc.evals && K.scat5) { const t0 = Object.assign({}, sc); K.scat5.aplicar(t0); sc = limpiar(t0); } // los puntajes y la evaluación realizada salen de las evaluaciones
-          const base = { jugadorId: d.jugadorId, momento, minuto: minT, clase: 'molestia', enCancha: jugando(momento), mec: sc.mec && sc.mec !== 'otro' ? 'contacto' : 'na', zona: 'cabeza', retiro: jugando(momento) && sc.retirado, casoId: '', notas: sc.notas, scat5: sc };
+          const base = { jugadorId: d.jugadorId, momento, minuto: minT, clase: 'molestia', enCancha: jugando(momento), mec: sc.mec && sc.mec !== 'otro' ? 'contacto' : 'na', zona: 'cabeza', retiro: P.retira(momento) && sc.retirado, casoId: '', notas: sc.notas, scat5: sc };
           let inc = rec;
           if (rec) Object.assign(rec, base);
           else { inc = Object.assign({ id: K.uid(), trat: inf.tratamientos.some((t) => t.id === 'evalcancha') ? { evalcancha: 1 } : {} }, base); P.incs(p).push(inc); }

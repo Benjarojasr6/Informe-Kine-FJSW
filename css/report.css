@@ -569,3 +569,46 @@
 .eq-h3 { font-family: Caladea, Georgia, serif; font-size: 15px; margin: .14in 0 .06in; color: #154c2b; }
 .eq-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .eq-cats .eq-panel { margin: 0; }
 .eq-cat .bh-n { font-size: 10px; }
+
+/* ---------- v1.8.0 · Estadísticas de lesiones (estilo EPI anual) ---------- */
+.epi-hoja { background: #fff; color: #26302b; border-radius: 3px; padding: 10px 14px 12px; margin-bottom: .14in; }
+.epi-hoja h3 { margin: 0 0 6px; font-family: Inter, sans-serif; font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #44504a; text-align: center; }
+.epi-svg { display: block; width: 100%; height: auto; }
+.epi-torta-w { width: 74%; margin: 0 auto; }
+.epi-ley { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 6px; font-size: 10px; color: #44504a; }
+.epi-ley i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.epi-nota { margin: 4px 2px 0; font-size: 9.5px; opacity: .85; }
+.epi-nota-b { margin-top: 2px; }
+.epi-vacio { margin: 6px 0; font-size: 11px; color: #6b7570; }
+.epi-top { display: grid; grid-template-columns: 1fr 1.7fr; gap: .14in; align-items: start; margin-bottom: .14in; }
+.epi-kpi { width: 100%; border-collapse: collapse; background: #fff; color: #26302b; border-radius: 3px; overflow: hidden; }
+.epi-kpi th { background: #3f7d2a; color: #fff; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 10px; text-align: left; }
+.epi-kpi td { font-family: Caladea, Georgia, serif; font-size: 30px; font-weight: 700; text-align: center; padding: 6px 10px; border-top: 1px solid #e3e8e5; }
+.epi-kpi tr:first-child td { border-top: 0; }
+.epi-cirugias { background: #fff; color: #26302b; border-radius: 3px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.epi-cir-n { display: flex; align-items: center; justify-content: space-between; background: #f3ead0; border-radius: 3px; padding: 6px 10px; }
+.epi-cir-n span { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.epi-cir-n b { font-family: Caladea, Georgia, serif; font-size: 24px; }
+.epi-bh { display: flex; flex-direction: column; gap: 5px; }
+.epi-bh > div { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; color: #44504a; }
+.epi-bh > div > span { text-align: right; text-transform: uppercase; letter-spacing: .03em; }
+.epi-bt { background: #eef1ef; height: 16px; border-radius: 2px; }
+.epi-bt i { display: flex; align-items: center; justify-content: center; height: 100%; border-radius: 2px; min-width: 18px; }
+.epi-bt b { color: #fff; font-size: 10px; }
+.epi-lista { list-style: none; margin: 0; padding: 0; font-size: 10.5px; display: flex; flex-direction: column; gap: 4px; }
+.epi-lista b { display: inline-block; min-width: 16px; color: #2f7a4a; }
+.epi-tabla { padding: 6px 10px 8px; border-top: 3px solid var(--cc, #2f7a4a); }
+.epi-t { width: 100%; border-collapse: collapse; font-size: 11px; color: #26302b; table-layout: fixed; }
+.epi-t th { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; padding: 6px 8px; text-align: center; border-bottom: 2px solid var(--cc, #2f7a4a); }
+.epi-t td { padding: 6px 8px; vertical-align: middle; text-align: center; overflow-wrap: anywhere; }
+.epi-tabla .epi-t tbody tr:nth-child(odd) { background: color-mix(in srgb, var(--cc, #2f7a4a) 14%, #fff); }
+.epi-t tbody tr { border-bottom: 1px solid #e8ece9; }
+.epi-t td small { display: block; font-size: 8.5px; color: #6b7570; }
+.epi-t th:nth-child(1), .epi-t td:nth-child(1) { width: 22%; }
+.epi-t th:nth-child(2), .epi-t td:nth-child(2) { width: 34%; }
+.epi-t ul { margin: 0; padding-left: 14px; text-align: left; }
+.epi-cir th:nth-child(n), .epi-cir td:nth-child(n) { width: auto; }
+.epi-cir th:nth-child(1), .epi-cir td:nth-child(1) { width: 22%; }
+.epi-cir { font-size: 10px; }
+mark.epi-rep { background: #fff200; color: #1f2937; padding: 0 3px; border-radius: 1px; }
+.epi-nota mark.epi-rep { padding: 0 3px; }

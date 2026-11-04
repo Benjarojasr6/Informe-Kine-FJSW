@@ -14,6 +14,8 @@
   const MECANISMOS = [['contacto', 'Con contacto'], ['sin', 'Sin contacto'], ['na', 'No aplica']];
   K.MOMENTOS_PARTIDO = MOMENTOS;
   const jugando = (m) => m === 't1' || m === 't2';
+  // Puede “retirarse del partido” quien se atiende jugando o en el entretiempo (si en el entretiempo se decide que no sale al 2.º tiempo).
+  const retira = (m) => jugando(m) || m === 'et';
   const incs = (p) => p.incidencias || (p.incidencias = []);
   const estado = () => (K.ui.partCal = K.ui.partCal || { sem: 'anio' });
   const anioPer = () => Number(K.state.periodo && K.state.periodo.anio) || new Date().getFullYear();
@@ -436,7 +438,7 @@
           <div class="campo">${lbl('Mecanismo')}${K.seg('mec', MECANISMOS, rec ? rec.mec || 'na' : 'contacto')}</div>
           <label class="campo"><span>Zona del cuerpo (opcional)</span><select name="zona"><option value="">—</option>${Object.keys(K.ZONAS).map((z) => `<option value="${z}"${rec && rec.zona === z ? ' selected' : ''}>${e(zonaTxt(z))}</option>`).join('')}</select></label>
         </div>
-        <div class="campo ${jugando(mom0) ? '' : 'oculto'}" data-blq="retiro">${lbl('¿Tuvo que retirarse del partido?')}${K.seg('retiro', [['no', 'No'], ['si', 'Sí']], rec && rec.retiro ? 'si' : 'no')}</div>
+        <div class="campo ${retira(mom0) ? '' : 'oculto'}" data-blq="retiro">${lbl('¿Tuvo que retirarse del partido?')}${K.seg('retiro', [['no', 'No'], ['si', 'Sí']], rec && rec.retiro ? 'si' : 'no')}<small class="suave ${mom0 === 'et' ? '' : 'oculto'}" data-ret-et>En el entretiempo, <b>Sí</b> significa que no sale a jugar el 2.º tiempo. Si lo evalúas y vuelve a jugar, déjalo en <b>No</b>; lo puedes cambiar después desde Editar atención.</small></div>
         <h3 style="margin:6px 0 4px;font-size:15px">Intervención realizada</h3>
         <p class="suave" style="margin:0 0 6px">Si solo entraste a evaluarlo y siguió jugando, usa <b>Evaluación en cancha</b>.</p>
         <div>${inf.tratamientos.map((t) => K.contador(t.id, t.nombre, t.icono, trat[t.id] || 0)).join('')}</div>
@@ -454,7 +456,7 @@
             const tr = {}; hoja.querySelectorAll('.contador').forEach((c) => { const n = Number(c.querySelector('[data-n]').value) || 0; if (n > 0) tr[c.dataset.cont] = n; });
             const campos = {
               jugadorId: d.jugadorId, momento, minuto: jugando(momento) && d.minuto !== '' ? Number(d.minuto) : '', clase: d.clase, enCancha: K.segValor(hoja, 'enCancha') === 'si',
-              mec: K.segValor(hoja, 'mec') || 'na', zona: d.zona || '', retiro: jugando(momento) && K.segValor(hoja, 'retiro') === 'si', trat: tr, casoId: d.clase === 'molestia' ? d.casoId || '' : '', notas: (d.notas || '').trim()
+              mec: K.segValor(hoja, 'mec') || 'na', zona: d.zona || '', retiro: retira(momento) && K.segValor(hoja, 'retiro') === 'si', trat: tr, casoId: d.clase === 'molestia' ? d.casoId || '' : '', notas: (d.notas || '').trim()
             };
             let inc = rec;
             if (rec) Object.assign(rec, campos); else { inc = Object.assign({ id: K.uid() }, campos); incs(p).push(inc); }
@@ -469,7 +471,7 @@
         const conv = hoja.querySelector('[data-conv]'), inMin = hoja.querySelector('[name=minuto]');
         const actConv = () => { const m = K.segValor(hoja, 'momento'); conv.textContent = m === 't2' && inMin.value !== '' ? `= minuto ${mitad(p) + Number(inMin.value)}' del partido` : m === 't2' ? `El minuto se cuenta desde el inicio del 2.º tiempo (el 83' del partido = minuto 38 del 2.º tiempo).` : ''; };
         inMin.addEventListener('input', actConv); hoja.addEventListener('seg', actConv);
-        const ajustar = () => { actConv(); const j = jugando(K.segValor(hoja, 'momento')); hoja.querySelector('[data-blq=min]').classList.toggle('oculto', !j); hoja.querySelector('[data-blq=retiro]').classList.toggle('oculto', !j); };
+        const ajustar = () => { actConv(); const j = jugando(K.segValor(hoja, 'momento')); hoja.querySelector('[data-blq=min]').classList.toggle('oculto', !j); const mm = K.segValor(hoja, 'momento'); hoja.querySelector('[data-blq=retiro]').classList.toggle('oculto', !retira(mm)); hoja.querySelector('[data-ret-et]').classList.toggle('oculto', mm !== 'et'); };
         hoja.addEventListener('seg', (ev) => {
           if (ev.target.dataset.seg !== 'momento') return;
           ajustar();
@@ -627,7 +629,7 @@
       const campos = {
         jugadorId: inc.jugadorId, tipo: conm ? 'lesion' : 'molestia', titulo: conm ? K.conmocion.TITULO : inc.zona ? 'Molestia ' + zonaTxt(inc.zona).toLowerCase() : 'Molestia en partido',
         contexto: `partido vs ${p.rival}`, gravedad: (c && c.gravedad) || 'pordefinir', zonas: conm ? ['cabeza'] : inc.zona ? [inc.zona] : [], inicio: fecha,
-        mecanismo: 'partido', momento: MOM_CASO[inc.momento] || '', abandono: jugando(inc.momento) ? (inc.retiro ? 'si' : 'no') : '',
+        mecanismo: 'partido', momento: MOM_CASO[inc.momento] || '', abandono: retira(inc.momento) ? (inc.retiro ? 'si' : 'no') : '',
         limita: conm ? '' : 'no', catJuego: p.cat ? Number(p.cat) : null, partidoId: p.id, incId: inc.id, auto: true
       };
       if (conm) campos.conmocion = true;
@@ -651,7 +653,7 @@
     quitarAuto(inc);
     if (inc.atencionId) K.state.informes.forEach((i) => { i.atenciones = i.atenciones.filter((a) => a.id !== inc.atencionId); });
   }
-  K.part = { logo, resChips, catTxt, incs, sincronizar, quitar, mitad, jugando, citadosDe, jugaronDe, MOMENTOS, momTxt };
+  K.part = { logo, resChips, catTxt, incs, sincronizar, quitar, mitad, jugando, retira, citadosDe, jugaronDe, MOMENTOS, momTxt };
   K.quitarPartidoYAtenciones = (inf, p) => {
     K.state.informes.forEach((i) => { i.atenciones = i.atenciones.filter((a) => a.partidoId !== p.id); i.casos = i.casos.filter((c) => !(c.auto && c.partidoId === p.id)); });
     inf.partidos = inf.partidos.filter((x) => x.id !== p.id);

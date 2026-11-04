@@ -494,7 +494,7 @@
       base.evals = evs;
       aplicar(base);
       inc.scat5 = C.limpiar(base);
-      if (sinc) { inc.retiro = K.part.jugando(inc.momento) && inc.scat5.retirado; K.part.sincronizar(p, inc); }
+      if (sinc) { inc.retiro = K.part.retira(inc.momento) && inc.scat5.retirado; K.part.sincronizar(p, inc); }
       K.guardar();
     };
     const vivo = (raiz) => {

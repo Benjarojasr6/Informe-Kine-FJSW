@@ -1327,3 +1327,16 @@ input[type=date][data-kd] { cursor: pointer; }
 .kc-ley u.borde { width: 12px; height: 10px; border-radius: 3px; border: 2px solid var(--verde); background: #fff; }
 /* v1.7.1: los rótulos de las tarjetas de números empiezan con mayúscula (Días perdidos 2026, Lesiones en su carrera…) */
 #view .kpi span::first-letter, #view .fr-k span::first-letter, #view .kpi small::first-letter, .hoja .kpi span::first-letter, .hoja .fr-k span::first-letter { text-transform: uppercase; }
+
+/* ---------- v1.8.0 · Qué incluir en el informe (botones on/off) ---------- */
+.bl-g { margin: 14px 0 2px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--verde-2, #154c2b); }
+.bl-fila { display: grid !important; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--linea, #e3e8e5); }
+.bl-fila:last-child { border-bottom: 0; }
+.bl-t b { font-weight: 600; font-size: 14px; }
+.bl-t small { display: block; margin-top: 2px; font-size: 13px; color: var(--suave, #6b7570); line-height: 1.3; }
+.bl-est { font-style: normal; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #6b7570; min-width: 26px; text-align: right; }
+.bl-fila.on .bl-est { color: var(--verde, #154c2b); }
+:is(#view, .hoja) input.bl-sw[type=checkbox], input.bl-sw[type=checkbox] { position: relative; display: block; width: 46px; height: 26px; min-width: 46px; border-radius: 13px; background: #c5cdc8; border: 0; transition: background .15s; }
+input.bl-sw[type=checkbox]::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transform: none; transition: transform .15s; }
+:is(#view, .hoja) input.bl-sw[type=checkbox]:checked, input.bl-sw[type=checkbox]:checked { background: var(--verde, #154c2b); }
+input.bl-sw[type=checkbox]:checked::after { transform: translateX(20px); }

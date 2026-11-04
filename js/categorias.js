@@ -154,7 +154,7 @@
     const T = K.textosAnio(base, anio);
     const v = Object.assign({}, base, { id: 'todas', nombre: 'Sub 15-20', categorias: 'Sub 15 a Sub 20', jugadores, casos: unir('casos'), atenciones: unir('atenciones'), eventos: unir('eventos'),
       asistencias: unir('asistencias'), seguros: unir('seguros'), segEventos: unir('segEventos'), partidos: [].concat(...infs.map((i) => i.partidos || [])), manuales: [], camposExtra: base.camposExtra || [], tratamientos: trat, indicadores: ind,
-      conclusiones: T.conclusionesTodas || '', objetivos: T.objetivosTodas || '', staff: T.staff || [], firmante: T.firmante || '', atencionesPartidos: K.atencionesPartidos(base, anio), regLesionados: K.opcInforme(base, anio, 'regLesionados'), lesActuales: K.opcInforme(base, anio, 'lesActuales'), ordenManual: false, ordenPartidos: false, _unico: true, _todas: true, _anio: anio });
+      conclusiones: T.conclusionesTodas || '', objetivos: T.objetivosTodas || '', staff: T.staff || [], firmante: T.firmante || '', atencionesPartidos: K.atencionesPartidos(base, anio), regLesionados: K.opcInforme(base, anio, 'regLesionados'), lesActuales: K.opcInforme(base, anio, 'lesActuales'), bloques: K.bloquesAnio(base, anio), ordenManual: false, ordenPartidos: false, _unico: true, _todas: true, _anio: anio });
     return v;
   };
   // Categoría en la que ocurrió un registro (atención o molestia de partido): la del partido; sin partido, vale la del jugador.
@@ -226,7 +226,7 @@
   // Pone en la vista los textos del año del período (conclusiones, objetivos, cuerpo técnico y firma).
   const conTextos = (v, host, anio) => {
     const T = K.textosAnio(host, anio);
-    return Object.assign(v, { conclusiones: T.conclusiones || '', objetivos: T.objetivos || '', staff: T.staff || [], firmante: T.firmante, atencionesPartidos: K.atencionesPartidos(host, anio), regLesionados: K.opcInforme(host, anio, 'regLesionados'), lesActuales: K.opcInforme(host, anio, 'lesActuales'), _anio: anio });
+    return Object.assign(v, { conclusiones: T.conclusiones || '', objetivos: T.objetivos || '', staff: T.staff || [], firmante: T.firmante, atencionesPartidos: K.atencionesPartidos(host, anio), regLesionados: K.opcInforme(host, anio, 'regLesionados'), lesActuales: K.opcInforme(host, anio, 'lesActuales'), bloques: K.bloquesAnio(host, anio), _anio: anio });
   };
   K.informeVista = (inf, per) => {
     per = per || K.resolverPeriodo(K.state.periodo);
