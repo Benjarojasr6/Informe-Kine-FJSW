@@ -147,9 +147,9 @@
         <div class="txt"><b>${e(j.nombre)}</b><span class="kf-l2">${e(l2)}</span><span class="kf-l3">Día ${dia}${px ? ` · <i class="kf-ctl${px.vencido ? ' venc' : ''}">Control ${e(fc(px.f))}${px.vencido ? ' vencido' : ' (' + cuandoTxt(px.f) + ')'}</i>` : ''}</span></div></div>
       <div class="kf-asis">${c.inicio === f
         ? `<span class="as-L" title="Día de la lesión" aria-label="Día de la lesión">L</span>`
-        : `<div class="kf-btns"><button type="button" class="as-btn si${a && a.v === 'si' ? ' on' : ''}" data-acc="kineAsis" data-caso="${c.id}" data-v="si" aria-label="Asistió: ${e(j.nombre)}" aria-pressed="${!!(a && a.v === 'si')}" title="Asistió">${K.uiIco('ok', 22)}</button><button type="button" class="as-btn no${a && a.v === 'no' && a.no !== 'pauta' ? ' on' : ''}" data-acc="kineAsis" data-caso="${c.id}" data-v="no" aria-label="No asistió: ${e(j.nombre)}" aria-pressed="${!!(a && a.v === 'no' && a.no !== 'pauta')}" title="No asistió">${K.uiIco('cerrar', 22)}</button><button type="button" class="as-btn pauta${a && a.v === 'no' && a.no === 'pauta' ? ' on' : ''}" data-acc="kineAsis" data-caso="${c.id}" data-v="pauta" aria-label="Pauta en casa: ${e(j.nombre)}" aria-pressed="${!!(a && a.v === 'no' && a.no === 'pauta')}" title="Pauta en casa">${K.uiIco('casa', 22)}</button></div>`}
+        : `<div class="kf-btns"><button type="button" class="as-btn si${a && a.v === 'si' ? ' on' : ''}" data-acc="kineAsis" data-caso="${c.id}" data-v="si" aria-label="Asistió: ${e(j.nombre)}" aria-pressed="${!!(a && a.v === 'si')}" title="Asistió">${K.uiIco('ok', 22)}</button><button type="button" class="as-btn no${a && a.v === 'no' && a.no !== 'pauta' ? ' on' : ''}" data-acc="kineAsis" data-caso="${c.id}" data-v="no" aria-label="No asistió: ${e(j.nombre)}" aria-pressed="${!!(a && a.v === 'no' && a.no !== 'pauta')}" title="No asistió">${K.uiIco('cerrar', 22)}</button><button type="button" class="as-btn pauta${a && a.v === 'no' && a.no === 'pauta' ? ' on' : ''}" data-acc="kineAsis" data-caso="${c.id}" data-v="pauta" aria-label="Pauta en casa: ${e(j.nombre)}" aria-pressed="${!!(a && a.v === 'no' && a.no === 'pauta')}" title="Pauta en casa">${K.uiIco('casa', 22)}</button><button type="button" class="as-btn alta${c.alta === f ? ' on' : ''}" data-acc="kineAsis" data-caso="${c.id}" data-v="alta" aria-label="Alta: ${e(j.nombre)} vuelve al entrenamiento normal" aria-pressed="${c.alta === f}" title="Alta: vuelve a entrenar normal (no cuenta como sesión)">${K.uiIco('trofeo', 22)}</button></div>`}
       </div>
-      ${c.inicio !== f && a ? `<div class="kf-sel">${selAsis(it, a)}</div>` : ''}
+      ${c.inicio !== f && c.alta === f ? '<div class="kf-sel"><span class="suave kf-no">Alta: vuelve a entrenar normal · sale de la lista desde mañana</span></div>' : c.inicio !== f && a ? `<div class="kf-sel">${selAsis(it, a)}</div>` : ''}
     </div>`;
   }
 
@@ -170,11 +170,13 @@
       if (c.alta) out.push({ f: c.alta, t: 'alta', txt: 'Alta · ' + c.titulo, it: it0 });
       if (c.altaMedica && c.altaMedica !== c.alta) out.push({ f: c.altaMedica, t: 'alta', txt: 'Alta médica · ' + c.titulo, it: it0 });
     }));
+    // v1.9.0: «pend» = la fecha ya pasó y nadie la cerró. Solo eso se ve en rojo; lo realizado o histórico va en gris.
+    const hoy0 = K.hoy(), hecho = (it, tipo, f) => it.inf.eventos.some((v) => v.jugadorId === it.j.id && v.tipo === tipo && v.fecha && v.fecha >= f && v.fecha <= hoy0);
     les.forEach((it) => {
-      if (it.c.proxControl) out.push({ f: it.c.proxControl, t: 'control', txt: 'Control médico', it });
-      if (it.c.proxExamen) out.push({ f: it.c.proxExamen, t: 'examen', txt: 'Examen' + (it.c.proxExamenTipo ? ' · ' + it.c.proxExamenTipo : ''), it });
-      if (it.c.proxProc) out.push({ f: it.c.proxProc, t: 'proc', txt: 'Procedimiento' + (it.c.proxProcTipo ? ' · ' + it.c.proxProcTipo : ''), it });
-      if (it.c.proxHito) out.push({ f: it.c.proxHito, t: 'hito', txt: it.c.proxHitoTxt || 'Hito', it });
+      if (it.c.proxControl) out.push({ f: it.c.proxControl, t: 'control', txt: 'Control médico', it, pend: it.c.proxControl < hoy0 && !hecho(it, 'control', it.c.proxControl) });
+      if (it.c.proxExamen) out.push({ f: it.c.proxExamen, t: 'examen', txt: 'Examen' + (it.c.proxExamenTipo ? ' · ' + it.c.proxExamenTipo : ''), it, pend: it.c.proxExamen < hoy0 && !hecho(it, 'examen', it.c.proxExamen) });
+      if (it.c.proxProc) out.push({ f: it.c.proxProc, t: 'proc', txt: 'Procedimiento' + (it.c.proxProcTipo ? ' · ' + it.c.proxProcTipo : ''), it, pend: it.c.proxProc < hoy0 });
+      if (it.c.proxHito) out.push({ f: it.c.proxHito, t: 'hito', txt: it.c.proxHitoTxt || 'Hito', it, pend: it.c.proxHito < hoy0 });
     });
     // Controles, exámenes y cirugías ya registrados con fecha futura (no han ocurrido): aparecen aunque el jugador no tenga lesión.
     K.kineInfs().forEach((inf) => inf.eventos.forEach((ev) => {
@@ -189,6 +191,12 @@
       const j = K.jugador(inf, ev.jugadorId); if (!j || j.activo === false || !K.inscrito(j)) return;
       const t = ev.tipo === 'control' ? 'Control médico' : ev.tipo === 'examen' ? 'Examen' : 'Cirugía';
       out.push({ f: ev.fecha, t: ev.tipo === 'cirugia' ? 'cirugia' : ev.tipo, txt: t + (ev.nombre ? ' · ' + ev.nombre : '') + (ev.tipo === 'examen' && ev.resultado ? ' — ' + ev.resultado : '') + ' (realizado)', it: { inf, c: null, ev, j, cat: catDe(j, inf) } });
+    }));
+    // Procedimientos e hitos que se marcaron como «ya se hizo».
+    K.kineInfs().forEach((inf) => inf.casos.forEach((c) => {
+      if (c.tipo !== 'lesion' || !(c.hechos || []).length) return;
+      const j = K.jugador(inf, c.jugadorId); if (!j || j.activo === false || !K.inscrito(j)) return;
+      c.hechos.forEach((h) => { if (h.fecha) out.push({ f: h.fecha, t: h.tipo, txt: (h.tipo === 'proc' ? 'Procedimiento' + (h.nombre ? ' · ' + h.nombre : '') : h.nombre || 'Hito') + ' (realizado)', it: { inf, c, j, cat: catDe(j, inf) } }); });
     }));
     const vistos = new Set();
     const soloProx = ks().cal === 'prox';
@@ -208,13 +216,14 @@
       const iso = `${y}-${K.pad(m)}-${K.pad(d)}`, xs = por[iso] || [];
       const hay = (t) => xs.some((x) => x.t === t);
       const letras = ['lesion', 'reint', 'alta'].filter(hay), pos = (t) => { const k = letras.indexOf(t); return k > 0 ? ` style="right:${2 + 15 * k}px"` : ''; };
-      celdas += `<button type="button" class="kc${iso === hoy ? ' hoy' : ''}${xs.length ? ' tiene' : ''}${s.dia === iso ? ' sel' : ''}" data-acc="kineDia" data-f="${iso}" aria-label="${d} de ${MESES[m - 1]}">${d}${hay('lesion') ? '<b class="kc-L">L</b>' : ''}${hay('reint') ? `<b class="kc-R" title="Inicio del reintegro deportivo"${pos('reint')}>R</b>` : ''}${hay('alta') ? `<b class="kc-A" title="Alta"${pos('alta')}>A</b>` : ''}<i>${hay('control') ? '<u class="c"></u>' : ''}${hay('examen') ? '<u class="x"></u>' : ''}${hay('proc') ? '<u class="p"></u>' : ''}${hay('hito') ? '<u class="h"></u>' : ''}${hay('cirugia') ? '<u class="q"></u>' : ''}</i></button>`;
+      celdas += `<button type="button" class="kc${iso === hoy ? ' hoy' : ''}${xs.length ? ' tiene' : ''}${s.dia === iso ? ' sel' : ''}" data-acc="kineDia" data-f="${iso}" aria-label="${K.fechaCorta(iso)}">${d}${hay('lesion') ? '<b class="kc-L">L</b>' : ''}${hay('reint') ? `<b class="kc-R" title="Inicio del reintegro deportivo"${pos('reint')}>R</b>` : ''}${hay('alta') ? `<b class="kc-A" title="Alta"${pos('alta')}>A</b>` : ''}<i>${hay('control') ? '<u class="c"></u>' : ''}${hay('examen') ? '<u class="x"></u>' : ''}${hay('proc') ? '<u class="p"></u>' : ''}${hay('hito') ? '<u class="h"></u>' : ''}${hay('cirugia') ? '<u class="q"></u>' : ''}</i></button>`;
     }
-    const lista = s.dia ? ev.filter((x) => x.f === s.dia) : ev.filter((x) => s.cal === 'prox' ? x.f >= hoy : x.f >= suma(hoy, -14)).slice(0, 14);
+    const lista = s.dia ? ev.filter((x) => x.f === s.dia) : ev.filter((x) => s.cal === 'prox' ? x.f >= hoy : x.f >= suma(hoy, -5) && x.f <= suma(hoy, 5));
     const filas = lista.map((x) => {
       const dd = dif(hoy, x.f), cuando = dd === 0 ? 'hoy' : dd > 0 ? `en ${dd} día${dd === 1 ? '' : 's'}` : `hace ${-dd} día${dd === -1 ? '' : 's'}`;
       const clic = x.it.c ? `data-acc="kineFicha" data-caso="${x.it.c.id}"` : `data-acc="kineEv" data-ev="${x.it.ev.id}"`;
-      return `<div class="kc-it${dd < 0 ? ' pasado' : ''}" ${clic}>${x.t === 'lesion' ? '<span class="kc-pto L">L</span>' : x.t === 'reint' ? '<span class="kc-pto R">R</span>' : x.t === 'alta' ? '<span class="kc-pto A">A</span>' : `<span class="kc-pto ${({ control: 'c', examen: 'x', proc: 'p', cirugia: 'q', hito: 'h' })[x.t]}"></span>`}<div class="txt"><b>${e(x.it.j.nombre)} <small>Sub ${x.it.cat}</small></b><span>${e(x.txt)} · ${e(fc(x.f))} (${cuando})</span></div></div>`;
+      const yaBtn = x.pend && x.it.c && K.puedeEditar() ? `<button type="button" class="btn chico sec kc-ya" data-acc="kineYaHecho" data-caso="${x.it.c.id}" data-tipo="${x.t}" title="Ya se hizo: lo saca de los pendientes">Ya se hizo</button>` : '';
+      return `<div class="kc-it${x.pend ? ' pend' : dd < 0 ? ' pasado' : ''}" ${clic}>${x.t === 'lesion' ? '<span class="kc-pto L">L</span>' : x.t === 'reint' ? '<span class="kc-pto R">R</span>' : x.t === 'alta' ? '<span class="kc-pto A">A</span>' : `<span class="kc-pto ${({ control: 'c', examen: 'x', proc: 'p', cirugia: 'q', hito: 'h' })[x.t]}"></span>`}<div class="txt"><b>${e(x.it.j.nombre)} <small>Sub ${x.it.cat}</small></b><span>${e(x.txt)} · ${e(fc(x.f))} (${cuando})${x.pend ? ' · pendiente' : ''}</span></div>${yaBtn}</div>`;
     }).join('');
     return `<div class="fila sb wrap gap"><b class="kc-tit">Calendario del mes</b>
         <div class="fila gap"><button class="btn ghost chico" data-acc="kineMes" data-d="-1" aria-label="Mes anterior">${K.uiIco('atras', 18)}</button><b class="kc-mes">${MESES[m - 1]} ${y}</b><button class="btn ghost chico" data-acc="kineMes" data-d="1" aria-label="Mes siguiente" style="transform:scaleX(-1)">${K.uiIco('atras', 18)}</button></div></div>
@@ -222,6 +231,7 @@
       <div class="kc-grid">${DIAS_SEM.map((d) => `<em>${d}</em>`).join('')}${celdas}</div>
       <div class="kc-ley"><span><u class="borde"></u>Día con fechas</span><span><u class="c"></u>Próximo control</span><span><u class="x"></u>Próximo examen</span><span><u class="p"></u>Próximo procedimiento</span><span><u class="q"></u>Cirugía</span><span><b class="kc-L inl">L</b>Día de lesión</span><span><b class="kc-R inl">R</b>Inicio del reintegro deportivo</span><span><b class="kc-A inl">A</b>Alta</span></div>
       <h3 class="kc-sub">${s.dia ? 'Fechas del ' + e(fc(s.dia)) + ' <a href="#" data-acc="kineDia" data-f="">ver todas</a>' : s.cal === 'prox' ? 'Próximas fechas' : 'Fechas recientes y próximas'}</h3>
+      ${s.dia || s.cal === 'prox' ? '' : '<p class="suave kc-nota">Se muestran los 5 días anteriores y los 5 siguientes. <b class="kc-rojo">En rojo</b>: pendiente cuya fecha ya pasó (toca «Ya se hizo» si ya se hizo). En gris: lo que ya ocurrió.</p>'}
       ${filas || `<p class="vacio-msg" style="padding:10px">${s.dia ? 'No hay fechas ese día.' : s.cal === 'prox' ? 'Sin fechas próximas por ahora.' : 'Sin fechas por ahora. Se agregan desde la ficha de cada lesionado (toca su nombre) o al registrar un control, examen o cirugía con fecha futura.'}</p>`}`;
   }
   // v1.6.11: el calendario va primero y abierto (se puede plegar con un toque y se acuerda si quedó plegado).
@@ -235,11 +245,12 @@
     const s = ks(), hoy = K.hoy(), les = K.kineLesionados(s.fecha), todos = K.kineLesionados(), ed = K.puedeEditar();
     const marcados = les.filter((it) => it.c.inicio !== s.fecha).map((it) => asisDia(it.inf, it.j.id, s.fecha)).filter(Boolean);
     const nSi = marcados.filter((a) => a.v === 'si').length, nPa = marcados.filter((a) => a.v === 'no' && a.no === 'pauta').length, nNo = marcados.filter((a) => a.v === 'no' && a.no !== 'pauta').length, nL = les.filter((it) => it.c.inicio === s.fecha).length;
-    const sinMarcar = les.length - nSi - nNo - nPa - nL;
+    const nAlta = les.filter((it) => it.c.inicio !== s.fecha && it.c.alta === s.fecha).length;
+    const sinMarcar = les.length - nSi - nNo - nPa - nL - nAlta;
     // controles vencidos (hoy, sin importar el día que se esté mirando)
     const venc = todos.map((it) => ({ it, px: K.kineProxControl(it) })).filter((x) => x.px && x.px.vencido).sort((a, b) => a.px.f.localeCompare(b.px.f) || a.it.j.nombre.localeCompare(b.it.j.nombre, 'es'));
     const alerta = venc.length ? `<div class="aviso aviso-venc" data-venc role="alert"><b>${venc.length === 1 ? '1 control vencido' : venc.length + ' controles vencidos'}</b> <span class="suave">(la fecha ya pasó y no hay un control registrado desde entonces)</span>
-        <div class="venc-chips">${venc.slice(0, 8).map((x) => `<button type="button" class="th-chip venc-chip" data-acc="kineFicha" data-caso="${x.it.c.id}">${e(x.it.j.nombre)} · ${e(fc(x.px.f))}</button>`).join('')}${venc.length > 8 ? `<span class="suave">y ${venc.length - 8} más</span>` : ''}</div></div>` : '';
+        <div class="venc-chips">${venc.slice(0, 8).map((x) => `<span class="venc-par"><button type="button" class="th-chip venc-chip" data-acc="kineFicha" data-caso="${x.it.c.id}">${e(x.it.j.nombre)} · ${e(fc(x.px.f))}</button>${ed ? `<button type="button" class="th-chip venc-ya" data-acc="kineYaHecho" data-caso="${x.it.c.id}" data-tipo="control" title="Marca que el control ya se hizo">Ya se hizo</button>` : ''}</span>`).join('')}${venc.length > 8 ? `<span class="suave">y ${venc.length - 8} más</span>` : ''}</div></div>` : '';
     let cat = null, filas = '';
     les.forEach((it) => {
       if (it.cat !== cat) { cat = it.cat; filas += `<h3 class="kf-cat">Sub ${cat}</h3>`; }
@@ -251,7 +262,7 @@
           <input type="date" value="${e(s.fecha)}" data-acc-change="kineFecha" aria-label="Día de asistencia">
           <button class="btn ghost chico" data-acc="kineFechaMas" data-d="1" aria-label="Día siguiente" style="transform:scaleX(-1)">${K.uiIco('atras', 18)}</button>
           ${s.fecha !== hoy ? '<button class="btn sec chico" data-acc="kineFechaMas" data-d="0">Hoy</button>' : ''}</div></div>
-        ${les.length && ed ? `<div class="fila sb wrap gap kf-todos"><button type="button" class="btn" data-acc="kineTodosAsisten"${sinMarcar > 0 ? '' : ' disabled'}>${K.uiIco('ok', 18)} Todos asistieron${sinMarcar > 0 ? ` (${sinMarcar})` : ''}</button><span class="suave" data-kf-res>${e(fc(s.fecha))} · ${nSi} asistieron · ${nNo} no · ${nPa} pauta en casa · ${sinMarcar} sin marcar</span></div>` : ''}
+        ${les.length && ed ? `<div class="fila sb wrap gap kf-todos"><button type="button" class="btn" data-acc="kineTodosAsisten"${sinMarcar > 0 ? '' : ' disabled'}>${K.uiIco('ok', 18)} Todos asistieron${sinMarcar > 0 ? ` (${sinMarcar})` : ''}</button><span class="suave" data-kf-res>${e(fc(s.fecha))} · ${nSi} asistieron · ${nNo} no · ${nPa} pauta en casa${nAlta ? ` · ${nAlta} de alta` : ''} · ${sinMarcar} sin marcar</span></div>` : ''}
         <details class="kf-ayuda"><summary>¿Qué significan los íconos?</summary><p class="sub" style="margin-top:6px">${nL ? `${nL} con <b class="as-Lt">L</b> (día de la lesión). ` : ''}✓ asistió · ✗ no asistió · <i class="as-casa">🏠</i> pauta en casa · <b class="as-Lt">L</b> día de la lesión. <b>EC</b> entrenamiento completo (entrenó con el equipo, sin kine; se elige como motivo). <b>SK</b> sesión de kinesiología, <b>RD</b> reintegro deportivo (<b>K</b> kine, <b>K+PF</b> kine + preparación física o <b>K+PA</b> kine + preparador de arqueros). Un toque marca; tocar de nuevo lo quita. “Todos asistieron” marca solo a quienes aún no tienen marca ese día.</p></details>
         ${les.length ? filas : '<p class="vacio-msg">No hay lesionados. Cuando registres una lesión (Registrar → Registrar lesión) aparecerá aquí hasta que le des el alta.</p>'}</div>`;
   }
@@ -284,19 +295,39 @@
   const infGen = () => K.informeGrupo(K.GRUPOS[0]);
   const comGeneral = (lun) => ((infGen().semGeneral || {})[lun]) || '';
   const comCaso = (c, lun) => ((c.semCom || {})[lun]) || '';
-  // Próximos controles y exámenes: desde el lunes de la semana hasta 14 días después del domingo.
-  function proximos(d) {
-    const out = [], hasta = suma(d.dom, 14);
-    K.kineLesionados().filter((it) => !d.cats || d.cats.includes(it.cat)).forEach((it) => {
-      if (it.c.proxControl && it.c.proxControl >= d.lun && it.c.proxControl <= hasta) out.push({ f: it.c.proxControl, t: 'Control médico', it });
-      if (it.c.proxExamen && it.c.proxExamen >= d.lun && it.c.proxExamen <= hasta) out.push({ f: it.c.proxExamen, t: 'Examen' + (it.c.proxExamenTipo ? ' · ' + it.c.proxExamenTipo : ''), it });
-      if (it.c.proxProc && it.c.proxProc >= d.lun && it.c.proxProc <= hasta) out.push({ f: it.c.proxProc, t: 'Procedimiento' + (it.c.proxProcTipo ? ' · ' + it.c.proxProcTipo : ''), it });
-      if (it.c.proxHito && it.c.proxHito >= d.lun && it.c.proxHito <= hasta) out.push({ f: it.c.proxHito, t: it.c.proxHitoTxt || 'Hito', it });
+  // v1.9.0: dos bloques del informe semanal.
+  //  1) «Controles, exámenes y procedimientos»: los de la semana del informe (lunes a domingo), con el nombre del examen o procedimiento.
+  //  2) «Próximos controles, exámenes y procedimientos»: solo los de la semana SIGUIENTE (lunes a domingo), nunca los pasados.
+  function itemsRango(d, desde, hasta, futuro) {
+    const out = [], vistos = new Set(), hoy = K.hoy();
+    const en = (f) => f && f >= desde && f <= hasta;
+    const catOk = (j, inf) => { const ct = K.kineCatEn(j, inf, d.dom); return d.cats.includes(ct) ? ct : 0; };
+    const vale = (j) => j && j.activo !== false && (futuro ? K.inscrito(j) : K.estaEn(j, d.lun, d.dom));
+    const add = (f, tipo, txt, j, ct, pend) => { const k = [f, j.id, tipo, tipo === 'proc' || tipo === 'hito' ? txt : ''].join('|'); if (vistos.has(k)) return; vistos.add(k); out.push({ f, t: txt, it: { j, cat: ct }, pend: !!pend }); };
+    K.kineInfs().forEach((inf) => {
+      // registrados (primero: si hay uno, la fecha prevista del caso no se repite)
+      inf.eventos.forEach((ev) => {
+        if (!['control', 'examen', 'cirugia'].includes(ev.tipo) || !en(ev.fecha)) return;
+        const j = K.jugador(inf, ev.jugadorId); if (!vale(j)) return; const ct = catOk(j, inf); if (!ct) return;
+        add(ev.fecha, ev.tipo, (ev.tipo === 'control' ? 'Control médico' : ev.tipo === 'examen' ? 'Examen' : 'Cirugía') + (ev.nombre ? ' · ' + ev.nombre : ''), j, ct);
+      });
+      inf.casos.forEach((c) => {
+        if (c.tipo !== 'lesion') return;
+        const j = K.jugador(inf, c.jugadorId); if (!vale(j)) return; const ct = catOk(j, inf); if (!ct) return;
+        const cerrado = (f) => futuro && c.alta && c.alta < f; // el caso ya tenía alta ese día
+        const evMismo = (tipo, f) => inf.eventos.some((v) => v.jugadorId === j.id && v.tipo === tipo && v.fecha === f);
+        if (en(c.proxControl) && !cerrado(c.proxControl) && !evMismo('control', c.proxControl)) add(c.proxControl, 'control', 'Control médico', j, ct, !futuro && c.proxControl < hoy);
+        if (en(c.proxExamen) && !cerrado(c.proxExamen) && !evMismo('examen', c.proxExamen)) add(c.proxExamen, 'examen', 'Examen' + (c.proxExamenTipo ? ' · ' + c.proxExamenTipo : ''), j, ct, !futuro && c.proxExamen < hoy);
+        if (en(c.proxProc) && !cerrado(c.proxProc)) add(c.proxProc, 'proc', 'Procedimiento' + (c.proxProcTipo ? ' · ' + c.proxProcTipo : ' (sin especificar)'), j, ct, !futuro && c.proxProc < hoy);
+        if (en(c.proxHito) && !cerrado(c.proxHito)) add(c.proxHito, 'hito', c.proxHitoTxt || 'Hito', j, ct, !futuro && c.proxHito < hoy);
+        (c.hechos || []).forEach((h) => { if (en(h.fecha)) add(h.fecha, h.tipo, h.tipo === 'proc' ? 'Procedimiento' + (h.nombre ? ' · ' + h.nombre : ' (sin especificar)') : h.nombre || 'Hito', j, ct); });
+      });
     });
-    // Controles, exámenes y cirugías futuros registrados aparte (incluye jugadores sin lesión).
-    fechasImportantes([]).forEach((x) => { if (!x.it.c && x.f >= d.lun && x.f <= hasta && (!d.cats || d.cats.includes(x.it.cat))) out.push({ f: x.f, t: x.txt, it: x.it }); });
-    return out.sort((a, b) => a.f.localeCompare(b.f));
+    return out.sort((a, b) => a.f.localeCompare(b.f) || b.it.cat - a.it.cat || a.it.j.nombre.localeCompare(b.it.j.nombre, 'es'));
   }
+  const semanaSig = (d) => ({ desde: suma(d.dom, 1), hasta: suma(d.dom, 7) });
+  function proximos(d) { const r = semanaSig(d); return itemsRango(d, r.desde, r.hasta, true); }
+  function realizadosSemana(d) { return itemsRango(d, d.lun, d.dom, false); }
   // Próximo hito de un lesionado: lo más cercano (desde hoy) entre control, examen, procedimiento, otro hito y eventos futuros registrados.
   function proximoHito(it) {
     const hoy = K.hoy(), c = it.c, ops = [];
@@ -320,9 +351,14 @@
     });
     return `<table class="kt"><thead><tr><th>Categoría</th><th>Jugador</th><th>Diagnóstico y fecha de lesión</th><th>Días de baja</th><th>% asistencia a kinesiología</th><th>Estado</th><th>Próximo hito</th><th>Comentarios de la semana</th></tr></thead><tbody>${cuerpo}</tbody></table>`;
   }
+  const liSem = (x) => `<li><b>${e(fc(x.f))}</b> · ${e(x.t)} · ${e(x.it.j.nombre)} <span class="suave">(Sub ${x.it.cat})</span>${x.pend ? ' <span class="suave">· sin confirmar que se hizo</span>' : ''}</li>`;
+  const realizadosHTML = (d) => {
+    const p = realizadosSemana(d);
+    return p.length ? `<ul class="vin">${p.map(liSem).join('')}</ul>` : '<p class="suave">Sin controles, exámenes ni procedimientos en esta semana.</p>';
+  };
   const proximosHTML = (d) => {
-    const p = proximos(d);
-    return p.length ? `<ul class="vin">${p.map((x) => `<li><b>${e(fc(x.f))}</b> · ${e(x.t)} · ${e(x.it.j.nombre)} <span class="suave">(Sub ${x.it.cat})</span></li>`).join('')}</ul>` : '<p class="suave">Sin controles, exámenes ni procedimientos agendados para estas fechas.</p>';
+    const p = proximos(d), r = semanaSig(d);
+    return `<p class="suave kc-rango">Semana del ${e(fc(r.desde))} al ${e(fc(r.hasta))}</p>` + (p.length ? `<ul class="vin">${p.map(liSem).join('')}</ul>` : '<p class="suave">Sin controles, exámenes ni procedimientos agendados para esa semana.</p>');
   };
   const sinLesionados = (d) => (d.cats.length < CATS_TODAS().length ? `No hubo lesionados de ${e(catsTxt(d.cats))} en esta semana.` : 'No hubo lesionados en esta semana.');
   // Qué categorías incluir: lista con las opciones (una sola, de a 2 o todas) y casillas por categoría. Las dos se mantienen sincronizadas.
@@ -340,6 +376,7 @@
       ${selCatsSemanal(d)}
       <label class="campo"><span>Comentario general de la semana</span><textarea rows="3" ${ed ? '' : 'disabled'} data-acc-change="semComGeneral" placeholder="Ej. Semana de partidos, balance general de lesionados, cargas, etc.">${e(comGeneral(d.lun))}</textarea></label>
       ${d.filas.length ? `<div class="kt-scroll kt-sem">${tablaSemanal(d, ed)}</div>` : `<p class="vacio-msg">${sinLesionados(d)}</p>`}
+      <h3 class="kc-sub">Controles, exámenes y procedimientos</h3>${realizadosHTML(d)}
       <h3 class="kc-sub">Próximos controles, exámenes y procedimientos</h3>${proximosHTML(d)}</div>`;
   }
   function semanalPDF() {
@@ -347,7 +384,8 @@
     K.pdf.documento(`<div class="bit-print kine-print"><header><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><div><h1>Informe semanal de kinesiología</h1><p>Santiago Wanderers · Fútbol Joven · semana del ${e(fc(d.lun))} al ${e(fc(d.dom))} · ${d.filas.length} lesionado${d.filas.length === 1 ? '' : 's'}${d.cats.length < CATS_TODAS().length ? ' · ' + e(catsTxt(d.cats)) : ''}</p></div></header>
       ${g ? `<h2 class="bit-h2">Comentario general</h2>${/\n/.test(g) ? `<ul class="vin">${g.split(/\r?\n/).map((x) => x.replace(/^\s*[-•*·]+\s*/, '').trim()).filter(Boolean).map((x) => `<li>${e(x)}</li>`).join('')}</ul>` : `<p>${e(g)}</p>`}` : ''}
       <h2 class="bit-h2">Lesionados de la semana</h2>${d.filas.length ? tablaSemanal(d, false) : `<p>${sinLesionados(d)}</p>`}
-      <h2 class="bit-h2">Próximos controles, exámenes y procedimientos</h2>${proximosHTML(d)}</div>`, `Informe semanal kine ${d.cats.length < CATS_TODAS().length ? 'Sub ' + d.cats.slice().sort((a, b) => a - b).join('-') + ' ' : ''}${d.lun}`);
+      <h2 class="bit-h2">Controles, exámenes y procedimientos</h2>${realizadosHTML(d)}
+      <h2 class="bit-h2">Próximos controles, exámenes y procedimientos</h2>${proximosHTML(d)}</div>`, `Informe Kinésico semanal ${d.cats.length < CATS_TODAS().length ? 'Sub ' + d.cats.slice().sort((a, b) => a - b).join('-') + ' ' : ''}${d.lun}`);
   }
 
   /* ---------- Ficha del lesionado (ventana) ---------- */
@@ -460,12 +498,37 @@
   };
   K.PANTALLAS.splice(3, 0, ['kine', 'Kine', K.pKine]);
 
+  // «Ya se hizo»: cierra de un toque un control / examen / procedimiento / hito pendiente de un lesionado.
+  // Control y examen quedan registrados como realizados (en la fecha que estaba prevista); procedimiento e hito solo se sacan de los pendientes.
+  const CAMPO_PROX = { control: ['proxControl'], examen: ['proxExamen', 'proxExamenTipo'], proc: ['proxProc', 'proxProcTipo'], hito: ['proxHito', 'proxHitoTxt'] };
+  K.kineYaHecho = function (casoId, tipo) {
+    const it = item(casoId), cp = CAMPO_PROX[tipo]; if (!it || !cp) return;
+    const c = it.c, f = c[cp[0]]; if (!f) return;
+    const txt = { control: 'Control', examen: 'Examen', proc: 'Procedimiento', hito: 'Hito' }[tipo];
+    K.conDeshacer(`${txt} del ${fc(f)} marcado como realizado`, () => {
+      if (tipo === 'control' || tipo === 'examen') it.inf.eventos.push({ id: K.uid(), tipo, fecha: f, jugadorId: it.j.id, nombre: tipo === 'examen' ? (c.proxExamenTipo || '') : '', cantidad: 1, casoId: c.id, notas: '' });
+      if (tipo === 'proc' || tipo === 'hito') c.hechos = (c.hechos || []).concat([{ id: K.uid(), tipo, fecha: f, nombre: tipo === 'proc' ? (c.proxProcTipo || '') : (c.proxHitoTxt || '') }]);
+      c[cp[0]] = ''; if (cp[1]) c[cp[1]] = '';
+    }, { quitarNuevos: true, restaurado: 'Vuelve a estar pendiente' });
+  };
+
   // Marca la asistencia de un lesionado en una fecha (v: 'si' | 'no' | 'pauta'). La usan la pestaña Kine y la pantalla Hoy.
   // Tocar de nuevo lo mismo deja el día en blanco (no se entrena) y ofrece “Deshacer”.
   K.kineMarcarAsis = function (casoId, v, fecha) {
     const it = item(casoId); if (!it) return;
     const inf = it.inf;
     inf.asistencias = inf.asistencias || [];
+    // Alta: el jugador vuelve al entrenamiento normal ese día. No cuenta como sesión ni como inasistencia; pone la fecha de alta del caso (sale de la lista desde el día siguiente). Tocar de nuevo la quita.
+    if (v === 'alta') {
+      const c = it.c;
+      if (c.alta === fecha) { K.conDeshacer('Alta quitada: sigue en la lista de lesionados', () => { c.alta = ''; }); return; }
+      K.conDeshacer(`Alta registrada el ${fc(fecha)}: sale de la lista desde el día siguiente`, () => {
+        const ex = asisDia(inf, it.j.id, fecha); if (ex) inf.asistencias.splice(inf.asistencias.indexOf(ex), 1);
+        c.alta = fecha;
+      });
+      return;
+    }
+    if (it.c.alta === fecha) { it.c.alta = ''; } // marcar otra cosa el mismo día deshace el alta
     const a = asisDia(inf, it.j.id, fecha), pauta = v === 'pauta', vv = pauta ? 'no' : v, no = pauta ? 'pauta' : '';
     const igual = a && a.v === vv && (pauta ? a.no === 'pauta' : a.no !== 'pauta');
     if (igual) { K.conDeshacer('Asistencia quitada', () => { inf.asistencias.splice(inf.asistencias.indexOf(a), 1); }); return; }
@@ -499,12 +562,13 @@
     semComGeneral(el) { const lun = lunesDe(ks().semana), inf = infGen(); inf.semGeneral = Object.assign({}, inf.semGeneral); if (el.value.trim()) inf.semGeneral[lun] = el.value.trim(); else delete inf.semGeneral[lun]; K.guardar(); K.aviso('Guardado'); },
     kineTodosAsisten() {
       const f = ks().fecha, vistos = new Set();
-      const l = K.kineLesionados(f).filter((it) => { if (it.c.inicio === f || asisDia(it.inf, it.j.id, f) || vistos.has(it.j.id)) return false; vistos.add(it.j.id); return true; });
+      const l = K.kineLesionados(f).filter((it) => { if (it.c.inicio === f || it.c.alta === f || asisDia(it.inf, it.j.id, f) || vistos.has(it.j.id)) return false; vistos.add(it.j.id); return true; });
       if (!l.length) { K.aviso('Ya están todos marcados'); return; }
       K.confirmar(`¿Marcar que ${l.length === 1 ? '1 lesionado sin marcar asistió' : l.length + ' lesionados sin marcar asistieron'} el ${e(fc(f))}? Quien ya tenga marca no cambia.`, 'Sí, todos asistieron', () => {
         K.conDeshacer(l.length === 1 ? 'Asistencia marcada (1)' : `Asistencia marcada (${l.length})`, () => { l.forEach((it) => { (it.inf.asistencias = it.inf.asistencias || []).push({ id: K.uid(), jugadorId: it.j.id, fecha: f, v: 'si', t: '', sub: '', no: '' }); }); }, { quitarNuevos: true, restaurado: 'Asistencias quitadas' });
       }, false);
     },
+    kineYaHecho(el, ev) { if (ev) ev.stopPropagation(); K.kineYaHecho(el.dataset.caso, el.dataset.tipo); },
     kineAsis(el) { K.kineMarcarAsis(el.dataset.caso, el.dataset.v, el.dataset.fecha || ks().fecha); },
     kineAsisSel(el) {
       const it = item(el.dataset.caso); if (!it) return;

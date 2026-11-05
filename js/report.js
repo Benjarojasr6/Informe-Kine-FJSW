@@ -41,7 +41,7 @@
   function tarjetaPartido(j) {
     const logo = j.logoData ? `<img src="${e(j.logoData)}" alt="">` : j.logo ? `<img src="img/rivales/${e(j.logo)}.png" alt="">` : `<span class="sin-logo">${e((j.rival || '?').slice(0, 1))}</span>`;
     const fecha = j.fecha ? K.fechaCorta(j.fecha).slice(0, 5) : '';
-    const res = j.ps.filter((p) => p.res || j.ps.length > 1).map((p) => `<small>${p.cat ? 'Sub ' + p.cat + ' · ' : ''}${e(p.res || '—')}</small>`).join('');
+    const res = j.ps.filter((p) => p.res || j.ps.length > 1).map((p) => `<small>${K.etiquetaCatPartido(p) ? K.etiquetaCatPartido(p) + ' · ' : ''}${e(p.res || '—')}</small>`).join('');
     return `<div class="partido${j.jugado ? '' : ' pendiente'}">${logo}<div class="p-txt"><b>${e(j.rival)}</b><span>${j.local ? 'LOCAL' : 'VISITA'}${fecha ? ' · ' + fecha : ''}</span>${res}</div></div>`;
   }
   function filaStaff(s) {
@@ -68,7 +68,7 @@
     const pags = []; let cur = null;
     const nueva = () => { cur = { h: 30, partes: [] }; pags.push(cur); };
     const poner = (h, html) => { if (!cur || (cur.partes.length && cur.h + h > CAP)) nueva(); cur.partes.push(html); cur.h += h; };
-    (inf.staff.length ? chunk(inf.staff, 8) : []).forEach((arr) => poner(45 + 11 + arr.reduce((t, x) => t + 54 + Math.max(0, x.personas.length - 3) * 18, 0), staffHTML(arr)));
+    (inf.staff.length ? chunk(inf.staff, 8) : []).forEach((arr) => poner(45 + 11 + arr.reduce((t, x) => t + 54 + Math.max(0, x.personas.length - 3) * 18, 0) + 26, staffHTML(arr)));
     gruposVisibles.forEach(([tit, arr]) => {
       if (!arr.length) { poner(85, calGrupo([tit, []])); return; }
       let resto = arr.slice();
@@ -178,7 +178,7 @@
     const iv = K.intervencionesJugador(inf, per, j);
     const foto = j.foto ? `<img src="${e(j.foto)}" alt="">` : `<span>${e((j.nombre || '?').split(/\s+/).slice(0, 2).map((s) => s[0]).join('').toUpperCase())}</span>`;
     const edad = K.edadAnios(j.nacimiento, K.anioDePeriodo(per)); // la edad que tenía en el año del informe
-    const sub = [j._inv ? `Jugador de ${j._catOrigen || 'otra categoría'} (invitado)` : '', j.categoria && !j._inv ? `Categoría ${j.categoria}` : '', j.nacimiento ? `${j.nacimiento}${edad ? ` (${edad} años)` : ''}` : ''].filter(Boolean).join(' | ');
+    const sub = [j._inv ? `Jugador de ${j._catOrigen || 'otra categoría'} (invitado)` : '', j.categoria && !j._inv ? `Categoría ${j.categoria}` : '', j.nacimiento ? K.nacTxt(j, edad) : ''].filter(Boolean).join(' | ');
     const pos = [j.posicion || '', j.pierna ? `Pierna dominante ${j.pierna.toLowerCase()}` : ''].filter(Boolean).join(' · ');
     const cj = K.catsJugadas ? K.catsJugadas(j, per) : {}, ck = Object.keys(cj).sort((a, b) => b - a);
     const haJug = ck.length > 1 || (ck.length === 1 && K.catNum(j) && Number(ck[0]) !== K.catNum(j)) ? `Ha jugado en: ${ck.map((c) => `Sub ${c} (${cj[c]})`).join(', ')}` : '';
@@ -384,7 +384,7 @@
       <p class="kn-nota" style="margin:-4px 2px 8px">Disponibilidad del plantel: porcentaje de los días del período en que los jugadores no estuvieron de baja por una lesión.</p>
       ${panelEq('Casos por mes', meses)}
       <div class="eq-2">
-        ${panelEq('Por gravedad', barrasH(K.GRAV_ORDEN.filter((k) => k !== 'pordefinir' || g.pordefinir).map((k) => [K.GRAVEDADES[k], g[k], K.COLORES_GRAV[k]]), 0) + '<p class="nota-grav">Días fuera: mínima 1-3 · leve 4-7 · moderada 8-28 · grave más de 28.</p>')}
+        ${panelEq('Por gravedad', barrasH(K.GRAV_ORDEN.filter((k) => (k !== 'pordefinir' || g.pordefinir) && (k !== 'nolimitante' || g.nolimitante)).map((k) => [K.GRAVEDADES[k], g[k], K.COLORES_GRAV[k]]), 0) + '<p class="nota-grav">Días fuera: no limitante 0 (duele pero no limita) · mínima 1-3 · leve 4-7 · moderada 8-28 · grave más de 28.</p>')}
         ${panelEq('Dónde ocurrió', barrasH(K.MECANISMOS.map(([k, n]) => [n, mc[k]]).concat([['Sin dato', mc.sin, '#8a9a90']])))}
       </div>
       <div class="eq-2">
@@ -451,13 +451,13 @@
         return `<tr><td><b>${e(j.nombre)}</b><small>${e(j.categoria || '')}</small></td><td>${e(c.titulo)}${e(conLado(c))}${e(K.tagTorneo(inf, c))}<small>${e(K.fechaCorta(c.inicio))}</small></td><td class="n">${K.diasBajaCaso(c, per)}</td>
           <td>${e(est)}${c.estadoNota ? `<small>${e(c.estadoNota)}</small>` : ''}</td><td class="n">${a.pct == null ? '--' : `<span class="kn-pct ${K.kineSemaforo(a.pct)}">${a.pct}%</span>`}</td><td class="n">${cir ? 'Sí' : 'No'}</td><td class="n">${c.recidiva === true ? 'Sí' : 'No'}</td></tr>`;
       };
-      // v1.6.11: dos listas distintas. 1) Registro de todos los lesionados del período (con o sin alta). 2) Lesionados actuales: los del período que aún no tienen alta.
-      const altura = (c) => { const j = K.jugador(inf, c.jugadorId) || {}; const est = (c.alta ? 'Alta 00-00-0000' : K.kineEstadoTxt(c)) + (c.estadoNota ? ' ' + c.estadoNota : ''); return 40 + 13 * (Math.max(lin(j.nombre, 18), lin((c.titulo || '') + conLado(c) + K.tagTorneo(inf, c), 24), lin(est, 38)) - 1); };
+      // v1.9.0: primero «Lesionados actuales» y después el registro. v1.6.11: dos listas distintas. 1) Registro de todos los lesionados del período (con o sin alta). 2) Lesionados actuales: los del período que aún no tienen alta.
+      const altura = (c) => { const j = K.jugador(inf, c.jugadorId) || {}; const est = (c.alta ? 'Alta 00-00-0000' : K.kineEstadoTxt(c)) + (c.estadoNota ? ' ' + c.estadoNota : ''); return 41 + 14.5 * (Math.max(lin(j.nombre, 18) + 1, lin((c.titulo || '') + conLado(c) + K.tagTorneo(inf, c), 30) + 1, lin(est, 38)) - 2); }; // medido: fila de 2 líneas = 41 px, de 3 = 55 px
       const tabla = (arr) => `<table class="kn-t"><thead><tr><th>Jugador</th><th>Diagnóstico y fecha</th><th>Días de baja</th><th>Estado y comentarios</th><th>% asist.</th><th>Cirugía</th><th>Recidiva</th></tr></thead><tbody>${arr.map(fila).join('')}</tbody></table>`;
-      const lista = (tit, nota, casos) => chunkH(casos, altura, 10, 750).forEach((arr, i) => { if (!arr.length) return;
+      const lista = (tit, nota, casos) => chunkH(casos, altura, 40, 800).forEach((arr, i) => { if (!arr.length) return;
         out.push(pagina('p-resumen p-equipo', `<h2>${tit}${i ? ' <small>(cont.)</small>' : ''}</h2>${sub}<p class="kn-nota" style="margin:2px 2px 8px">${nota}</p>${tabla(arr)}`)); });
-      if (inf.regLesionados !== false) lista('Registro de lesionados del período', `Todos los jugadores que tuvieron una lesión en el período (${lesiones.length}), con o sin alta.`, lesiones);
       if (inf.lesActuales !== false) lista('Lesionados actuales', `Jugadores con lesión del período que aún no tienen alta (${curso}). Es el seguimiento a la fecha del informe.`, actuales);
+      if (inf.regLesionados !== false) lista('Registro de lesionados del período', `Todos los jugadores que tuvieron una lesión en el período (${lesiones.length}), con o sin alta.`, lesiones);
     }
     // Atenciones durante los partidos (informe de partido de la pestaña Partidos). La casilla “Incluir los datos de partidos en el informe general” (Informe → Textos) las muestra u oculta; los totales del resumen no cambian.
     const conInc = inf.atencionesPartidos === false ? [] : inf.partidos.filter((p) => p.fecha && K.enPeriodo(p.fecha, per) && K.resumenPartido(inf, p).n).sort((a, b) => a.fecha.localeCompare(b.fecha));

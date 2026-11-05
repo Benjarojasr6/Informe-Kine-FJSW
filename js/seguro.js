@@ -258,10 +258,16 @@
     if (!js.length) return '<div class="card"><p class="vacio-msg">Agrega jugadores para ver su calendario de asistencia.</p></div>';
     const anioAct = String(new Date().getFullYear());
     if (!s.anualAnio) s.anualAnio = (K.state.periodo && K.state.periodo.anio ? String(K.state.periodo.anio) : anioAct);
-    const les = K.kineLesionados();
-    if (!s.anualJ || !js.some((x) => x.j.id === s.anualJ)) s.anualJ = (les[0] || js[0]).j.id;
-    const sel = js.find((x) => x.j.id === s.anualJ), anio = s.anualAnio;
+    const anio = s.anualAnio;
+    // v1.9.0: el selector solo muestra a los jugadores que tuvieron alguna lesión durante el año elegido.
+    const ini = anio + '-01-01', fin = anio + '-12-31';
+    const conLes = js.filter((x) => x.inf.casos.some((c) => c.tipo === 'lesion' && c.jugadorId === x.j.id && c.inicio && c.inicio <= fin && (!c.alta || c.alta >= ini)));
     const aniosOp = uniq([anioAct, String(Number(anioAct) - 1), anio]).sort().reverse();
+    const selAnio = `<label class="campo"><span>Año</span><select data-acc-change="anualAnio">${aniosOp.map((a) => `<option value="${a}"${a === anio ? ' selected' : ''}>${a}</option>`).join('')}</select></label>`;
+    if (!conLes.length) return `<div class="card"><h2>Calendario de asistencia anual</h2><div class="grid2">${selAnio}</div><p class="vacio-msg">Ningún jugador tuvo lesiones en ${e(anio)}.</p></div>`;
+    const les = K.kineLesionados().filter((it) => conLes.some((x) => x.j.id === it.j.id));
+    if (!s.anualJ || !conLes.some((x) => x.j.id === s.anualJ)) s.anualJ = (les[0] ? conLes.find((x) => x.j.id === les[0].j.id) || conLes[0] : conLes[0]).j.id;
+    const sel = conLes.find((x) => x.j.id === s.anualJ);
     const mapa = diasDe(sel.inf, sel.j, anio), cuenta = {}; let diasLes = 0;
     Object.keys(mapa).forEach((iso) => { const d = mapa[iso]; if (d.les) diasLes++; const k = PRIO.find((p) => d.k.has(p)); if (k) cuenta[k] = (cuenta[k] || 0) + 1; });
     const hoy = K.hoy();
@@ -274,15 +280,15 @@
         const iso = `${anio}-${K.pad(mes)}-${K.pad(d)}`, x = mapa[iso], k = x && PRIO.find((p) => x.k.has(p));
         const letra = x ? (x.L ? 'L' : x.A ? 'A' : x.R ? 'R' : '') : '';
         const fondo = letra === 'L' ? '#d62839' : letra === 'A' ? '#0b7a43' : letra === 'R' ? '#1f5fbf' : k ? AC[k][1] : x && x.les ? LESION_COL : '';
-        const tit = `${d} ${MESES[mes - 1].toLowerCase()}${x ? ': ' + (x.tx.length ? x.tx.join('; ') : x.les ? 'lesionado' : '') : ''}${x && x.les && k ? ' · lesionado' : ''}`;
+        const tit = `${K.fechaCorta(iso)}${x ? ': ' + (x.tx.length ? x.tx.join('; ') : x.les ? 'lesionado' : '') : ''}${x && x.les && k ? ' · lesionado' : ''}`;
         celdas += `<i class="ac${iso === hoy ? ' hoy' : ''}${k && x.les && !x.L ? ' con-les' : ''}${letra ? ' dia-' + letra : ''}"${fondo ? ` style="background:${fondo}"` : ''} title="${e(tit)}">${letra}</i>`;
       }
       filas += `<div class="ac-fila"><span>${MESES[mes - 1].slice(0, 3)}</span>${celdas}</div>`;
     }
     const ley = PRIO.map((k) => `<span><i style="background:${AC[k][1]}"></i>${AC[k][0]}${cuenta[k] ? ` <b>${cuenta[k]}</b>` : ''}</span>`).join('') + `<span><i style="background:#d62839;color:#fff;font-size:8px;font-style:normal;text-align:center;line-height:11px">L</i>Día de la lesión</span><span><i style="background:#1f5fbf;color:#fff;font-size:8px;font-style:normal;text-align:center;line-height:11px">R</i>Inicio del reintegro deportivo</span><span><i style="background:#0b7a43;color:#fff;font-size:8px;font-style:normal;text-align:center;line-height:11px">A</i>Alta</span><span><i style="background:${LESION_COL}"></i>Lesionado <b>${diasLes}</b></span>`;
     return `<div class="card"><h2>Calendario de asistencia anual</h2>
-      <div class="grid2"><label class="campo"><span>Jugador</span><select data-acc-change="anualJ">${js.map((x) => `<option value="${x.j.id}"${x.j.id === s.anualJ ? ' selected' : ''}>${e(x.j.nombre)} · ${e(x.j.categoria || 'Sub ' + x.cat)}</option>`).join('')}</select></label>
-        <label class="campo"><span>Año</span><select data-acc-change="anualAnio">${aniosOp.map((a) => `<option value="${a}"${a === anio ? ' selected' : ''}>${a}</option>`).join('')}</select></label></div>
+      <div class="grid2"><label class="campo"><span>Jugador</span><select data-acc-change="anualJ">${conLes.map((x) => `<option value="${x.j.id}"${x.j.id === s.anualJ ? ' selected' : ''}>${e(x.j.nombre)} · ${e(x.j.categoria || 'Sub ' + x.cat)}</option>`).join('')}</select></label>
+        ${selAnio}</div>
       <div class="ac-grid"><div class="ac-fila ac-dias"><span></span>${Array.from({ length: 31 }, (_, i) => `<em>${i + 1}</em>`).join('')}</div>${filas}</div>
       <div class="ac-ley">${ley}</div>
       <p class="sub" style="margin:8px 0 0">Cada cuadro es un día. Un cuadro de color con borde rojo abajo = ese día estaba lesionado. Los cuadros vacíos son días sin registro (no se entrena). Toca o mantén sobre un cuadro para ver el detalle.</p></div>`;

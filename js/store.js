@@ -1,13 +1,21 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.8.0';
+  K.version = '1.9.1';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
   K.hoy = () => {
     const d = new Date();
     return d.getFullYear() + '-' + K.pad(d.getMonth() + 1) + '-' + K.pad(d.getDate());
+  };
+  // v1.9.1 · Año de nacimiento con la nota de «jugador de excepción» al lado: «2005», «2005 (excepción)», «2005 (21 años · excepción: un año mayor)».
+  // Devuelve texto sin escapar (quien lo muestre lo escapa). `edad` es opcional.
+  K.nacTxt = (j, edad) => {
+    const y = j && j.nacimiento ? String(j.nacimiento) : ''; if (!y) return '';
+    const p = []; if (edad) p.push(edad + ' años');
+    if (j.excepcion) p.push(j.excepcionNota ? 'excepción: ' + j.excepcionNota : 'excepción');
+    return y + (p.length ? ' (' + p.join(' · ') + ')' : '');
   };
   K.esc = (s) =>
     String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -115,11 +123,11 @@
     ['U. de Concepción', 'u-de-concepcion', false], ['Recoleta', 'recoleta', false],
     ['U. Católica', 'u-catolica', true], ['Huachipato', 'huachipato', true]
   ];
-  K.GRAVEDADES = { minima: 'Mínima', leve: 'Leve', moderada: 'Moderada', grave: 'Grave', pordefinir: 'Por definir' };
+  K.GRAVEDADES = { nolimitante: 'No limitante', minima: 'Mínima', leve: 'Leve', moderada: 'Moderada', grave: 'Grave', pordefinir: 'Por definir' };
   // Gravedad según días fuera: mínima 1-3 · leve 4-7 · moderada 8-28 · grave más de 28.
-  K.GRAV_DIAS = { minima: '1-3 días fuera', leve: '4-7 días fuera', moderada: '8-28 días fuera', grave: 'más de 28 días fuera', pordefinir: 'aún sin definir' };
-  K.GRAV_ORDEN = ['minima', 'leve', 'moderada', 'grave', 'pordefinir'];
-  K.COLORES_GRAV = { minima: '#8fd3a8', leve: '#3fbf6a', moderada: '#f5b400', grave: '#e8353d', pordefinir: '#9aa4a9' };
+  K.GRAV_DIAS = { nolimitante: '0 días fuera: duele pero no limita', minima: '1-3 días fuera', leve: '4-7 días fuera', moderada: '8-28 días fuera', grave: 'más de 28 días fuera', pordefinir: 'aún sin definir' };
+  K.GRAV_ORDEN = ['nolimitante', 'minima', 'leve', 'moderada', 'grave', 'pordefinir'];
+  K.COLORES_GRAV = { nolimitante: '#b9dcef', minima: '#8fd3a8', leve: '#3fbf6a', moderada: '#f5b400', grave: '#e8353d', pordefinir: '#9aa4a9' };
   K.gravClave = (g) => (K.GRAVEDADES[g] ? g : 'leve');
   K.gravRotulo = (g, dias) => { g = K.gravClave(g); return dias ? `${K.GRAVEDADES[g]} (${K.GRAV_DIAS[g]})` : K.GRAVEDADES[g]; };
   // Gravedad sugerida a partir de los días fuera.
@@ -313,7 +321,7 @@
     ARR_ID.forEach((k) => (inf[k] || []).forEach((it) => {
       TEXTOS.forEach((f) => { if (it[f] != null && typeof it[f] !== 'string') it[f] = typeof it[f] === 'number' ? String(it[f]) : ''; });
     }));
-    (inf.jugadores || []).forEach((j) => { if (!j.nombre) j.nombre = 'Sin nombre'; if (j.tambien !== undefined) j.tambien = arrObj(j.tambien).filter((x) => typeof x === 'string' || typeof x === 'number'); if (j.extras !== undefined && (!j.extras || typeof j.extras !== 'object' || Array.isArray(j.extras))) j.extras = {}; });
+    (inf.jugadores || []).forEach((j) => { if (!j.nombre) j.nombre = 'Sin nombre'; if (j.excepcion !== undefined) { j.excepcion = j.excepcion === true; if (!j.excepcion) delete j.excepcion; } if (j.excepcionNota !== undefined && (typeof j.excepcionNota !== 'string' || !j.excepcion)) delete j.excepcionNota; if (j.tambien !== undefined) j.tambien = arrObj(j.tambien).filter((x) => typeof x === 'string' || typeof x === 'number'); if (j.extras !== undefined && (!j.extras || typeof j.extras !== 'object' || Array.isArray(j.extras))) j.extras = {}; });
     // --- temporadas, archivo y categoría en el tiempo (todo opcional; lo inválido se descarta o se corrige) ---
     const ANIO_OK = (v) => Number.isInteger(v) && v >= 1990 && v <= 2200;
     const ISO_OK = (v) => typeof v === 'string' && FECHA_OK.test(v) && Number(v.slice(0, 4)) >= 1900;

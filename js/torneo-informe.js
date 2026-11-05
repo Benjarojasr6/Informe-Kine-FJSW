@@ -189,7 +189,7 @@
       .replace('<!--PIE-->', K.rep.PIE(`${cortar(t.nombre, 40)} · ${i + 2} / ${total}`))));
   }
   // Nombre del archivo: “Informe torneo - Nombre - AAAA” (el nombre se acorta para que el año nunca se corte)
-  const tituloPdf = (t) => { const fin = ' - ' + anioDe(t), base = 'Informe torneo - '; const nom = String(t.nombre).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim(); return base + nom.slice(0, Math.max(10, 84 - base.length - fin.length)).trim() + fin; };
+  const tituloPdf = (t) => { const fin = ' - ' + anioDe(t), base = 'Informe Kinésico torneo - '; const nom = String(t.nombre).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim(); return base + nom.slice(0, Math.max(10, 84 - base.length - fin.length)).trim() + fin; };
   async function informePdf(t) {
     if (!t) return;
     try { await document.fonts.ready; } catch (x) { /* sigue */ }

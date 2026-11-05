@@ -1,5 +1,5 @@
 /* Mapa corporal: silueta anatómica suave (frente y espalda) con brillos de color por zona.
-   Verde claro = mínima · verde = leve · amarillo = moderada · rojo = grave · gris = por definir.
+   Celeste = no limitante · verde claro = mínima · verde = leve · amarillo = moderada · rojo = grave · gris = por definir.
    Mantiene los mismos ids de zona (F-… frente, E-… espalda) para que los registros guardados sigan funcionando. */
 (function () {
   const K = window.K;
@@ -119,7 +119,7 @@
 
   K.nombreZona = (id) => K.ZONAS[id] || id;
   K.nombreZonaLimpia = K.nombreZona;
-  K.COLORES_GRAVEDAD = { minima: '#8fd3a8', leve: '#3fbf6a', moderada: '#f5b400', grave: '#e8353d', pordefinir: '#9aa4a9' };
+  K.COLORES_GRAVEDAD = { nolimitante: '#b9dcef', minima: '#8fd3a8', leve: '#3fbf6a', moderada: '#f5b400', grave: '#e8353d', pordefinir: '#9aa4a9' };
 
   // Escala de calor (menos → más casos): amarillo claro → naranja → rojo.
   K.colorCalor = (t) => {

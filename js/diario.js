@@ -282,7 +282,7 @@
   /* ======================= PANTALLA HOY ======================= */
   const DIAS_L = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
   const MESES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-  const fechaLarga = (iso) => { const d = new Date(iso + 'T12:00:00'), t = `${DIAS_L[d.getDay()]} ${d.getDate()} de ${MESES_L[d.getMonth()]}`; return t[0].toUpperCase() + t.slice(1); };
+  const fechaLarga = (iso) => { const d = new Date(iso + 'T12:00:00'), t = `${DIAS_L[d.getDay()]} ${K.fechaCorta(iso)}`; return t[0].toUpperCase() + t.slice(1); };
   const cuando = (f, hoy) => { const n = dif(hoy, f); return n === 0 ? 'hoy' : n === 1 ? 'mañana' : n > 0 ? `en ${n} días` : n === -1 ? 'ayer' : `hace ${-n} días`; };
   const CAMPOS_PROX = [['proxControl', 'control', () => 'Control médico'], ['proxExamen', 'examen', (c) => 'Examen' + (c.proxExamenTipo ? ' · ' + c.proxExamenTipo : '')], ['proxProc', 'proc', (c) => 'Procedimiento' + (c.proxProcTipo ? ' · ' + c.proxProcTipo : '')], ['proxHito', 'hito', (c) => c.proxHitoTxt || 'Hito']];
 
@@ -301,7 +301,7 @@
       fut.sort();
       let prox = fut[0] ? { f: fut[0], vencido: false } : null;
       if (!prox && c.proxControl && c.proxControl < hoy && !hechoEv(it, 'control', c.proxControl)) prox = { f: c.proxControl, vencido: true };
-      return { it, jid: it.j.id, nombre: it.j.nombre, casoId: c.id, conmocion: c.conmocion === true, titulo: c.titulo, zonas: (c.zonas || []).map(K.nombreZona), dia: c.inicio ? Math.max(1, dif(c.inicio, hoy)) : 0, esDiaLesion: c.inicio === hoy, prox, atendidoHoy: atHoy.has(it.j.id), asis: K.kineAsisDia(it.inf, it.j.id, hoy) };
+      return { it, jid: it.j.id, nombre: it.j.nombre, casoId: c.id, conmocion: c.conmocion === true, titulo: c.titulo, zonas: (c.zonas || []).map(K.nombreZona), dia: c.inicio ? Math.max(1, dif(c.inicio, hoy)) : 0, esDiaLesion: c.inicio === hoy, prox, atendidoHoy: atHoy.has(it.j.id), asis: K.kineAsisDia(it.inf, it.j.id, hoy), alta: c.alta === hoy };
     });
     // controles, exámenes, procedimientos y otros hitos de hoy y los que ya pasaron sin actualizarse
     const ctl = { hoy: [], vencidos: [] }, vistos = new Set();
@@ -351,16 +351,16 @@
       <div class="hoy-les-top" data-acc="hoyFicha" data-jid="${e(l.jid)}" role="button" tabindex="0"><span class="avatar">${e(ini(l.nombre))}</span>
         <div class="txt"><b>${e(l.nombre)}${l.conmocion ? ' <i class="chip g-grave etq" data-conmocion>Conmoción</i>' : ''}${l.atendidoHoy ? ' <i class="chip g-leve etq" data-atendido>Atendido hoy</i>' : ''}</b><span>${e(l.titulo)}${l.zonas.length ? ' · ' + e(l.zonas.join(', ')) : ''}</span><span class="hoy-dato">Día ${l.dia} de baja${prox ? ` · <i class="${l.prox.vencido ? 'venc' : ''}">${e(prox)}</i>` : ''}</span></div></div>
       ${ed ? `<div class="hoy-btns">${l.esDiaLesion ? '<span class="hoy-L" title="Día de la lesión">L<small>Día de la lesión</small></span>'
-        : btnAsis(l, 'si', 'ok', 'Asistió', a && a.v === 'si') + btnAsis(l, 'no', 'cerrar', 'No asistió', a && a.v === 'no' && a.no !== 'pauta') + btnAsis(l, 'pauta', 'casa', 'En casa', a && a.v === 'no' && a.no === 'pauta')}
+        : btnAsis(l, 'si', 'ok', 'Asistió', a && a.v === 'si' && !l.alta) + btnAsis(l, 'no', 'cerrar', 'No asistió', a && a.v === 'no' && a.no !== 'pauta') + btnAsis(l, 'pauta', 'casa', 'En casa', a && a.v === 'no' && a.no === 'pauta') + btnAsis(l, 'alta', 'trofeo', 'Alta', l.alta)}
         <button type="button" class="hoy-at" data-acc="hoyAtender" data-jid="${e(l.jid)}" data-caso="${e(l.casoId)}" aria-label="Registrar atención a ${e(l.nombre)}">${K.uiIco('mas', 22)}<span>Atender</span></button></div>
-      ${a && !l.esDiaLesion ? `<div class="kf-sel hoy-sel">${K.kineSelAsis(it, a, K.hoy())}</div>` : ''}` : ''}
+      ${l.alta && !l.esDiaLesion ? '<div class="kf-sel hoy-sel"><span class="suave kf-no">Alta: vuelve a entrenar normal · sale de la lista desde mañana</span></div>' : a && !l.esDiaLesion ? `<div class="kf-sel hoy-sel">${K.kineSelAsis(it, a, K.hoy())}</div>` : ''}` : ''}
     </div>`;
   }
   K.pHoy = function () {
     const d = K.hoyDatos(), cat = K.ui.cat, ed = K.puedeEditar();
     const chips = [15, 16, 18, 20].map((c) => `<button type="button" class="hoy-cat${c === cat ? ' on' : ''}" data-acc="hoyCat" data-c="${c}" aria-pressed="${c === cat}">Sub ${c}</button>`).join('');
     const nCtl = d.controles.hoy.length + d.controles.vencidos.length;
-    const filaCtl = (x, venc) => `<div class="item hoy-ctl" data-acc="hoyFicha" data-jid="${e(x.jid)}"><span class="mini-ico">${K.ico(x.tipo === 'examen' ? 'svg:examen' : x.tipo === 'cirugia' ? 'svg:cirugia' : 'svg:control')}</span><div class="txt"><b>${e(x.nombre)}</b><span>${e(x.txt)} · ${fc(x.f)}</span></div><span class="chip ${venc ? 'g-grave' : 'g-leve'}">${venc ? 'Vencido hace ' + dif(x.f, d.hoy) + ' d' : 'Hoy'}</span></div>`;
+    const filaCtl = (x, venc) => `<div class="item hoy-ctl" data-acc="hoyFicha" data-jid="${e(x.jid)}"><span class="mini-ico">${K.ico(x.tipo === 'examen' ? 'svg:examen' : x.tipo === 'cirugia' ? 'svg:cirugia' : 'svg:control')}</span><div class="txt"><b>${e(x.nombre)}</b><span>${e(x.txt)} · ${fc(x.f)}</span></div><span class="chip ${venc ? 'g-grave' : 'g-leve'}">${venc ? 'Vencido hace ' + dif(x.f, d.hoy) + ' d' : 'Hoy'}</span>${ed && x.casoId && ['control', 'examen', 'proc', 'hito'].includes(x.tipo) ? `<button type="button" class="btn chico sec hoy-ya" data-acc="kineYaHecho" data-caso="${e(x.casoId)}" data-tipo="${e(x.tipo)}">Ya se hizo</button>` : ''}</div>`;
     return `
       <div class="titulo-vista"><h1>Hoy</h1><span class="suave hoy-fecha">${e(fechaLarga(d.hoy))}</span></div>
       <div class="hoy-cats" role="group" aria-label="Cambiar de categoría">${chips}</div>

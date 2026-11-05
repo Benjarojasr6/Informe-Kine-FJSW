@@ -4,12 +4,11 @@
    Los gráficos son SVG en línea (se ven igual en pantalla y en el PDF). */
 (function () {
   const K = window.K, e = K.esc;
-  const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   const D = (s) => new Date(s + 'T12:00:00');
   const dif = (a, b) => Math.round((D(b) - D(a)) / 864e5);
   const suma = (s, n) => { const d = D(s); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
   const lunes = (s) => { const d = D(s); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
-  const corta = (s) => { const d = D(s); return d.getDate() + ' ' + MES[d.getMonth()]; };
+  const corta = (s) => K.fechaCorta(s); // dd-mm-aaaa
   const COL = { 15: '#d99a0b', 16: '#7a8791', 17: '#7b4fb8', 18: '#e9731a', 19: '#14a3a3', 20: '#2f6fd0' };
   const colorCat = (n) => COL[n] || '#2f7a4a';
   const may = (t) => { t = String(t || '').trim(); return t.charAt(0).toUpperCase() + t.slice(1); };

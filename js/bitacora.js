@@ -119,7 +119,7 @@
 
   function fichaJugador(inf, j) {
     const ex = (inf.camposExtra || []).map((c) => [c.titulo, (j.extras || {})[c.id]]).filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '').map(([t, v]) => `${t}: ${v === true ? 'Sí' : v === false ? 'No' : v}`);
-    const datos = [j.categoria, j.nacimiento ? 'Nacimiento ' + j.nacimiento : '', j.posicion, j.pierna ? 'Pierna dominante ' + j.pierna.toLowerCase() : ''].filter(Boolean).join(' · ');
+    const datos = [j.categoria, j.nacimiento ? 'Nacimiento ' + K.nacTxt(j) : '', j.posicion, j.pierna ? 'Pierna dominante ' + j.pierna.toLowerCase() : ''].filter(Boolean).join(' · ');
     return `<div class="bit-ficha">${datos ? `<p>${e(datos)}</p>` : ''}${ex.length ? `<p>${ex.map(e).join(' · ')}</p>` : ''}
       <p class="bit-n"><b>Comentarios área kinésica:</b> ${j.comentarios ? e(j.comentarios).replace(/\n/g, '<br>') : '<i>Sin comentarios.</i>'}</p></div>`;
   }
@@ -219,7 +219,7 @@
     const limD = lim.reduce((a, c) => a + (Number(c.limitaDias) || 0), 0);
     const kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
     // conteos
-    const grav = { minima: 0, leve: 0, moderada: 0, grave: 0, pordefinir: 0 }; casos.forEach((c) => sumar(grav, K.gravClave(c.gravedad)));
+    const grav = { nolimitante: 0, minima: 0, leve: 0, moderada: 0, grave: 0, pordefinir: 0 }; casos.forEach((c) => sumar(grav, K.gravClave(c.gravedad)));
     const mec = {}; casos.forEach((c) => sumar(mec, c.mecanismo || '_'));
     const zonas = {}; casos.forEach((c) => (c.zonas || []).forEach((z) => sumar(zonas, K.nombreZona(z))));
     const trat = {}; ats.forEach((a) => Object.keys(a.trat || {}).forEach((id) => { if (a.trat[id] > 0) sumar(trat, (K.trat(inf, id) || { nombre: id }).nombre, Number(a.trat[id])); }));
@@ -233,7 +233,7 @@
       <div class="bd-g">
         ${panel('Registros por mes', mensual(reg), true)}
         ${panel('Qué se ha registrado', donut(tipos))}
-        ${panel('Por gravedad', hbar(K.GRAV_ORDEN.filter((g) => g !== 'pordefinir' || grav.pordefinir).map((g) => [K.GRAVEDADES[g], grav[g], GCOL[g]])))}
+        ${panel('Por gravedad', hbar(K.GRAV_ORDEN.filter((g) => (g !== 'pordefinir' || grav.pordefinir) && (g !== 'nolimitante' || grav.nolimitante)).map((g) => [K.GRAVEDADES[g], grav[g], GCOL[g]])))}
         ${panel('Línea de tiempo de lesiones y molestias', gantt(inf, casos), true)}
         ${panel('Dónde ocurrió', hbar(mecF, '#2f7a4a'))}
         ${panel('Zonas más frecuentes', hbar(top(zonas, 6), '#e9a93b'))}

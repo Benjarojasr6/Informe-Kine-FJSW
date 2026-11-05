@@ -9,8 +9,6 @@
   const dif = (a, b) => Math.round((D(b) - D(a)) / 864e5);
   const fc = (iso) => (FECHA.test(iso || '') ? K.fechaCorta(iso) : 'Sin fecha');
   const dsum = (iso, n) => { const d = D(iso); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-  const MES3 = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  const diaMes = (iso) => (FECHA.test(iso || '') ? `${Number(iso.slice(8, 10))} ${MES3[Number(iso.slice(5, 7)) - 1]}` : '—');
   const coma = (n) => String(n).replace('.', ',');
   const ndias = (n) => `${n} ${n === 1 ? 'día' : 'días'}`;
   const recorta = (t, n) => { t = String(t == null ? '' : t); return t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t; };
@@ -160,7 +158,7 @@
   function itemHTML(it, i, edit) {
     const lesion = it.k === 'caso' || it.k === 'hito';
     const det = it.det.length || it.notas ? `<details class="th-det"><summary>Ver detalle</summary><dl>${it.det.map(([l, v]) => `<div><dt>${e(l)}</dt><dd>${e(v)}</dd></div>`).join('')}</dl>${it.notas ? `<p class="bit-n"><b>Notas:</b> ${e(it.notas).replace(/\n/g, '<br>')}</p>` : ''}</details>` : '';
-    return `<div class="th-it" data-k="${it.k}"><div class="th-f"><b>${e(diaMes(it.f))}</b><small>${e(it.f.slice(0, 4))}</small></div>
+    return `<div class="th-it" data-k="${it.k}"><div class="th-f"><b>${FECHA.test(it.f || '') ? K.fechaCorta(it.f) : '—'}</b></div>
       <div class="th-c"><div class="th-h"><span class="bit-tag t-${it.cls}">${e(it.tag)}</span><b>${e(it.titulo)}</b></div>
         ${lesion ? `<div class="th-ch">${chipsCaso(it)}</div>` : ''}${it.sub ? `<p class="th-s">${e(it.sub)}</p>` : ''}${det}${it.k === 'caso' && it.raw && it.raw.conmocion === true && K.scat5 && K.scat5.deCaso(it.raw) ? `<button type="button" class="btn sec chico sc-pdf-btn" data-scat-pdf-tl="${e(it.raw.id)}">${K.uiIco('pdf', 16)} Ficha SCAT5 (PDF)</button>` : ''}</div>
       ${edit && it.edit ? `<button type="button" class="btn ghost chico th-ed" data-acc="histAbrir" data-i="${i}" aria-label="Abrir para editar" title="Abrir para editar">${K.uiIco('editar', 18)}</button>` : ''}</div>`;
@@ -298,7 +296,7 @@
   /* ======================= FICHA EN PDF ======================= */
   const ESC = '<img class="sw-vs" src="img/escudo-sw-vs.png" alt="" width="35" height="56">';
   const campo = (l, v, c) => (v === '' || v == null ? '' : `<div${c ? ` class="${c}"` : ''}><dt>${e(l)}</dt><dd>${v}</dd></div>`);
-  const edadTxt = (j) => { const n = K.edadAnios(j.nacimiento); return n != null ? `${n} años (nació en ${e(String(j.nacimiento).slice(0, 4))})` : ''; };
+  const edadTxt = (j) => { const n = K.edadAnios(j.nacimiento); return n != null ? `${n} años (nació en ${e(String(j.nacimiento).slice(0, 4))}${j.excepcion ? ' · ' + e(j.excepcionNota ? 'excepción: ' + j.excepcionNota : 'excepción') : ''})` : ''; };
   function bloqueDatos(data, fechaTxt) {
     const j = data.j, inf = data.inf, ini = (j.nombre || '?').split(/\s+/).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
     const ch = (Array.isArray(j.catHist) ? j.catHist : []).filter((x) => x && Number.isFinite(Number(x.cat))).slice().sort((a, b) => String(a.desde || '').localeCompare(String(b.desde || '')));
@@ -484,7 +482,7 @@
   function filaBusq(x) {
     const j = x.j, ini = (j.nombre || '?').split(/\s+/).slice(0, 2).map((s) => s[0]).join('').toUpperCase();
     return `<button type="button" class="bq-fila" data-bq="${e(j.id)}"><span class="avatar">${j.foto ? `<img src="${e(j.foto)}" alt="">` : e(ini)}</span>
-      <span class="txt"><b>${e(j.nombre)}</b><span>${e([catTxt(x), j.posicion, j.nacimiento].filter(Boolean).join(' · ') || 'Sin datos')}</span></span>
+      <span class="txt"><b>${e(j.nombre)}</b><span>${e([catTxt(x), j.posicion, K.nacTxt(j)].filter(Boolean).join(' · ') || 'Sin datos')}</span></span>
       <span class="bq-ch">${x.les ? '<i class="chip g-grave">Lesionado</i>' : ''}${x.arch ? `<i class="chip est-${e(j.estado)}">${e(K.nombreEstado(j.estado))}</i>` : ''}</span></button>`;
   }
   K.abrirFichaBuscada = (jid) => {

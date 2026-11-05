@@ -94,6 +94,24 @@
     const tr = K.catsEnRango(j, desdeISO, hastaISO);
     return tr.length ? tr[tr.length - 1].cat : K.catNum(j);
   };
+  // v1.9.1: corrige un error de registro. Borra el historial de cambios de categoría: queda en su categoría actual «de siempre».
+  // Lo registrado no se borra: pasa a contarse en la categoría actual. Devuelve false si no había historial.
+  K.corregirHistorialCat = (j) => {
+    if (!j || !Array.isArray(j.catHist) || !j.catHist.length) return false;
+    delete j.catHist;
+    return true;
+  };
+  // Texto del historial de categorías para mostrarlo: «Sub 18 (hasta 18-10-2026) → Sub 16 (desde 19-10-2026)». Fechas en dd-mm-aaaa.
+  const diaAntes = (iso) => { const [y, m, d] = String(iso).split('-').map(Number); const t = new Date(y, m - 1, d - 1); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+  K.textoHistorialCat = (j) => {
+    const h = hist(j); if (!h.length) return '';
+    return h.map((x, k) => {
+      const sig = h[k + 1];
+      const f = (iso) => K.fechaCorta(iso);
+      const rango = x.desde && sig ? `desde ${f(x.desde)} hasta ${f(diaAntes(sig.desde))}` : x.desde ? `desde ${f(x.desde)}` : sig ? `hasta ${f(diaAntes(sig.desde))}` : '';
+      return `Sub ${x.cat}${rango ? ' (' + rango + ')' : ''}`;
+    }).join(' → ');
+  };
   // Cambia la categoría desde una fecha. Si el grupo (15-16 / 18-20) cambia, mueve al jugador al otro informe.
   // Devuelve { ok, movido, hacia } (hacia = id del informe de destino).
   K.cambiarCategoria = (inf, j, cat, desdeISO) => {

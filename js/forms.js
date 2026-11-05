@@ -32,6 +32,31 @@
   // Selector opcional de torneo (solo si el informe tiene torneos): para atenciones y lesiones ocurridas en un torneo.
   K.selTorneoHTML = (inf, sel, rotulo) => ((inf.torneos || []).length ? `<label class="campo"><span>${rotulo || 'Torneo (opcional)'}</span><select name="torneoId"><option value="">Ninguno</option>${(inf.torneos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((t) => `<option value="${K.esc(t.id)}"${t.id === sel ? ' selected' : ''}>${K.esc(t.nombre)}</option>`).join('')}</select></label>` : '');
   const temporadaPorDefecto = (fecha) => K.ui.ultTemporada || (Number((fecha || K.hoy()).slice(5, 7)) <= 6 ? 'camp1' : 'camp2');
+  /* v1.9.1 · «¿En qué categoría pasó?»: solo aparece si el jugador tiene marcada alguna categoría en la que también juega.
+     Sirve para entrenamientos y atenciones fuera de partido (en un partido la categoría es la del partido). Si pasó en la suya, se deja en blanco. */
+  K.catJuegoCampo = () => '<label class="campo oculto" data-cat-juego><span>¿En qué categoría pasó?</span><select name="catJuego"></select><small class="suave" style="display:block;margin-top:4px">Solo aparece porque juega también en otra categoría. Si pasó en la suya, déjalo como está.</small></label>';
+  // jid = jugador elegido; actual = valor guardado (al editar); oculto = true para esconderlo (varios jugadores, o un registro que viene de un partido)
+  K.catJuegoSync = (hoja, jid, actual, oculto) => {
+    const lab = hoja.querySelector('[data-cat-juego]'); if (!lab) return;
+    const sel = lab.querySelector('select'), gl = jid && !oculto ? K.jugadorGlobal(jid) : null;
+    const own = gl ? K.catNum(gl.j) : null, cur = Number(actual) || 0;
+    const extras = gl ? (gl.j.tambien || []).map((x) => Number((/\d+/.exec(String(x)) || [])[0])).filter((n) => n && n !== own) : [];
+    if (gl && cur && cur !== own && !extras.includes(cur)) extras.push(cur);
+    const clave = (gl ? jid : '') + '|' + extras.join(',');
+    if (lab.dataset.k !== clave) {
+      const primera = lab.dataset.k === undefined;
+      lab.dataset.k = clave;
+      sel.innerHTML = extras.length ? `<option value="">${own ? 'Sub ' + own + ' (su categoría)' : 'Su categoría'}</option>` + extras.map((n) => `<option value="${n}">Sub ${n}</option>`).join('') : '';
+      sel.value = primera && cur && extras.includes(cur) ? String(cur) : '';
+    }
+    lab.classList.toggle('oculto', !extras.length);
+  };
+  // undefined = el campo no está disponible (no tocar lo guardado); 0 = su categoría; N = la categoría en que pasó
+  K.catJuegoValor = (hoja) => {
+    const lab = hoja.querySelector('[data-cat-juego]');
+    return !lab || lab.classList.contains('oculto') ? undefined : Number(lab.querySelector('select').value) || 0;
+  };
+  K.catJuegoAplicar = (reg, v) => { if (v === undefined) return; if (v) reg.catJuego = v; else delete reg.catJuego; };
   K.formAtencion = function (o) {
     o = o || {};
     const inf = K.inf(); const rec = o.rec;
@@ -57,6 +82,7 @@
           <label class="campo"><span>Fecha</span><input type="date" name="fecha" value="${e(rec ? rec.fecha : K.hoy())}"></label>
           ${rec ? '<span></span>' : '<div class="campo"><span>&nbsp;</span><button type="button" class="btn sec" data-varios>Aplicar a varios jugadores</button></div>'}
         </div>
+        ${K.catJuegoCampo()}
         ${rec ? '' : K.variosHTML(inf)}
         ${rec ? '' : '<button type="button" class="btn sec oculto" data-repetir style="width:100%;margin-bottom:10px"></button>'}
         <h3 style="margin:6px 0 4px;font-size:15px">Intervención realizada</h3>
@@ -122,6 +148,8 @@
           sync(); K.aviso('Intervenciones copiadas');
         };
         if (bRep) bRep.addEventListener('click', () => { const u = K.ultimaAtencion(hid.value); if (u) aplicarRepetir(u); });
+        const catJ = () => K.catJuegoSync(hoja, enVarios ? '' : hid.value, rec ? rec.catJuego : '', !!(rec && rec.partidoId));
+        hid.addEventListener('change', catJ);
         hid.addEventListener('change', () => {
           selC.innerHTML = casosOpts(inf, hid.value, rec ? '' : casoActivoDe(hid.value));
           actualizarRepetir();
@@ -160,16 +188,16 @@
           hoja.querySelector('[data-bloque-j]').classList.toggle('oculto', on);
           bv.textContent = on ? 'Volver a un solo jugador' : 'Aplicar a varios jugadores';
           if (!on) vm.limpiar();
-          actualizarRepetir(); sync();
+          actualizarRepetir(); sync(); catJ();
         });
         // después de “Guardar y registrar otro”: queda lo que se repite (intervenciones, fecha, tipo, origen) y se limpia lo de cada jugador
         hoja._otro = () => {
           hoja.querySelector('[name=notas]').value = '';
           const mn = hoja.querySelector('[name=medNombre]'); if (mn) mn.value = '';
-          if (enVarios) { vm.limpiar(); hoja.querySelector('.cuerpo').scrollTop = 0; } else { K.selJugadorSet(selj, '', false); selC.innerHTML = casosOpts(inf, '', ''); actualizarRepetir(); setTimeout(() => K.selJugadorAbrir(selj), 120); }
+          if (enVarios) { vm.limpiar(); hoja.querySelector('.cuerpo').scrollTop = 0; } else { K.selJugadorSet(selj, '', false); selC.innerHTML = casosOpts(inf, '', ''); actualizarRepetir(); catJ(); setTimeout(() => K.selJugadorAbrir(selj), 120); }
           sync();
         };
-        sync();
+        sync(); catJ();
         if (o.varios && bv) bv.click();
         else if (o.abrirSel && !jid && !rec) setTimeout(() => K.selJugadorAbrir(selj), 200);
       }
@@ -186,6 +214,7 @@
       if (!Object.keys(tr).length && !(d.notas || '').trim()) { K.aviso('Agrega al menos una intervención o escribe una nota: no se guarda una atención vacía', true); return false; }
       const meta = { origen: K.segValor(hoja, 'origen') || 'ssw', temporada: d.temporada, clase: d.clase };
       if (d.torneoId) meta.torneoId = d.torneoId; else if (rec) delete rec.torneoId;
+      const cj = K.catJuegoValor(hoja); if (cj) meta.catJuego = cj; else if (cj === 0 && rec) delete rec.catJuego;
       K.ui.ultTemporada = d.temporada; K.ui.ultOrigen = meta.origen;
       const caso = () => (d.clase === 'molestia' && ids.length === 1 ? d.casoId || '' : '');
       if (rec) { Object.assign(rec, meta, { fecha: d.fecha, jugadorId: ids[0], casoId: caso(), trat: tr, notas: d.notas }); delete rec.soap; }
@@ -224,11 +253,12 @@
         <label class="campo"><span>Qué es (ej. Desgarro psoas derecho)</span><input type="text" name="titulo" value="${e(rec ? rec.titulo : '')}" autocomplete="off"></label>
         <div class="campo ${conv ? 'oculto' : ''}"><span style="display:block;font-size:13px;font-weight:600;color:var(--suave);margin-bottom:4px">Gravedad (define el color en el mapa)</span>
           ${K.seg('gravedad', K.GRAV_ORDEN.map((g) => [g, K.GRAVEDADES[g]]), grav, 'g')}
-          <p class="suave" style="margin:6px 0 0;font-size:13px">Mínima: 1-3 días fuera · Leve: 4-7 · Moderada: 8-28 · Grave: más de 28.<span data-grav-sug></span></p></div>
+          <p class="suave" style="margin:6px 0 0;font-size:13px">No limitante: duele pero no limita entrenamiento ni partido (0 días fuera) · Mínima: 1-3 días fuera · Leve: 4-7 · Moderada: 8-28 · Grave: más de 28.<span data-grav-sug></span></p></div>
         <div class="campo"><span style="display:block;font-size:13px;font-weight:600;color:var(--suave);margin-bottom:4px">Zona del cuerpo (toca una o varias)</span>
           <div class="mapa-form" data-mapa>${K.mapaCorporal({ interactivo: true })}${K.leyendaGravedad()}</div>
           <p class="suave" data-zonas-txt style="margin:6px 0 14px"></p></div>
         <label class="campo"><span>Inicio</span><input type="date" name="inicio" value="${e(rec ? rec.inicio || '' : K.hoy())}"></label>
+        ${K.catJuegoCampo()}
         ${rec && rec.conmocion && K.conmocion ? K.conmocion.rtpHTML(rec) : ''}
         ${rec && rec.conmocion && K.scat5 ? `<div class="sc-casobtn">${K.scat5.botonAbrirHTML(rec)}${K.scat5.botonPdfHTML(rec)}</div>` : ''}
         <details class="mas-clin mas-det" data-mas${rec || K.ui.casoMas ? ' open' : ''}><summary>Más detalles <small class="suave">(contexto, alta, mecanismo, recidiva, notas y datos clínicos)</small></summary><div class="mas-cuerpo">
@@ -284,7 +314,8 @@
             if (conv) Object.assign(campos, { gravedad: 'pordefinir', alta: '', semanas: '', limita: 'no', limitaDias: '', limitaParte: '' });
             let reg = rec;
             if (d.torneoId) campos.torneoId = d.torneoId;
-            if (rec) { Object.assign(rec, campos); if (!d.torneoId) delete rec.torneoId; } else { reg = Object.assign({ id: K.uid() }, campos); inf.casos.push(reg); }
+            const cj = K.catJuegoValor(hoja); if (cj) campos.catJuego = cj;
+            if (rec) { if (cj === 0) delete rec.catJuego; Object.assign(rec, campos); if (!d.torneoId) delete rec.torneoId; } else { reg = Object.assign({ id: K.uid() }, campos); inf.casos.push(reg); }
             if (campos.tipo === 'molestia' && !conv && d.relacionadaA) reg.relacionadaA = d.relacionadaA; else delete reg.relacionadaA;
             if (d.recidiva || (rec && rec.recidiva !== undefined)) reg.recidiva = !!d.recidiva; // un caso viejo sin el dato se queda igual
             K.clinico.aplicar(reg, K.clinico.leer(hoja), { sinFechas: conv });
@@ -340,6 +371,8 @@
         function avisarRec() { const pv = previasAhora(); avRec.textContent = K.avisoRecidiva(pv, chkRec.checked); avRec.classList.toggle('oculto', !pv.length); return pv; }
         const sugerirRec = () => { const pv = previasAhora(); if (!rec && !tocada) chkRec.checked = pv.length > 0; avisarRec(); };
         [selJug, inTit, fi].forEach((x) => { x.addEventListener('change', sugerirRec); x.addEventListener('input', sugerirRec); });
+        const catJ = () => K.catJuegoSync(hoja, selJug.value, rec ? rec.catJuego : o.catJuego || '', !!(rec && rec.partidoId));
+        selJug.addEventListener('change', catJ); catJ();
         mapa.addEventListener('click', () => setTimeout(sugerirRec, 0));
         // relación con una lesión: se llenan las lesiones del jugador elegido y, en una molestia nueva, se sugiere la parecida
         const selRel = hoja.querySelector('[data-rel-sel]'), avRel = hoja.querySelector('[data-aviso-rel]');

@@ -92,7 +92,7 @@
 .tarjeta li .dot { display: none; }
 .tarjeta li:has(.dot)::before { display: none; }
 .tarjeta li .dot { display: block; position: absolute; left: 1px; top: .5em; width: 8px; height: 8px; border-radius: 50%; }
-.dot.g-minima { background: #8fd3a8; } .dot.g-pordefinir { background: #9aa4a9; } .dot.g-leve { background: #3fbf6a; } .dot.g-moderada { background: #f5c518; } .dot.g-grave { background: #e8353d; }
+.dot.g-nolimitante { background: #b9dcef; } .dot.g-minima { background: #8fd3a8; } .dot.g-pordefinir { background: #9aa4a9; } .dot.g-leve { background: #3fbf6a; } .dot.g-moderada { background: #f5c518; } .dot.g-grave { background: #e8353d; }
 .tarjeta .vacio { color: #8a8a8a; font-size: 12px; font-style: italic; }
 .tarjeta.stat p { font-size: 18px; font-weight: 600; color: #0b5a24; line-height: 1.3; }
 .tarjeta.stat b { font-size: 22px; font-weight: 800; }
@@ -301,7 +301,7 @@
 .p-equipo .bh { gap: 8px; }
 .f-cols { height: 3.85in; }
 .f-col { gap: .09in; }
-.mes-graf { height: 1.6in; }
+.mes-graf { height: 1.2in; }
 .f-pie { height: 3.05in; }
 .mb-tit.mb-abajo { margin: 12px 0 0; }
 .f-cols { height: 3.78in; }
@@ -612,3 +612,6 @@
 .epi-cir { font-size: 10px; }
 mark.epi-rep { background: #fff200; color: #1f2937; padding: 0 3px; border-radius: 1px; }
 .epi-nota mark.epi-rep { padding: 0 3px; }
+
+/* v1.9.0 · aire entre el cuerpo técnico y «Partidos jugados» */
+.p-cal .staff + h3.sec { margin-top: 26px; }

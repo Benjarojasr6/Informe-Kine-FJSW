@@ -197,6 +197,11 @@
           <label class="campo"><span>Cambia desde</span><input type="date" name="desde" value="${K.hoy()}"></label>
           <p class="ayuda-cat">Cambia su categoría base: desde esa fecha aparece en las listas, los informes y la ficha de la nueva categoría. Lo anterior queda como estaba en los informes de años pasados. Si la nueva es del otro informe (Sub 15-16 ↔ Sub 18-20), su ficha y todo su historial se mueven allí.</p>
         </div>
+        ${K.tieneHistorial(j) ? `<div class="cat-bloque cat-corr">
+          <span class="cat-tit">¿El historial de categorías tiene un error?</span>
+          <p class="ayuda-cat" style="margin-top:0">Hoy figura: <b>${e(K.textoHistorialCat(j))}</b>. Si en realidad siempre fue de <b>${e(j.categoria || 'su categoría')}</b> y esos cambios fueron un error de registro, bórralos. No se borra nada de lo registrado: todo pasa a contarse como ${e(j.categoria || 'su categoría')}.</p>
+          <button type="button" class="btn sec chico" data-corr-hist>Corregir: siempre fue ${e(j.categoria || 'de su categoría')}</button>
+        </div>` : ''}
         <div class="cat-bloque cat-extra">
           <span class="cat-tit">¿Solo juega a veces en otra categoría?</span>
           <p class="ayuda-cat" style="margin-top:0">No cambies su categoría: marca <b>También juega en</b> (solo para partidos). Su ficha no cambia. <i>Ejemplo: un Sub 16 que también juega en la Sub 20.</i></p>
@@ -212,6 +217,14 @@
       alMontar: (m, hoja) => {
         const b = hoja.querySelector('[data-ir-tambien]');
         if (b) b.addEventListener('click', () => { m.cerrar(); const r = K.jugador(K.inf(), j.id); if (r) setTimeout(() => K.formJugador(r), 220); });
+        const c = hoja.querySelector('[data-corr-hist]');
+        if (c) c.addEventListener('click', () => {
+          m.cerrar();
+          setTimeout(() => K.confirmar(`Se borra el historial de cambios de categoría de <b>${e(j.nombre)}</b> (${e(K.textoHistorialCat(j))}). Quedará como <b>${e(j.categoria)}</b> de siempre. No se borra nada de lo registrado: todo se contará como ${e(j.categoria)}.`, 'Corregir historial', () => {
+            const gl = K.jugadorGlobal(j.id);
+            if (gl && K.corregirHistorialCat(gl.j)) { K.guardar(); K.render(); K.aviso(`Historial corregido: ${gl.j.nombre} es ${gl.j.categoria} de siempre`); }
+          }, false), 220);
+        });
       }
     });
   };
@@ -353,7 +366,7 @@
     const filas = (g) => g.js.map(({ j }) => {
       const p = t.plan[j.id] || { a: 'queda' }, edad = K.edadEn(j, t.anio), sug = sugiereSalir(j, t.anio), n = g.c;
       return `<div class="tp-fila${sug ? ' sug' : ''}${p.a === 'sale' ? ' sale' : ''}" data-tj="${e(j.id)}" data-n="${e(K.norm(j.nombre))}"${q && !K.norm(j.nombre).includes(q) ? ' hidden' : ''}>
-        <div class="tp-nom"><b>${e(j.nombre)}</b><span>${j.nacimiento ? e(j.nacimiento) + (edad !== null ? ` · ${edad} años en ${t.anio}` : '') : 'Sin año de nacimiento'}${sug ? ' <i class="chip g-moderada">Cumple 20: se sugiere que salga</i>' : ''}</span></div>
+        <div class="tp-nom"><b>${e(j.nombre)}</b><span>${j.nacimiento ? e(K.nacTxt(j)) + (edad !== null ? ` · ${edad} años en ${t.anio}` : '') : 'Sin año de nacimiento'}${sug ? ' <i class="chip g-moderada">Cumple 20: se sugiere que salga</i>' : ''}</span></div>
         <select data-acc-change="tempElegir" data-id="${e(j.id)}" aria-label="Qué pasa con ${e(j.nombre)}">${opcionesFila(n, p.a, p.estado)}</select>
         ${p.a === 'sale' ? `<input type="text" class="tp-motivo" placeholder="Motivo (opcional)" value="${e(p.motivo || '')}" data-acc-change="tempMotivo" data-id="${e(j.id)}" aria-label="Motivo de salida">` : ''}</div>`;
     }).join('');

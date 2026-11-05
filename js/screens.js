@@ -114,7 +114,8 @@
       cuerpo: `<div class="fila gap" style="margin-bottom:10px"><span class="mini-ico" style="width:46px;height:46px">${K.ico(ind.icono)}</span><div><b style="font-size:28px">${v.total}</b><div class="suave">${e(per.completo)}</div></div></div>
         <div class="card" style="box-shadow:none;border:1px solid var(--linea)"><div class="fila sb"><span>Calculado desde registros</span><b>${v.calc}</b></div>
         <div class="fila sb" style="margin-top:6px"><span>Ajustes manuales</span><b>${v.manual > 0 ? '+' : ''}${v.manual}</b></div></div>
-        ${man.length ? `<div class="lista">${man.map((m) => `<div class="item" data-manual="${m.id}"><div class="txt"><b>${m.cantidad > 0 ? '+' : ''}${m.cantidad} · ${K.fechaCorta(m.fecha)}</b><span>${e(m.nota || 'Sin nota')}</span></div>${K.uiIco('editar', 18)}</div>`).join('')}</div>` : ''}`,
+        ${man.length ? `<div class="lista">${man.map((m) => `<div class="item" data-manual="${m.id}"><div class="txt"><b>${m.cantidad > 0 ? '+' : ''}${m.cantidad} · ${K.fechaCorta(m.fecha)}</b><span>${e(m.nota || 'Sin nota')}</span></div>${K.uiIco('editar', 18)}</div>`).join('')}</div>` : ''}
+        ${K.totalEstadHTML ? K.totalEstadHTML(inf, per, ind) : ''}`,
       botones: [{ txt: 'Cerrar', cls: 'sec' }, { txt: 'Agregar ajuste', fn: () => { K.formManual({ indId: id }); } }],
       alMontar: (m, hoja) => hoja.addEventListener('click', (ev) => {
         const it = ev.target.closest('[data-manual]'); if (!it) return;
@@ -215,6 +216,8 @@
           ${rec && rec.categoria ? '<p class="ayuda-cat">Para cambiarla desde una fecha (o pasarlo al otro informe) usa <b>Cambiar de categoría</b> en su ficha.</p>' : ''}
         </div>
         <label class="campo"><span>Año de nacimiento</span>${selAnio(rec ? rec.nacimiento || '' : '')}</label>
+        <div class="campo" data-excep><label class="check" style="padding:2px 0"><input type="checkbox" name="excepcion" ${rec && rec.excepcion ? 'checked' : ''}><span>Jugador de excepción <small class="suave">(juega en una categoría que no es la de su año de nacimiento)</small></span></label>
+          <label class="campo ${rec && rec.excepcion ? '' : 'oculto'}" data-excep-nota style="margin:6px 0 0"><span>Nota (opcional)</span><input type="text" name="excepcionNota" maxlength="40" placeholder="Ej. un año mayor" value="${e(rec ? rec.excepcionNota || '' : '')}" autocomplete="off"></label></div>
         <div class="grid2">
           <label class="campo"><span>Posición</span>${selPos(rec ? rec.posicion || '' : '')}</label>
           <label class="campo"><span>Pierna dominante</span><select name="pierna"><option value="">— elegir —</option>${K.opts(['Derecha', 'Izquierda', 'Ambas'].map((x) => [x, x]), rec ? rec.pierna || '' : '')}</select></label>
@@ -249,6 +252,7 @@
             const par = K.buscarParecido(nombreFull, d.nacimiento, rec && rec.id);
             if (par && !hoja._parecidoOk) { hoja._parecidoOk = true; K.mostrarParecido(hoja, par); K.aviso('Se parece a otro jugador: revisa', true); return false; }
             const campos = { nombre: nombreFull, categoria: rec && rec.categoria && nPropia && rec.categoria !== propia ? rec.categoria : propia, nacimiento: d.nacimiento, posicion: d.posicion.trim(), pierna: d.pierna, foto, activo: d.activo, tambien, contrato: !!d.contrato };
+            if (d.excepcion) { campos.excepcion = true; const nt = lim(d.excepcionNota); if (nt) campos.excepcionNota = nt; else if (rec) delete rec.excepcionNota; } else if (rec) { delete rec.excepcion; delete rec.excepcionNota; }
             if (!viejo || ap1 || ap2) Object.assign(campos, { nombres, apellido1: ap1, apellido2: ap2 }); // un jugador antiguo sin apellidos sigue con su nombre en un solo campo
             let nuevoEn = '';
             if (rec) {
@@ -270,6 +274,8 @@
         const marcar = () => [15, 16, 18, 20].forEach((c) => { const cb = hoja.querySelector(`[name=tb${c}]`), propia = selC.value === 'Sub ' + c; if (propia) cb.checked = false; cb.disabled = propia; hoja.querySelector(`[data-tb-fila="${c}"]`).classList.toggle('oculto', propia); });
         selC.addEventListener('change', marcar);
         marcar();
+        const cbEx = hoja.querySelector('[name=excepcion]'), nEx = hoja.querySelector('[data-excep-nota]');
+        cbEx.addEventListener('change', () => { nEx.classList.toggle('oculto', !cbEx.checked); if (cbEx.checked) nEx.querySelector('input').focus(); });
         hoja.querySelector('[data-foto]').addEventListener('change', async (ev) => {
           const f = ev.target.files[0]; if (!f) return;
           try { foto = await K.fotoADataURL(f, 420); prev.innerHTML = `<img src="${foto}" alt="">`; } catch (x) { K.aviso('No se pudo leer la imagen', true); }
@@ -428,7 +434,7 @@
       <div class="card" style="padding:6px 12px">${js.length ? `<div class="lista"${mueve ? ' data-arr="jugadores"' : ''}>${js.map((j) => {
         const c = K.contar(inf, per, j.id).porFuente, z = K.casosJugador(inf, per, j).length;
         const ua = est.ult.get(j.id) || '';
-        return `<div class="item" data-acc="abrirJugador" data-id="${j.id}"${mueve ? ' data-arr-item' : ''}>${mueve ? `<button class="grip" data-grip aria-label="Arrastrar para cambiar el orden" title="Arrastra para cambiar el orden">${K.uiIco('arrastrar', 20)}</button>` : ''}${avatar(j)}<div class="txt"><b>${e(K.nombreVisto(inf, j))}${j.activo === false ? ' <span class="suave">(fuera del informe)</span>' : ''} ${lesionado(j) ? '<i class="chip g-grave etq" data-lesionado>Lesionado</i>' : ''}${lesionado(j) && (est.les.get(j.id) || []).some((c) => c.conmocion) ? '<i class="chip g-grave etq" data-conmocion>Conmoción</i>' : ''}${K.etiquetasJugador(j)}</b><span>${e([j.categoria, j.posicion, j.nacimiento].filter(Boolean).join(' · ') || 'Sin datos')}</span><span class="ult-at">${ua ? 'Últ. atención ' + K.fechaCorta(ua) : 'Sin atenciones'}</span></div>
+        return `<div class="item" data-acc="abrirJugador" data-id="${j.id}"${mueve ? ' data-arr-item' : ''}>${mueve ? `<button class="grip" data-grip aria-label="Arrastrar para cambiar el orden" title="Arrastra para cambiar el orden">${K.uiIco('arrastrar', 20)}</button>` : ''}${avatar(j)}<div class="txt"><b>${e(K.nombreVisto(inf, j))}${j.activo === false ? ' <span class="suave">(fuera del informe)</span>' : ''} ${lesionado(j) ? '<i class="chip g-grave etq" data-lesionado>Lesionado</i>' : ''}${lesionado(j) && (est.les.get(j.id) || []).some((c) => c.conmocion) ? '<i class="chip g-grave etq" data-conmocion>Conmoción</i>' : ''}${K.etiquetasJugador(j)}</b><span>${e([j.categoria, j.posicion, K.nacTxt(j)].filter(Boolean).join(' · ') || 'Sin datos')}</span><span class="ult-at">${ua ? 'Últ. atención ' + K.fechaCorta(ua) : 'Sin atenciones'}</span></div>
           <div style="text-align:right;font-size:13px;color:var(--suave)"><b style="color:var(--verde-2);font-size:15px">${c.atenciones}</b> atenc.${z ? `<br>${z} caso(s)` : ''}</div>${mueve ? `<button class="btn ghost chico" data-acc="subirJ" data-id="${j.id}" aria-label="Subir">${K.uiIco('arriba', 18)}</button><button class="btn ghost chico" data-acc="bajarJ" data-id="${j.id}" aria-label="Bajar">${K.uiIco('abajo', 18)}</button>` : ''}</div>`;
       }).join('')}</div>` : `<p class="vacio-msg">${solo && !q ? 'Nadie está lesionado en esta categoría.' : K.vivos(inf).length ? 'Nadie coincide con la búsqueda.' : 'Agrega a tus jugadores para empezar a registrar atenciones y armar sus fichas.'}</p>`}</div>`;
   }
@@ -472,7 +478,7 @@
     return `
       <div class="titulo-vista"><div class="fila gap"><button class="btn sec chico" data-acc="volverJugadores">${K.uiIco('atras', 16)} ${arch ? 'Archivo' : 'Jugadores'}</button></div><div class="fila gap wrap"><button class="btn sec chico" data-acc="editarJugador">${K.uiIco('editar', 16)} Datos y foto</button></div></div>
       ${K.cintilloArchivado(j0)}
-      <div class="fila gap" style="margin-bottom:12px">${avatar(j, 'grande')}<div><h1 style="font-family:Caladea,serif;font-size:23px;color:var(--verde-2)">${e(j.nombre)} ${K.etiquetasJugador(j)}</h1><div class="suave">${e([j.posicion, j.nacimiento].filter(Boolean).join(' · '))}</div>${K.pertenenciaHTML(j)}${(() => { const cj = K.catsJugadas(j, per), ck = Object.keys(cj).sort((a, b) => b - a); return ck.length ? `<div class="suave">Categorías en que ha jugado: ${ck.map((c) => `Sub ${c} (${cj[c]} partido${cj[c] === 1 ? '' : 's'})`).join(', ')}</div>` : ''; })()}</div></div>
+      <div class="fila gap" style="margin-bottom:12px">${avatar(j, 'grande')}<div><h1 style="font-family:Caladea,serif;font-size:23px;color:var(--verde-2)">${e(j.nombre)} ${K.etiquetasJugador(j)}</h1><div class="suave">${e([j.posicion, K.nacTxt(j)].filter(Boolean).join(' · '))}</div>${K.pertenenciaHTML(j)}${(() => { const cj = K.catsJugadas(j, per), ck = Object.keys(cj).sort((a, b) => b - a); return ck.length ? `<div class="suave">Categorías en que ha jugado: ${ck.map((c) => `Sub ${c} (${cj[c]} partido${cj[c] === 1 ? '' : 's'})`).join(', ')}</div>` : ''; })()}</div></div>
       ${K.fichaResumen ? K.fichaResumen(inf, j0) : ''}
       ${arch ? '' : `<div class="tiles compactos">
         <button class="tile prin" data-acc="jAtencion"><span class="mini-ico">${K.ico('img:atenciones')}</span>Atención</button>

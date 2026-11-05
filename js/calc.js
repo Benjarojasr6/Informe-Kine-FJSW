@@ -149,7 +149,7 @@
 
   // Mapa corporal: zona -> gravedad máxima del jugador en el período.
   K.zonasJugador = function (inf, per, j) {
-    const peso = { pordefinir: 0, minima: 1, leve: 2, moderada: 3, grave: 4 };
+    const peso = { pordefinir: 0, nolimitante: 0.5, minima: 1, leve: 2, moderada: 3, grave: 4 };
     const z = {};
     K.casosJugador(inf, per, j).forEach((c) => {
       (c.zonas || []).forEach((id) => {
@@ -252,7 +252,7 @@
     const casos = inf.casos.filter((c) => K.enPeriodo(c.inicio, per) && inf.jugadores.some((j) => j.id === c.jugadorId));
     const meses = K.mesesPeriodo(per);
     const r = { casos: casos.length, lesiones: 0, molestias: 0, diasBaja: 0, retorno: null, meses, mesLes: meses.map(() => 0), mesMol: meses.map(() => 0),
-      grav: { minima: 0, leve: 0, moderada: 0, grave: 0, pordefinir: 0 }, mec: { partido: 0, amistoso: 0, entrenamiento: 0, gimnasio: 0, otro: 0, sin: 0 }, terreno: {}, zonas: {}, top: [], recurrentes: [], limCasos: 0, limDias: 0, meds: [] };
+      grav: { nolimitante: 0, minima: 0, leve: 0, moderada: 0, grave: 0, pordefinir: 0 }, mec: { partido: 0, amistoso: 0, entrenamiento: 0, gimnasio: 0, otro: 0, sin: 0 }, terreno: {}, zonas: {}, top: [], recurrentes: [], limCasos: 0, limDias: 0, meds: [] };
     K.TERRENOS.concat(['sin']).forEach((t) => { r.terreno[t] = 0; });
     const dr = [];
     casos.forEach((c) => {

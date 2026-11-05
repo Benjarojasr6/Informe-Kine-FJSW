@@ -88,25 +88,30 @@
     if (K.torneos && K.puedeEditar && K.puedeEditar() && K.torneos.migrar(inf)) K.guardar(); // partidos con torneo solo en texto (p. ej. llegaron de la nube): se enlazan a su ficha
     const mapa = new Map(), out = [];
     inf.partidos.forEach((p) => {
-      if (cat && p.cat && Number(p.cat) !== Number(cat)) return;
+      if (cat && K.catsPartido(p).length && !K.catsPartido(p).includes(Number(cat))) return;
       let j = mapa.get(p.jid || p.id);
       if (!j) { j = { jid: p.jid || p.id, ps: [] }; mapa.set(j.jid, j); out.push(j); }
       j.ps.push(p);
     });
-    out.forEach((j) => { j.ps.sort(porCatDesc); const p0 = j.ps[0]; Object.assign(j, { p0, rival: p0.rival, torneo: p0.torneo || '', logo: p0.logo, logoData: p0.logoData, local: p0.local, fecha: p0.fecha || '', jugado: j.ps.some((p) => p.jugado) }); });
+    out.forEach((j) => { if (j.ps.length > 1) j.ps = j.ps.filter((p) => !K.partidoHuerfano(p)); j.ps.sort(porCatDesc); const p0 = j.ps[0]; Object.assign(j, { p0, rival: p0.rival, torneo: p0.torneo || '', logo: p0.logo, logoData: p0.logoData, local: p0.local, fecha: p0.fecha || '', jugado: j.ps.some((p) => p.jugado) }); });
     return out;
   };
-  K.etiquetaCatPartido = (p) => (p.cat ? 'Sub ' + p.cat : 'Sin categoría');
+  // v1.9.0: un partido «combinado» (p.cats) juega con varias categorías y tiene un solo marcador, citados y minutos. Sin categoría ni lista = partido sin categoría.
+  K.catsPartido = (p) => (p && Array.isArray(p.cats) && p.cats.length ? p.cats.map(Number).filter(Boolean).sort((a, b) => b - a) : p && p.cat ? [Number(p.cat)] : []);
+  // Texto de la categoría: «Sub 18», «Sub 16-18-20» (combinado) o vacío (sin categoría: no se muestra como si fuera una categoría).
+  K.etiquetaCatPartido = (p) => { const c = K.catsPartido(p); return c.length ? 'Sub ' + c.slice().reverse().join('-') : ''; };
+  // Registro sin categoría que no tiene ningún dato: no aporta nada y no se muestra.
+  K.partidoHuerfano = (p) => !!p && !p.cat && !(Array.isArray(p.cats) && p.cats.length) && !p.res && !(p.incidencias || []).length && !Object.values(p.minutos || {}).some((m) => Number(m) > 0) && !p.observaciones && !p.notas && !(Array.isArray(p.citados) && p.citados.length);
   // Jugadores que pueden participar en un partido: los de esa categoría y los que “también juegan” en ella (aunque estén en otro informe).
   K.jugadoresDePartido = (inf, p) => {
-    const c = K.catPartido(p), out = [], gH = K.grupoDeInforme(inf);
+    const c = K.catPartido(p), out = [], gH = K.grupoDeInforme(inf), cs = Array.isArray(p.cats) && p.cats.length ? p.cats.map(Number) : null;
     K.state.informes.forEach((i) => i.jugadores.forEach((j) => {
       if (j.activo === false) return;
       if (p.fecha ? !K.estaEn(j, p.fecha, p.fecha) : !K.inscrito(j)) return; // un partido con fecha cuenta con quienes estaban inscritos ese día
       // con fecha, vale la categoría que el jugador tenía ese día (aunque hoy esté en otra categoría u otro informe)
       const hist = !!p.fecha && K.tieneHistorial(j), n = hist ? K.catEn(j, p.fecha) : K.catNum(j), tb = (j.tambien || []).map((x) => Number((/\d+/.exec(x) || [])[0]));
       const delInforme = i === inf || (hist && n !== null && !!gH && gH.cats.includes(n)); // del informe del partido: hoy lo es, o ese día estaba en una de sus categorías
-      const propio = delInforme && (!c || n === null || n === c), visitante = c && n !== c && tb.includes(c);
+      const propio = cs ? n !== null && cs.includes(n) : delInforme && (!c || n === null || n === c), visitante = !cs && c && n !== c && tb.includes(c);
       if (propio || visitante) out.push({ j, inf: i, visitante: !!visitante });
     }));
     return out.sort((a, b) => a.j.nombre.localeCompare(b.j.nombre, 'es'));

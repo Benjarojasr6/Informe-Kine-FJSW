@@ -137,7 +137,8 @@
   const nuevoLienzo = (w, h) => { const c = document.createElement('canvas'); c.width = Math.round(w * ESCALA); c.height = Math.round(h * ESCALA); const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); return [c, ctx]; };
 
   /* ---------- Documentos de flujo: se cortan en páginas sin partir filas ni títulos ---------- */
-  function cortes(raiz, alto) {
+  // Mide el documento (en un marco aparte) y devuelve su alto total y los lugares donde se puede cortar sin partir una fila ni un título.
+  function medirCortes(raiz) {
     const top0 = raiz.getBoundingClientRect().top, total = Math.ceil(raiz.getBoundingClientRect().height);
     const rel = (n) => { const r = n.getBoundingClientRect(); return [r.top - top0, r.bottom - top0]; };
     const bloques = Array.from(raiz.querySelectorAll('tr, li, p, h1, h2, h3, h4, img, svg, .nobr, .bit-it, .bd-p, .bd-k, .bd-r, .bd-leyenda')).map(rel).filter(([t, b]) => b - t > 2);
@@ -147,16 +148,28 @@
       const b = rel(n)[1]; if (b > 4 && b < total) cand.push(b);
     });
     const validos = Array.from(new Set(cand.map(Math.round))).filter((y) => !bloques.some(([t, b]) => t + 1 < y && y < b - 1)).sort((a, b) => a - b);
-    const out = []; let ini = 0;
-    while (ini < total - 1) {
-      const lim = ini + alto;
-      if (total <= lim) { out.push([ini, total]); break; }
-      let fin = 0;
-      for (let i = validos.length - 1; i >= 0; i--) if (validos[i] <= lim && validos[i] > ini + alto * 0.3) { fin = validos[i]; break; }
-      if (!fin) fin = lim;
-      out.push([ini, fin]); ini = fin;
-    }
-    return out.length ? out : [[0, Math.max(total, 1)]];
+    return { total, validos };
+  }
+  // Siguiente corte previsto por la medición: el último lugar válido que cabe en la página.
+  function sigCorte(m, t, alto) {
+    const lim = t + alto; let fin = 0;
+    for (let i = m.validos.length - 1; i >= 0; i--) if (m.validos[i] <= lim && m.validos[i] > t + alto * 0.3) { fin = m.validos[i]; break; }
+    return fin || lim;
+  }
+  // v1.9.0: se mira el dibujo ya hecho. Si el corte previsto cae sobre letras (la medición y el dibujo no siempre calzan al píxel),
+  // se sube hasta el espacio en blanco más cercano. Devuelve el alto (en px de CSS) con que conviene cortar este trozo.
+  function ajustarCorte(ctx, w, h) {
+    const G = 3, franja = Math.min(Math.round(h * 0.35), 110), y0 = h - franja;
+    let d; try { d = ctx.getImageData(0, y0, w, franja).data; } catch (x) { return h; }
+    const blanca = new Array(franja);
+    for (let y = 0; y < franja; y++) { let ok = true; const o = y * w * 4; for (let x = 0; x < w; x += 2) { const k = o + x * 4; if (d[k] < 246 || d[k + 1] < 246 || d[k + 2] < 246) { ok = false; break; } } blanca[y] = ok; }
+    let libres = 0; for (let y = franja - 1; y >= 0 && blanca[y]; y--) libres++;
+    if (libres >= G) return h;                                  // ya cae en un espacio en blanco
+    let fin = -1;                                               // última fila en blanco de una franja en blanco de al menos G filas
+    for (let y = franja - 1; y >= G - 1; y--) { let ok = true; for (let k = 0; k < G; k++) if (!blanca[y - k]) { ok = false; break; } if (ok) { fin = y; break; } }
+    if (fin < 0) return h;
+    let ini = fin; while (ini > 0 && blanca[ini - 1]) ini--;
+    return Math.max(Math.round(h * 0.3), y0 + Math.min(fin + 1, ini + 4));
   }
 
   /* ---------- Escritura del PDF ---------- */
@@ -200,7 +213,7 @@
     velo.querySelector('[data-b]').style.width = Math.round(100 * Math.max(0, Math.min(1, frac || 0))) + '%';
   }
   function quitarProgreso() { if (velo) { velo.remove(); velo = null; } }
-  const nombreArchivo = (s) => (String(s || 'Informe').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Informe') + '.pdf';
+  const nombreArchivo = (s) => (String(s || 'Informe').normalize('NFC').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 90) || 'Informe') + '.pdf';
   function descargar(blob, nombre) {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 30000);
@@ -295,22 +308,38 @@
         marco.setAttribute('aria-hidden', 'true');
         marco.style.cssText = `position:absolute;left:-99999px;top:0;width:${ancho * ESCALA}px;height:2000px;border:0;visibility:hidden`;
         document.body.appendChild(marco);
-        let tramos;
+        let med;
         try {
           await new Promise((ok) => { marco.onload = ok; marco.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body style="margin:0"><div style="width:${ancho}px;${base0}"><div id="raiz" style="width:${ancho}px">${inner}</div></div></body></html>`; });
           const dd = marco.contentDocument;
           try { await dd.fonts.ready; } catch (x) { /* sigue */ }
           await Promise.all(Array.from(dd.images).map((i) => (i.complete ? 0 : new Promise((ok) => { i.onload = i.onerror = ok; }))));
-          tramos = cortes(dd.getElementById('raiz').firstElementChild, alto);
+          med = medirCortes(dd.getElementById('raiz').firstElementChild);
         } finally { marco.remove(); }
         const base = base0;
+        // Pasada 1 (liviana, a tamaño normal): se decide dónde termina cada página mirando el dibujo, para no partir ninguna línea de texto.
+        const tramos = []; let t = 0;
+        for (let guardia = 0; guardia < 120; guardia++) {
+          if (cancelado) return out;
+          const ultimo = med.total <= t + alto, b = ultimo ? Math.min(t + alto, med.total + 24) : sigCorte(med, t, alto), h = Math.max(1, Math.round(b - t));
+          progreso('Armando páginas…', Math.min(0.5, t / Math.max(1, med.total) * 0.5));
+          const c1 = document.createElement('canvas'); c1.width = ancho; c1.height = h;
+          const x1 = c1.getContext('2d', { willReadFrequently: true }); x1.fillStyle = '#fff'; x1.fillRect(0, 0, ancho, h);
+          await dibujar(x1, svgURL(css, inner, ancho, h, 1, t, base, modo), 0, 0, ancho, h);
+          const corte = ajustarCorte(x1, ancho, h); c1.width = c1.height = 1;
+          tramos.push([t, t + corte]);
+          if (ultimo && corte >= h) break;
+          t += corte; if (t >= med.total + 1) break;
+        }
+        K.pdf.ultimo = { tramos: tramos.map((x) => x.slice()), total: med.total, validos: med.validos.slice(), alto, ancho };  // para las pruebas
+        // Pasada 2: las páginas con su nitidez final.
         for (let i = 0; i < tramos.length; i++) {
           if (cancelado) return out;
-          progreso(`Página ${i + 1} de ${tramos.length}`, i / tramos.length);
-          const [t, b] = tramos[i], h = Math.max(1, b - t);
+          progreso(`Página ${i + 1} de ${tramos.length}`, 0.5 + 0.5 * i / tramos.length);
+          const [tt, bb] = tramos[i], h = Math.max(1, bb - tt);
           const [c, ctx] = nuevoLienzo(LW, LH);
           const fx = MARGEN * ESCALA, fy = MARGEN * ESCALA;
-          await dibujar(ctx, svgURL(css, inner, ancho, h, ESCALA, t, base, modo), fx, fy, ancho * ESCALA, h * ESCALA);
+          await dibujar(ctx, svgURL(css, inner, ancho, h, ESCALA, tt, base, modo), fx, fy, ancho * ESCALA, h * ESCALA);
           ctx.fillStyle = '#6b776f'; ctx.font = `${8.5 * ESCALA}px Inter, Arial, sans-serif`; ctx.textBaseline = 'alphabetic';
           ctx.textAlign = 'left'; ctx.fillText('Santiago Wanderers · Kinesiología Fútbol Joven SW', fx, (LH - 0.3 * PX) * ESCALA);
           ctx.textAlign = 'right'; ctx.fillText(`${i + 1} / ${tramos.length}`, (LW - MARGEN) * ESCALA, (LH - 0.3 * PX) * ESCALA);
