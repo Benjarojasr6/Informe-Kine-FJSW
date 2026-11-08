@@ -206,9 +206,9 @@
     }
     return p.filter(Boolean).join(' · ');
   };
-  K.limitaTxt = (c) => {
+  K.limitaTxt = (c, sinParte) => {
     if (!c || c.tipo === 'lesion' || c.limita !== 'si' || K.esMecPartido(c.mecanismo)) return '';
-    const parte = (K.PARTES_LIMITE.find((p) => p[0] === c.limitaParte) || [0, ''])[1], pt = parte ? ' · ' + parte.charAt(0).toLowerCase() + parte.slice(1) : '';
+    const parte = (K.PARTES_LIMITE.find((p) => p[0] === c.limitaParte) || [0, ''])[1], pt = parte && !sinParte ? ' · ' + parte.charAt(0).toLowerCase() + parte.slice(1) : '';
     if (c.limitaDias === 'indef') return `días aún por definir${pt}`;
     const n = Number(c.limitaDias) || 1;
     return `${n} ${n === 1 ? 'día' : 'días'}${pt}`;

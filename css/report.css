@@ -615,3 +615,9 @@ mark.epi-rep { background: #fff200; color: #1f2937; padding: 0 3px; border-radiu
 
 /* v1.9.0 · aire entre el cuerpo técnico y «Partidos jugados» */
 .p-cal .staff + h3.sec { margin-top: 26px; }
+
+/* v1.9.2 · resumen bajo el mapa corporal de la ficha: tres totales y las zonas */
+.f-tot3 { display: flex; justify-content: center; gap: 14px; font-family: Caladea, Georgia, serif; font-size: 14px; line-height: 1.2; margin-bottom: 2px; color: var(--tinta); }
+.f-tot3 b { font-size: 20px; font-weight: 700; color: var(--verde); margin-left: 3px; }
+.f-zonas { margin: 4px 6px 0; font-size: 12px; line-height: 1.25; text-align: center; color: var(--tinta); }
+.pagina.p-ficha .f-mapa .mapa-corporal { height: 2.1in; }

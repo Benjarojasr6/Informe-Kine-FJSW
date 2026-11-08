@@ -31,7 +31,7 @@
   const estadoChip = (t) => `<i class="chip ${ESTADO_CLS[estado(t)]}">${e(estado(t))}</i>`;
   const fechasTxt = (t) => (t.desde && t.hasta ? (t.desde === t.hasta ? fc(t.desde) : fc(t.desde) + ' al ' + fc(t.hasta)) : t.desde ? 'Desde el ' + fc(t.desde) : t.hasta ? 'Hasta el ' + fc(t.hasta) : 'Sin fechas');
   const dondeTxt = (t) => [t.sede, t.pais].filter(Boolean).join(', ');
-  const catsTxt = (t, inf) => catsDe(t, inf).slice().sort((a, b) => b - a).map((c) => 'Sub ' + c).join(' y ');
+  const catsTxt = (t, inf) => { const l = catsDe(t, inf).slice().sort((a, b) => b - a).map((c) => 'Sub ' + c); return l.length > 2 ? l.slice(0, -1).join(', ') + ' y ' + l[l.length - 1] : l.join(' y '); };
 
   /* ---------- Normalización y migración (idempotentes) ---------- */
   const tipoDe = (k) => (/amistos|gira/.test(k) ? 'Amistoso' : /libertadores|sudamericana/.test(k) ? 'Internacional' : 'Nacional');
@@ -270,7 +270,7 @@
   function formTorneo(rec, opt) {
     opt = opt || {};
     if (!puedeEd()) return;
-    const inf = K.inf(), cats = catsGrupo(inf).sort((a, b) => b - a), sel = rec ? new Set(catsDe(rec, inf)) : new Set(cats);
+    const inf = K.inf(), cats = (K.CATS_ORDEN || [20, 18, 16, 15]).slice().sort((a, b) => b - a), sel = rec ? new Set(catsDe(rec, inf)) : new Set(catsGrupo(inf));
     const fases = rec ? rec.fases.map((f) => Object.assign({}, f)) : fasesBase();
     K.modal({
       titulo: rec ? 'Editar torneo' : 'Nuevo torneo',

@@ -303,7 +303,7 @@
     const hist = ch.length ? ch.map((x, i) => `Sub ${Number(x.cat)}${x.desde ? ' desde ' + e(K.fechaCorta(x.desde)) : i ? '' : ' (inicial)'}`).join(' → ') : '';
     const estadoTxt = K.inscrito(j) ? `Inscrito${FECHA.test(j.ingreso || '') ? ' desde ' + e(K.fechaCorta(j.ingreso)) : ''}` : `${e(K.nombreEstado(j.estado))} el ${e(K.fechaCorta(K.salidaDe(j)))}${j.motivoSalida ? ' · ' + e(j.motivoSalida) : ''}`;
     const foto = j.foto ? `<img src="${e(j.foto)}" alt="">` : `<span>${e(ini)}</span>`;
-    return `<div class="fj-cab">${ESC}<div class="fj-cab-t"><h1>${e(j.nombre)}</h1><p>Ficha clínica del jugador · Santiago Wanderers · Kinesiología Fútbol Joven</p><p>${e(fechaTxt)}</p></div><div class="fj-foto">${foto}</div></div>
+    return `<div class="fj-cab">${ESC}<div class="fj-cab-t"><h1>${e(j.nombre)}</h1><p>Santiago Wanderers – Kinesiología Fútbol Joven</p>${fechaTxt ? `<p>${e(fechaTxt)}</p>` : ''}</div><div class="fj-foto">${foto}</div></div>
       <div class="fj-card"><h3>Datos del jugador</h3><dl class="fj-dl">${campo('Pertenece a', e(j.categoria || '—'))}${campo('Edad', edadTxt(j))}${campo('Posición', e(j.posicion || ''))}${campo('Pierna dominante', e(j.pierna || ''))}
         ${campo('Estado en el club', estadoTxt)}${campo('Jugador de plantel', j.contrato ? 'Sí' : '')}${campo('También juega en', e((j.tambien || []).filter((x) => x !== j.categoria).join(', ')))}${campo('Historial de categorías', hist, 'x')}</dl></div>`;
   }
@@ -317,13 +317,14 @@
       + campo('Apoderado', e([a.apoderado, a.telefonoApoderado].filter(Boolean).join(' · '))) + campo('Contacto de emergencia', e([a.contactoEmergencia, a.telefonoEmergencia].filter(Boolean).join(' · ')));
     return filas ? `<div class="fj-card"><h3>Antecedentes y datos de contacto <small class="fj-conf">confidencial</small></h3><dl class="fj-dl">${filas}</dl></div>` : '';
   }
-  function bloquesResumen(r) {
+  function bloquesResumen(r, conPartidos) {
+    if (conPartidos === undefined) conPartidos = true;
     const kpi = (n, t) => `<div class="fj-k"><b>${n}</b><span>${t}</span></div>`;
     const act = r.activas.length ? `<p class="fj-alerta">${r.activas.map((a) => `<b>Lesionado · día ${a.dia || '—'}</b>${a.c.conmocion ? ' · <b>Conmoción cerebral</b>' : ''}${a.zona ? ' (' + e(a.zona) + ')' : ''}`).join(' · ')}</p>` : '';
     const reinc = r.reinc.map((x) => `<p class="fj-aviso"><b>${x.n} lesiones en ${e(x.nombre.charAt(0).toLowerCase() + x.nombre.slice(1))}</b> · reincidencia en la misma zona.</p>`).join('');
     const zonas = r.zonas.length ? `<p class="fj-zonas"><b>Lesiones por zona:</b> ${r.zonas.map((x) => `${e(x.nombre)} ×${x.n}`).join(' · ')}</p>` : '';
     return [`<div class="fj-card"><h3>Resumen</h3>${act}<div class="fj-kpis">${kpi(r.diasTemporada, 'días perdidos ' + r.anio)}${kpi(r.diasCarrera, 'días perdidos en su carrera')}${kpi(r.nLes, 'lesiones')}${kpi(r.nMol, 'molestias')}</div>${reinc}${zonas}</div>`,
-      `<div class="fj-card"><h3>Por temporada</h3><table class="kn-t"><thead><tr><th>Año</th><th class="n">Lesiones</th><th class="n">Días perdidos</th><th class="n">Atenciones</th><th class="n">Partidos (min)</th></tr></thead><tbody>${r.porAnio.map((x) => `<tr><td><b>${x.anio}</b></td><td class="n">${x.les}</td><td class="n">${x.dias}</td><td class="n">${x.at}</td><td class="n">${x.pj}${x.pj ? ` (${x.min})` : ''}</td></tr>`).join('')}</tbody></table>${r.sinFecha ? `<p class="fj-nota">${r.sinFecha} partido${r.sinFecha === 1 ? '' : 's'} sin fecha no se cuenta${r.sinFecha === 1 ? '' : 'n'} en esta tabla.</p>` : ''}</div>`];
+      `<div class="fj-card"><h3>Por temporada</h3><table class="kn-t"><thead><tr><th>Año</th><th class="n">Lesiones</th><th class="n">Días perdidos</th><th class="n">Atenciones</th>${conPartidos ? '<th class="n">Partidos (min)</th>' : ''}</tr></thead><tbody>${r.porAnio.map((x) => `<tr><td><b>${x.anio}</b></td><td class="n">${x.les}</td><td class="n">${x.dias}</td><td class="n">${x.at}</td>${conPartidos ? `<td class="n">${x.pj}${x.pj ? ` (${x.min})` : ''}</td>` : ''}</tr>`).join('')}</tbody></table>${conPartidos && r.sinFecha ? `<p class="fj-nota">${r.sinFecha} partido${r.sinFecha === 1 ? '' : 's'} sin fecha no se cuenta${r.sinFecha === 1 ? '' : 'n'} en esta tabla.</p>` : ''}</div>`];
   }
   function bloquesCaso(c, data) {
     const les = c.tipo === 'lesion', g = K.gravClave(c.gravedad), out = [];
@@ -406,15 +407,15 @@
   }
   // Páginas de la ficha del jugador: lista de textos HTML (<section class="pagina">). o = { filtrar, antecedentes, seguro }
   K.fichaJugadorPaginas = function (jid, o) {
-    o = Object.assign({ filtrar: false, antecedentes: false, seguro: false }, o || {});
+    o = Object.assign({ filtrar: false, antecedentes: false, seguro: false, anual: false, partidos: true, emitida: true }, o || {});
     const data = construir(jid); if (!data) return [];
     const priv = K.verPrivado(), conAnt = !!o.antecedentes && priv, conSeg = !!o.seguro && priv;
     const hoy = K.hoy(), anio = K.anioVista(), r = K.resumenJugador(jid, anio), s = estado(jid);
     let lista = o.filtrar ? K.histFiltrar(data, s) : data.items;
     if (!conSeg) lista = lista.filter((it) => it.k !== 'seguro');
-    const bloques = [bloqueDatos(data, 'Emitida el ' + K.fechaCorta(hoy))];
+    const bloques = [bloqueDatos(data, o.emitida ? 'Emitida el ' + K.fechaCorta(hoy) : '')];
     if (conAnt) { const b = bloqueAntecedentes(data); if (b) bloques.push(b); }
-    bloques.push(...bloquesResumen(r));
+    bloques.push(...bloquesResumen(r, o.partidos));
     if (data.casos.length) {
       bloques.push(`<h3 class="fj-sec">Lesiones y molestias <small>${data.casos.length}</small></h3>`);
       data.casos.forEach((c) => bloques.push(...bloquesCaso(c, data)));
@@ -431,14 +432,16 @@
       bloques.push(pend + filaPdf(it)); pend = '';
     });
     if (!lista.length) bloques.push('<p class="fj-nota">No hay registros con estos filtros.</p>');
-    const cabCorta = `<div class="fj-cab fj-cab-c">${ESC}<div class="fj-cab-t"><h1>${e(data.j.nombre)}</h1><p>Ficha clínica · ${e(K.fechaCorta(hoy))}</p></div></div>`;
+    const cabCorta = `<div class="fj-cab fj-cab-c">${ESC}<div class="fj-cab-t"><h1>${e(data.j.nombre)}</h1><p>Ficha Clínica${o.emitida ? ' · ' + e(K.fechaCorta(hoy)) : ''}</p></div></div>`;
     // los bloques sueltos de título de sección se pegan al bloque siguiente (nunca quedan solos al final de una página)
     const unidos = [];
     for (let i = 0; i < bloques.length; i++) { if (/^<h3 class="fj-sec">/.test(bloques[i]) && i + 1 < bloques.length) { unidos.push(bloques[i] + bloques[i + 1]); i++; } else unidos.push(bloques[i]); }
     const rp = repartir(unidos, cabCorta);
-    const total = rp.paginas.length;
-    return rp.paginas.map((blqs, i) => K.rep.pagina('p-resumen p-equipo fj', `<h2>${i ? `${e(K.nombreCorto(data.j))} <small>(continuación)</small>` : 'Ficha clínica del jugador'}</h2><div class="fj-cuerpo">${i ? envolver(cabCorta) : ''}${blqs.map(envolver).join('')}</div>`)
-      .replace('<!--PIE-->', K.rep.PIE(`${data.j.nombre} · ${i + 1} / ${total}`)));
+    const clinicas = rp.paginas.map((blqs, i) => K.rep.pagina('p-resumen p-equipo fj', `<h2>${i ? `${e(K.nombreCorto(data.j))} <small>(continuación)</small>` : 'Ficha Clínica del Jugador'}</h2><div class="fj-cuerpo">${i ? envolver(cabCorta) : ''}${blqs.map(envolver).join('')}</div>`));
+    // ficha anual del informe (opcional): va primero, con su página de detalle si hay más lesiones/molestias de las que caben
+    const anuales = o.anual ? K.fichaAnualPaginas(jid, anio) : [];
+    const todas = anuales.concat(clinicas), T = todas.length;
+    return todas.map((h, i) => h.replace('<!--PIE-->', K.rep.PIE(`${data.j.nombre} · ${i + 1} / ${T}`)));
   };
 
   // Ventana de opciones y descarga
@@ -449,15 +452,19 @@
       titulo: 'Descargar ficha (PDF)',
       cuerpo: `<p class="suave" style="margin:0 0 10px">${e(data.j.nombre)}. Incluye datos del jugador, resumen por temporada, lesiones con sus datos clínicos, cirugías y la línea de tiempo.</p>
         ${filtrada ? `<label class="check"><input type="checkbox" name="filtrar" checked><span>Línea de tiempo solo con lo que se ve en pantalla (${nFil} de ${data.items.length} registros: ${e(descFiltro(data, s))})</span></label>` : `<p class="suave" style="margin:0 0 6px">La línea de tiempo incluye todo el historial (${data.items.length} registros). Si quieres menos, filtra primero en “Historial completo”.</p>`}
+        <label class="check"><input type="checkbox" name="anual"><span>Agregar ficha anual <small class="suave">(la misma ficha del informe del año ${e(String(K.anioVista()))}, al comienzo; si tiene más lesiones o molestias de las que caben, con su página de detalle)</small></span></label>
+        <label class="check"><input type="checkbox" name="partidos" checked><span>Incluir partidos y minutos <small class="suave">(columna «Partidos (min)» de «Por temporada»)</small></span></label>
+        <label class="check"><input type="checkbox" name="emitida" checked><span>Mostrar la fecha de emisión <small class="suave">(«Emitida el ${e(K.fechaCorta(K.hoy()))}»)</small></span></label>
         ${priv ? `<label class="check"><input type="checkbox" name="antecedentes"><span>Incluir antecedentes y datos de contacto</span></label>
         <label class="check"><input type="checkbox" name="seguro"><span>Incluir seguro</span></label>
         <p class="suave" style="margin:6px 0 0;font-size:13px">Son datos sensibles: déjalos sin marcar si el PDF se va a compartir fuera del área kinésica.</p>` : ''}`,
-      botones: [{ txt: 'Cancelar', cls: 'sec' }, { txt: 'Descargar PDF', fn: (m, hoja) => { const d = K.datos(hoja); setTimeout(() => K.fichaPdf(jid, { filtrar: !!d.filtrar, antecedentes: !!d.antecedentes, seguro: !!d.seguro }), 60); } }]
+      botones: [{ txt: 'Cancelar', cls: 'sec' }, { txt: 'Descargar PDF', fn: (m, hoja) => { const d = K.datos(hoja); setTimeout(() => K.fichaPdf(jid, { filtrar: !!d.filtrar, antecedentes: !!d.antecedentes, seguro: !!d.seguro, anual: !!d.anual, partidos: !!d.partidos, emitida: !!d.emitida }), 60); } }]
     });
   };
   K.fichaPdf = async function (jid, o) {
     const g = K.jugadorGlobal(jid); if (!g) return;
     try { await document.fonts.ready; } catch (x) { /* sigue */ }
+    if (o && o.anual && !K.fichaAnualPaginas(jid, K.anioVista()).length) { K.aviso(`${K.nombreCorto(g.j)} no tiene ficha anual ${K.anioVista()} (no estaba inscrito ese año): se descarga sin ella`, true); o = Object.assign({}, o, { anual: false }); }
     const pags = K.fichaJugadorPaginas(jid, o);
     return K.pdf.paginas(pags, `Ficha - ${sinTildes(K.nombreCorto(g.j))} - ${K.hoy()}`);
   };

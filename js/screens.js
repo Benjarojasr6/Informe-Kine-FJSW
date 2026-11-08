@@ -216,8 +216,10 @@
           ${rec && rec.categoria ? '<p class="ayuda-cat">Para cambiarla desde una fecha (o pasarlo al otro informe) usa <b>Cambiar de categoría</b> en su ficha.</p>' : ''}
         </div>
         <label class="campo"><span>Año de nacimiento</span>${selAnio(rec ? rec.nacimiento || '' : '')}</label>
-        <div class="campo" data-excep><label class="check" style="padding:2px 0"><input type="checkbox" name="excepcion" ${rec && rec.excepcion ? 'checked' : ''}><span>Jugador de excepción <small class="suave">(juega en una categoría que no es la de su año de nacimiento)</small></span></label>
+        <div class="campo" data-excep><label class="check" style="padding:2px 0"><input type="checkbox" name="excepcion" ${rec && rec.excepcion ? 'checked' : ''}><span>Jugador excepción <small class="suave">(juega en una categoría que no es la de su año de nacimiento)</small></span></label>
           <label class="campo ${rec && rec.excepcion ? '' : 'oculto'}" data-excep-nota style="margin:6px 0 0"><span>Nota (opcional)</span><input type="text" name="excepcionNota" maxlength="40" placeholder="Ej. un año mayor" value="${e(rec ? rec.excepcionNota || '' : '')}" autocomplete="off"></label></div>
+        <label class="campo"><span>Fecha de ingreso al equipo</span><input type="date" name="ingreso" value="${e(rec && /^\d{4}-\d{2}-\d{2}$/.test(rec.ingreso || '') ? rec.ingreso : '')}"></label>
+        <p class="ayuda-cat" style="margin-top:-6px">${rec ? 'Cámbiala si ingresó antes o después de lo registrado: decide desde cuándo aparece en los informes.' : 'Si la dejas vacía se usa el 01-01 del año del informe.'}</p>
         <div class="grid2">
           <label class="campo"><span>Posición</span>${selPos(rec ? rec.posicion || '' : '')}</label>
           <label class="campo"><span>Pierna dominante</span><select name="pierna"><option value="">— elegir —</option>${K.opts(['Derecha', 'Izquierda', 'Ambas'].map((x) => [x, x]), rec ? rec.pierna || '' : '')}</select></label>
@@ -246,6 +248,9 @@
             if (rec && nPropia && gi && !gi.cats.includes(nPropia) && K.grupoDe(nPropia) && rec.categoria !== propia) {
               K.aviso(`Sub ${nPropia} es del informe ${K.grupoDe(nPropia).nombre}: usa “Cambiar de categoría” en su ficha. Si solo juega ahí a veces, deja su categoría y marca “Sub ${nPropia}” en “También juega en”.`, true); return false;
             }
+            const ingNuevo = String(d.ingreso || '').trim();
+            if (ingNuevo && !fechaOk(ingNuevo)) { K.aviso('Revisa el año de la fecha de ingreso', true); return false; }
+            if (ingNuevo && rec && /^\d{4}-\d{2}-\d{2}$/.test(rec.salida || '') && ingNuevo > rec.salida) { K.aviso('La fecha de ingreso es posterior a su fecha de salida (' + K.fechaCorta(rec.salida) + ')', true); return false; }
             const tambien = [15, 16, 18, 20].filter((c) => d['tb' + c] && 'Sub ' + c !== propia).map((c) => 'Sub ' + c);
             const dup = K.buscarDuplicado(nombreFull, d.nacimiento, rec && rec.id);
             if (dup && dup.bloquea) { K.mostrarDuplicado(hoja, dup); K.aviso('Ese jugador ya existe', true); return false; }
@@ -253,6 +258,7 @@
             if (par && !hoja._parecidoOk) { hoja._parecidoOk = true; K.mostrarParecido(hoja, par); K.aviso('Se parece a otro jugador: revisa', true); return false; }
             const campos = { nombre: nombreFull, categoria: rec && rec.categoria && nPropia && rec.categoria !== propia ? rec.categoria : propia, nacimiento: d.nacimiento, posicion: d.posicion.trim(), pierna: d.pierna, foto, activo: d.activo, tambien, contrato: !!d.contrato };
             if (d.excepcion) { campos.excepcion = true; const nt = lim(d.excepcionNota); if (nt) campos.excepcionNota = nt; else if (rec) delete rec.excepcionNota; } else if (rec) { delete rec.excepcion; delete rec.excepcionNota; }
+            if (ingNuevo) campos.ingreso = ingNuevo;
             if (!viejo || ap1 || ap2) Object.assign(campos, { nombres, apellido1: ap1, apellido2: ap2 }); // un jugador antiguo sin apellidos sigue con su nombre en un solo campo
             let nuevoEn = '';
             if (rec) {
@@ -260,7 +266,7 @@
               if (campos.categoria !== propia && nPropia) K.cambiarCategoria(inf, rec, nPropia, K.hoy()); // el cambio de categoría queda con fecha de hoy: los informes de años anteriores no cambian
             } else {
               const gDest = K.grupoDe(nPropia), destino = gDest ? K.informeGrupo(gDest) : inf; // el jugador nuevo se crea en el informe de su categoría
-              const nj = K.nuevoJugador(Object.assign(campos, { ingreso: Math.max(new Date().getFullYear(), K.anioTexto(destino)) + '-01-01' }));
+              const nj = K.nuevoJugador(Object.assign({ ingreso: Math.max(new Date().getFullYear(), K.anioTexto(destino)) + '-01-01' }, campos));
               destino.jugadores.push(nj); if (destino === inf) K.ui.jugadorId = nj.id; else nuevoEn = ` en el informe ${gDest.nombre}`;
             }
             guardar((dup ? 'Jugador guardado (ya hay otro con el mismo nombre y distinto año de nacimiento)' : 'Jugador guardado') + nuevoEn);

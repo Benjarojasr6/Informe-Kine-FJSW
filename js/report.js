@@ -166,6 +166,8 @@
   };
   // Si el registro ocurrió con otra categoría (ej. un Sub 16 que jugó por la Sub 18), se anota entre paréntesis.
   const tagCat = (c, j) => { const g = K.catRegistro ? K.catRegistro(c) : null, h = K.catNum(j); return g && h && g !== h ? ` (Sub ${g})` : ''; };
+  // Mes del registro entre paréntesis, siempre con año: « (octubre 2026)»
+  const mesTxt = (c) => (c.inicio && /^\d{4}-\d{2}/.test(c.inicio) ? ` (${K.nombreMesLargo(c.inicio).toLowerCase()})` : '');
   const conLado = (c) => { const l = K.ladoCaso(c); return l && !/derech|izquierd/i.test(c.titulo) ? ` · ${l}` : ''; };
   K.fichaHTML = function (inf, per, j) {
     const st = K.statsJugador(inf, per, j);
@@ -184,6 +186,10 @@
     const haJug = ck.length > 1 || (ck.length === 1 && K.catNum(j) && Number(ck[0]) !== K.catNum(j)) ? `Ha jugado en: ${ck.map((c) => `Sub ${c} (${cj[c]})`).join(', ')}` : '';
     const zonas = K.zonasJugador(inf, per, j);
     const nMol = casos.filter((c) => c.tipo !== 'lesion').length, nLes = casos.filter((c) => c.tipo === 'lesion').length;
+    // zonas del cuerpo con registros (con cuántas veces aparece cada una)
+    const zN = {}; casos.forEach((c) => (c.zonas || []).forEach((id) => { zN[id] = (zN[id] || 0) + 1; }));
+    const zLista = Object.keys(zN).sort((a, b) => zN[b] - zN[a] || K.nombreZona(a).localeCompare(K.nombreZona(b), 'es')).map((id) => K.nombreZona(id) + (zN[id] > 1 ? ` (${zN[id]})` : ''));
+    const zonasTxt = zLista.length ? `<p class="f-zonas"><b>Zonas:</b> ${e(zLista.slice(0, 6).join(', '))}${zLista.length > 6 ? ` y ${zLista.length - 6} más` : ''}</p>` : '';
     const baja = K.bajaJugador(inf, per, j);
     const meses = K.mesesPeriodo(per);
     const atJ = K.porJugador(inf.atenciones, j.id), atMes = meses.map((m) => atJ.filter((a) => (a.fecha || '').slice(0, 7) === m.clave).length);
@@ -223,7 +229,7 @@
         </div>
       </div>
       <div class="f-pie">
-        <div class="f-mapa"><div class="f-tot">Total atenciones <b>${iv.atenciones}</b></div>${K.mapaCorporal({ zonas, pagina: true })}${K.leyendaGravedad()}</div>
+        <div class="f-mapa"><div class="f-tot3"><span>Atenciones <b>${iv.atenciones}</b></span><span>Intervenciones <b>${iv.total}</b></span><span>Molestias <b>${nMol}</b></span></div>${K.mapaCorporal({ zonas, pagina: true })}${K.leyendaGravedad()}${zonasTxt}</div>
         <div class="f-donut"><div class="f-tot">Total intervenciones</div>${donut(iv.lista, iv.total)}</div>
       </div>
       <div class="f-coment"><h3>Comentarios área kinésica</h3>${estadoAct ? `<p class="f-estado">${estadoAct}</p>` : ''}${pc.txt ? `<p>${e(pc.txt).replace(/\n/g, '<br>')}</p>` : (estadoAct || pc.cortado ? '' : '<p class="vacio">Sin comentarios.</p>')}${pc.cortado ? '<p><em>… (continúa en la página siguiente)</em></p>' : ''}</div>`;
@@ -233,8 +239,8 @@
   const lineasDe = (t, ancho) => Math.max(1, Math.ceil(String(t).length / ancho));
   K.fichaPlan = function (inf, per, j, casosIn) {
     const casos = casosIn || K.casosJugador(inf, per, j).sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
-    const mol = casos.filter((c) => c.tipo !== 'lesion').map((c) => { const dm = K.duracionCaso(c); return { g: c.gravedad || 'leve', t: c.titulo + tagCat(c, j) + conLado(c) + K.tagTorneo(inf, c) + (c.contexto ? ` (${c.contexto})` : '') + (/sin limitar/.test(dm) ? ` (${dm})` : '') + (K.limitaTxt(c) ? ` · limita entrenamiento: ${K.limitaTxt(c)}` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
-    const les = casos.filter((c) => c.tipo === 'lesion').map((c) => { const d = K.duracionCaso(c); return { g: c.gravedad || 'moderada', t: c.titulo + tagCat(c, j) + conLado(c) + K.tagTorneo(inf, c) + (c.contexto ? ` – ${c.contexto}` : '') + (d ? ` (${d})` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
+    const mol = casos.filter((c) => c.tipo !== 'lesion').map((c) => { const dm = K.duracionCaso(c); return { g: c.gravedad || 'leve', t: c.titulo + tagCat(c, j) + conLado(c) + K.tagTorneo(inf, c) + mesTxt(c) + (c.contexto ? ` (${c.contexto})` : '') + (/sin limitar/.test(dm) ? ` (${dm})` : '') + (K.limitaTxt(c, true) ? ` · limita entrenamiento: ${K.limitaTxt(c, true)}` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
+    const les = casos.filter((c) => c.tipo === 'lesion').map((c) => { const d = K.duracionCaso(c); return { g: c.gravedad || 'moderada', t: c.titulo + tagCat(c, j) + conLado(c) + K.tagTorneo(inf, c) + mesTxt(c) + (c.contexto ? ` – ${c.contexto}` : '') + (d ? ` (${d})` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
     const hh = K.historialJugador(inf, j, per);
     const altoHist = (h, campo) => { const enP = h.lista.filter((x) => K.enPeriodo(x[campo], per)).slice(-4).length, ant = h.lista.filter((x) => !K.enPeriodo(x[campo], per)).slice(-3).length; return 76 + (enP + ant) * 15.5 + (ant ? 22 : 0); };
     // alto libre para los dos cuadros (columna 403 px, separaciones 23 px) y lo que ocupa cada ítem (≈48 caracteres por línea, 15,5 px por línea)
@@ -326,6 +332,27 @@
       <div class="tarjeta"><h3>Comentarios área kinésica</h3>${pc.estadoTodos.length ? `<p>${pc.estadoTodos.join('<br>')}</p>${j.comentarios ? '<br>' : ''}` : ''}${j.comentarios ? `<p>${e(j.comentarios).replace(/\n/g, '<br>')}</p>` : ''}</div>`);
   }
 
+  // Páginas de la ficha de un jugador: la ficha, su página de detalle (si no caben todas las lesiones/molestias), la de comentarios (si no cabe) y, si conExtras, la información adicional.
+  function fichaPaginasJ(inf, per, j, out, conExtras) {
+    const infj = !j._inv && inf._fichaCasos ? Object.assign({}, inf, { casos: inf._fichaCasos, atenciones: inf._fichaAtenciones }) : inf;
+    out.push(pagina('p-ficha', K.fichaHTML(infj, per, j)));
+    if (K.fichaPlan(infj, per, j).recortado) detalleCasos(infj, per, j).forEach((h) => out.push(h));
+    if (K.fichaComentario(infj, j).cortado) out.push(paginaComentario(infj, j));
+    const ex = conExtras ? extrasJugador(infj, j) : [];
+    if (ex.length) chunk(ex, 8).forEach((arr) => out.push(pagina('p-ficha p-extra', fichaExtraHTML(infj, j, arr))));
+    return out;
+  }
+  // La misma ficha anual del informe (informe combinado de su pareja de categorías) para el PDF de la ficha clínica. Devuelve [] si no estuvo inscrito ese año.
+  K.fichaAnualPaginas = function (jid, anio) {
+    const gl = K.jugadorGlobal(jid); if (!gl) return [];
+    const n = K.inscrito(gl.j) ? K.catNum(gl.j) : K.catEn(gl.j, K.salidaDe(gl.j)), g = K.grupoDe(n || K.catNum(gl.j)); if (!g) return [];
+    const per = K.resolverPeriodo({ tipo: 'anual', anio, desde: '', hasta: '' }), previo = K._idx; K._idx = new Map();
+    try {
+      const v = K.vistaPeriodo(K.informeGrupo(g), g.cats, per, true), j = (v.jugadores || []).find((x) => x.id === jid && !x._inv);
+      return j ? fichaPaginasJ(v, per, j, [], false) : [];
+    } finally { K._idx = previo; }
+  };
+
   function fichas(inf, per) {
     // Informe con varias categorías: primero la más grande; dentro de cada una, alfabético (o el orden manual de la lista, si la ordenaste a mano)
     const base = K.ordenJugadores(inf, inf.jugadores.filter((j) => j.activo !== false)), pos = new Map(base.map((j, i) => [j, i]));
@@ -333,14 +360,7 @@
     const propios = todos.filter((j) => !j._inv), inv = todos.filter((j) => j._inv);
     const out = [];
     // Ficha del jugador propio: usa todos sus registros (de cualquier categoría); el resto del informe sigue por categoría.
-    const una = (j) => {
-      const infj = !j._inv && inf._fichaCasos ? Object.assign({}, inf, { casos: inf._fichaCasos, atenciones: inf._fichaAtenciones }) : inf;
-      out.push(pagina('p-ficha', K.fichaHTML(infj, per, j)));
-      if (K.fichaPlan(infj, per, j).recortado) detalleCasos(infj, per, j).forEach((h) => out.push(h));
-      if (K.fichaComentario(infj, j).cortado) out.push(paginaComentario(infj, j));
-      const ex = extrasJugador(infj, j);
-      if (ex.length) chunk(ex, 8).forEach((arr) => out.push(pagina('p-ficha p-extra', fichaExtraHTML(infj, j, arr))));
-    };
+    const una = (j) => fichaPaginasJ(inf, per, j, out, true);
     propios.forEach(una);
     // Jugadores de otras categorías que jugaron en esta: apartado al final, claramente distinguido.
     if (inv.length) {
