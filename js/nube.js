@@ -71,6 +71,11 @@
 
   /* ---------- ajustes que se quedan en cada dispositivo ---------- */
   const LOC = 'kine-sw-local';
+  // v1.9.4: abrir sin señal. La app no espera a internet para entrar: si Firebase tarda en confirmar la sesión, abre con lo guardado en el aparato.
+  const ROL = 'kine-sw-rol';
+  const T = Object.assign({ sesion: 3500, cache: 4000, tope: 9000, sdk: 20000 }, window.__KT_TIEMPOS || {}); // ms (las pruebas pueden acortarlos)
+  const rolGuardado = () => { try { const r = localStorage.getItem(ROL); return r === 'admin' || r === 'tecnico' ? r : ''; } catch (x) { return ''; } };
+  const guardarRol = (r) => { try { if (r) localStorage.setItem(ROL, r); else localStorage.removeItem(ROL); } catch (x) { /* sin almacenamiento */ } };
   function leerLocal() { try { return JSON.parse(localStorage.getItem(LOC)) || {}; } catch (x) { return {}; } }
   function guardarLocal() {
     try { const s = K.state; localStorage.setItem(LOC, JSON.stringify({ activo: s.activo, periodo: s.periodo, ultimoRespaldo: s.ultimoRespaldo, cambios: s.cambios })); } catch (x) { /* sin almacenamiento */ }
@@ -290,6 +295,7 @@
   function falloLectura(err) {
     if (err && err.code === 'permission-denied') {
       if (K.rol === 'tecnico') {
+        guardarRol('');
         pantallaVencido('Tu acceso venció o el link ya no es válido.');
         (async () => { try { await db.terminate(); await db.clearPersistence(); } catch (x) { /* nada */ } try { await auth.signOut(); } catch (x) { /* nada */ } })();
       } else pantalla('<div class="acceso-err">Esta cuenta no tiene permiso para ver los datos.</div><button class="btn sec" type="button" data-salir>Cerrar sesión</button>');
@@ -307,18 +313,36 @@
       }, () => { /* sin reglas para 'privado' todavía: se ignora */ }));
     }
   }
+  function procesarMedia(snap) {
+    snap.docChanges().forEach((c) => {
+      const h = c.doc.id;
+      if (c.type === 'removed') { mediaCache.delete(h); mediaConocida.delete(h); return; }
+      mediaCache.set(h, c.doc.data().d); mediaConocida.add(h);
+      const ps = pendMedia.get(h);
+      if (ps) { ps.forEach((p) => { const raw = crudo.get(p); if (raw) aplicar(p, raw); }); pendMedia.delete(h); }
+    });
+  }
+  // Abre la app con lo que ya está guardado en este aparato (sin esperar a internet). Si no hay nada guardado, sigue el camino de siempre.
+  async function desdeCache() {
+    if (primerRender || !db) return;
+    try {
+      const leer = (q) => q.get({ source: 'cache' });
+      const [inf, cfg, med] = await Promise.all([leer(db.collection('informes')), leer(db.collection('config')), leer(db.collection('media'))]);
+      if (primerRender || inf.empty) return;
+      cfg.docChanges().forEach(alCambio); procesarMedia(med);
+      const ids = []; inf.docChanges().forEach((c) => { alCambio(c); if (c.type !== 'removed') ids.push(c.doc.id); });
+      for (const id of ids) {
+        const base = db.collection('informes').doc(id);
+        try { (await leer(base.collection('items'))).docChanges().forEach(alCambio); } catch (x) { /* sin copia de este informe */ }
+        if (K.rol === 'admin') { try { (await leer(base.collection('privado'))).docChanges().forEach(alCambio); } catch (x) { /* nada */ } }
+      }
+      if (primerRender) return;
+      ordenar(); esperando.clear(); listo();
+    } catch (x) { /* si falla la lectura guardada, se espera a la nube como siempre */ }
+  }
   function escuchar() {
     ['informes', 'config', 'media'].forEach((k) => esperando.add(k));
-    db.collection('media').onSnapshot((snap) => {
-      snap.docChanges().forEach((c) => {
-        const h = c.doc.id;
-        if (c.type === 'removed') { mediaCache.delete(h); mediaConocida.delete(h); return; }
-        mediaCache.set(h, c.doc.data().d); mediaConocida.add(h);
-        const ps = pendMedia.get(h);
-        if (ps) { ps.forEach((p) => { const raw = crudo.get(p); if (raw) aplicar(p, raw); }); pendMedia.delete(h); }
-      });
-      ordenar(); marcar('media', snap); pedirRender();
-    }, falloLectura);
+    db.collection('media').onSnapshot((snap) => { procesarMedia(snap); ordenar(); marcar('media', snap); pedirRender(); }, falloLectura);
     db.collection('config').onSnapshot((snap) => { snap.docChanges().forEach(alCambio); marcar('config', snap); pedirRender(); }, falloLectura);
     db.collection('informes').onSnapshot((snap) => {
       snap.docChanges().forEach((c) => {
@@ -330,11 +354,12 @@
       if (K.rol === 'admin' && snap.empty && snap.metadata.fromCache === false && !sembrado) { sembrado = true; sembrar(); return; }
       marcar('informes', snap); pedirRender();
     }, falloLectura);
+    setTimeout(desdeCache, navigator.onLine ? T.cache : 0); // sin conexión se abre al tiro; con señal débil, a los 4 s
     setTimeout(() => {
       if (primerRender) return;
       if (K.state.informes.length) { esperando.clear(); listo(); }
       else pantalla('<div class="acceso-err">No se pudieron cargar los datos. Revisa tu conexión.</div><button class="btn sec" type="button" data-reintentar>Reintentar</button>');
-    }, 9000);
+    }, T.tope);
   }
   // Primera vez: la nube está vacía → se suben los datos de este dispositivo (si los hay) o los de partida.
   async function sembrar() {
@@ -411,13 +436,14 @@
         try { await db.terminate(); await db.clearPersistence(); } catch (x) { /* nada */ }
         try { await auth.signOut(); } catch (x) { /* nada */ }
         try { localStorage.removeItem(LOC); } catch (x) { /* nada */ }
+        guardarRol('');
         location.replace(location.pathname);
       });
     }
   });
 
   /* ---------- arranque ---------- */
-  const cargarScript = (src) => new Promise((ok, mal) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => mal(new Error('No se pudo cargar ' + src)); document.head.appendChild(s); });
+  const cargarScript = (src) => new Promise((ok, mal) => { const s = document.createElement('script'), z = setTimeout(() => mal(new Error('Tiempo agotado ' + src)), T.sdk); s.src = src; s.onload = () => { clearTimeout(z); ok(); }; s.onerror = () => { clearTimeout(z); mal(new Error('No se pudo cargar ' + src)); }; document.head.appendChild(s); });
   async function cargarSDK() {
     if (window.firebase && window.firebase.firestore) return;
     await cargarScript(SDK + 'firebase-app-compat.js');
@@ -425,7 +451,7 @@
   }
   function iniciarDatos(rol) {
     if (K.rol !== 'local') return;
-    K.rol = rol; document.body.classList.add('rol-' + rol);
+    K.rol = rol; document.body.classList.add('rol-' + rol); guardarRol(rol);
     const l = leerLocal();
     K.state = { v: 1, informes: [], activo: l.activo || '', periodo: l.periodo || { tipo: 'anual', anio: new Date().getFullYear(), desde: '', hasta: '' }, ultimoRespaldo: l.ultimoRespaldo || null, cambios: l.cambios || 0, packIconos: 'linea', iconosPropios: {}, fuente: 'clasica' };
     K.periodoPorDefecto();
@@ -452,6 +478,7 @@
       }
       iniciarDatos('tecnico'); return;
     }
+    guardarRol('');
     if (token) { pantallaCarga('Verificando invitación…'); try { await auth.signInAnonymously(); } catch (x) { pantallaVencido('No se pudo abrir el link. Revisa tu conexión.'); } return; }
     pantallaLogin();
   }
@@ -484,11 +511,19 @@
       auth = firebase.auth(); db = firebase.firestore(); FV = firebase.firestore.FieldValue; TS = firebase.firestore.Timestamp;
       try { db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (x) { /* nada */ }
       try { await db.enablePersistence({ synchronizeTabs: true }); } catch (x) { /* sigue sin caché local */ }
-      let primera = true;
+      let primera = true, sinSesion = false;
       auth.onAuthStateChanged((u) => {
+        if (sinSesion) { // la app ya abrió sin esperar a Firebase: solo se comprueba que la sesión sea la misma
+          sinSesion = false;
+          if (!u || (K.rol === 'admin') === !!u.isAnonymous) { guardarRol(''); location.reload(); }
+          return;
+        }
         if (!primera) { location.reload(); return; } // cambio de usuario: se reinicia limpio
         primera = false; alUsuario(u);
       });
+      // Con señal muy débil Firebase puede tardar mucho en confirmar la sesión: si ya se había entrado antes en este aparato, se abre con lo guardado.
+      const rolPrevio = rolGuardado();
+      if (rolPrevio && !leerToken()) setTimeout(() => { if (!primera) return; primera = false; sinSesion = true; iniciarDatos(rolPrevio); }, T.sesion);
     }
   };
 })();

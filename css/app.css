@@ -1370,3 +1370,16 @@ input.bl-sw[type=checkbox]:checked::after { transform: translateX(20px); }
 .tot-lista { max-height: 300px; overflow: auto; }
 .tot-fila { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--linea); font-size: 13.5px; }
 .tot-fila:last-child { border-bottom: 0; } .tot-fila > b { flex: none; min-width: 74px; font-variant-numeric: tabular-nums; } .tot-fila span { min-width: 0; } .tot-fila small { display: block; color: var(--suave); font-size: 12px; } .tot-fila em { font-style: normal; font-weight: 700; }
+
+/* v1.9.2 · hitos de la misma lesión y fecha en un solo cuadro */
+.th-tags { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.th-h.th-h-g { align-items: flex-start; }
+
+/* v1.9.3 · un cuadro por día, con secciones separadas por una línea fina */
+.th-it.th-dia { padding-bottom: 2px; }
+.th-secs { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.th-sec { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid var(--linea); }
+.th-sec:first-child { padding-top: 0; border-top: 0; }
+.th-sec .th-c { flex: 1; min-width: 0; }
+/* v1.9.3: con un número impar de botones en la ficha, el último ocupa todo el ancho */
+.tiles.compactos .tile:last-child:nth-child(odd) { grid-column: 1 / -1; }

@@ -3,7 +3,7 @@
 (function () {
   const K = window.K;
   const e = K.esc;
-  const TIPOS = [['todo', 'Todo'], ['casos', 'Lesiones y molestias'], ['atenciones', 'Atenciones'], ['eventos', 'Controles, exámenes, medicamentos y cirugías'], ['partidos', 'Partidos y minutos'], ['manuales', 'Ajustes manuales'], ['comentarios', 'Comentarios y fichas']];
+  const TIPOS = [['todo', 'Todo'], ['casos', 'Lesiones y molestias'], ['atenciones', 'Atenciones'], ['eventos', 'Controles, exámenes, procedimientos, medicamentos y cirugías'], ['partidos', 'Partidos y minutos'], ['manuales', 'Ajustes manuales'], ['comentarios', 'Comentarios y fichas']];
   const st = () => (K.ui.bit = K.ui.bit || { alc: '', jugador: '', tipos: 'todo', texto: '', agrupar: 'fecha', periodo: 'todo', origen: 'todo' });
   const fc = (iso) => (iso ? K.fechaCorta(iso) : 'Sin fecha');
   const nom = (inf, id) => (K.jugador(inf, id) || { nombre: '—' }).nombre;
@@ -68,10 +68,12 @@
   }
   function entEvento(inf, x) {
     const def = K.EV[x.tipo] || { t: x.tipo }, det = [];
-    if (x.tipo !== 'cirugia') det.push([x.tipo === 'medicamento' ? 'Unidades' : 'Cantidad', String(x.cantidad || 1)]);
+    if (x.tipo === 'control' && (x.nombre || '').trim()) det.push(['Tipo de control', K.ctlEtiqueta(x.nombre)]);
+    if (x.tipo !== 'cirugia') det.push([x.tipo === 'medicamento' ? 'Unidades' : x.tipo === 'procedimiento' ? 'Sesiones' : 'Cantidad', String(x.cantidad || 1)]);
     if (x.tipo === 'examen' && x.resultado) det.push(['Resultado', x.resultado]);
     const caso = x.casoId && inf.casos.find((c) => c.id === x.casoId); if (caso) det.push(['Asociado a', caso.titulo]);
-    return { f: x.fecha || '', j: x.jugadorId, k: 'eventos', tag: def.t, cls: 'ev', titulo: x.nombre || def.t, det, notas: x.notas || '', raw: x };
+    const ctl = x.tipo === 'control';
+    return { f: x.fecha || '', j: x.jugadorId, k: 'eventos', tag: ctl ? K.ctlEtiqueta(x.nombre) : def.t, cls: 'ev', titulo: ctl ? 'Control' : x.nombre || def.t, det, notas: x.notas || '', raw: x };
   }
 
   /* Entradas: { f: fecha, j: jugadorId|'', k: clave de tipo, tag, titulo, det: [[etiqueta, valor]], notas } */
@@ -228,7 +230,7 @@
     const diasJ = {}; les.forEach((c) => sumar(diasJ, nom(inf, c.jugadorId), K.diasBajaCaso(c, { desde: c.inicio || '1900-01-01', hasta: '2100-01-01' }) || 0));
     const limJ = {}; lim.forEach((c) => sumar(limJ, nom(inf, c.jugadorId), Number(c.limitaDias) || 0));
     const mecF = K.MECANISMOS.map(([k, n]) => [n, mec[k] || 0]).concat([['Sin dato', mec._ || 0, '#8a9a90']]);
-    const tipos = [['Lesiones', les.length, COL.les], ['Molestias', mol.length, COL.mol], ['Atenciones', ats.length, COL.at], ['Controles, exámenes, medicamentos y cirugías', evs.length, COL.ev]];
+    const tipos = [['Lesiones', les.length, COL.les], ['Molestias', mol.length, COL.mol], ['Atenciones', ats.length, COL.at], ['Controles, exámenes, procedimientos, medicamentos y cirugías', evs.length, COL.ev]];
     return `<div class="bd-kpis">${kpi(reg.length, 'registros')}${kpi(les.length, 'lesiones')}${kpi(mol.length, 'molestias')}${kpi(ats.length, 'atenciones')}${kpi(evs.length, 'controles y otros')}${kpi(dias, 'días de baja')}${kpi(lim.length, 'molestias que limitaron entreno')}${kpi(limD, 'días de entreno limitado')}</div>
       <div class="bd-g">
         ${panel('Registros por mes', mensual(reg), true)}

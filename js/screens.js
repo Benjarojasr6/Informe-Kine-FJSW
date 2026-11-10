@@ -135,7 +135,7 @@
   });
 
   /* ======================= REGISTRAR ======================= */
-  const TIPOS_REG = [['', 'Todos los tipos'], ['atencion', 'Atenciones'], ['lesion', 'Lesiones'], ['molestia', 'Molestias'], ['control', 'Controles médicos'], ['examen', 'Exámenes'], ['medicamento', 'Medicamentos'], ['cirugia', 'Cirugías']];
+  const TIPOS_REG = [['', 'Todos los tipos'], ['atencion', 'Atenciones'], ['lesion', 'Lesiones'], ['molestia', 'Molestias'], ['control', 'Controles médicos'], ['examen', 'Exámenes'], ['procedimiento', 'Procedimientos'], ['medicamento', 'Medicamentos'], ['cirugia', 'Cirugías']];
   function pRegistrar() {
     const inf = K.inf();
     const f = (K.ui.regF = K.ui.regF || { tipo: '', jugador: '', q: '' });
@@ -154,8 +154,9 @@
         <button class="tile prin" data-acc="nuevaAtencion"><span class="mini-ico">${K.ico('svg:atenciones')}</span>Registrar atención</button>
         <button class="tile" data-acc="hoyRepetir"><span class="mini-ico">${K.uiIco('copiar', 32)}</span>Repetir última atención</button>
         <button class="tile" data-acc="nuevoCaso"><span class="mini-ico">${K.ico('svg:lesion')}</span>Registrar lesión</button>
-        <button class="tile" data-acc="nuevoControl"><span class="mini-ico">${K.ico('svg:control')}</span>Control médico</button>
+        <button class="tile" data-acc="nuevoControl"><span class="mini-ico">${K.ico('svg:control')}</span>Control</button>
         <button class="tile" data-acc="nuevoExamen"><span class="mini-ico">${K.ico('svg:examen')}</span>Examen</button>
+        <button class="tile" data-acc="nuevoProcedimiento"><span class="mini-ico">${K.ico('svg:jeringa')}</span>Procedimiento</button>
         <button class="tile" data-acc="nuevaCirugia"><span class="mini-ico">${K.ico('svg:cirugia')}</span>Cirugía</button>
       </div>
       <div class="card"><div class="fila sb"><h2 style="margin:0">Últimos registros</h2><button class="btn sec chico" data-acc="abrirBitacora">Ver registro clínico completo</button></div>
@@ -170,7 +171,7 @@
   Object.assign(K.acciones, {
     nuevaAtencion() { K.formAtencion({ abrirSel: true }); }, nuevoCaso() { K.formCaso(); },
     nuevoControl() { K.formEvento('control'); }, nuevoExamen() { K.formEvento('examen'); },
-    nuevoMedicamento() { K.formEvento('medicamento'); }, nuevaCirugia() { K.formEvento('cirugia'); },
+    nuevoMedicamento() { K.formEvento('medicamento'); }, nuevoProcedimiento() { K.formEvento('procedimiento'); }, nuevaCirugia() { K.formEvento('cirugia'); },
     regFiltro(el) { K.ui.regF[el.dataset.k] = el.value; K.render(); },
     regTexto(el) {
       K.ui.regF.q = el.value; clearTimeout(K._regT);
@@ -491,6 +492,7 @@
         <button class="tile" data-acc="jCaso"><span class="mini-ico">${K.ico('svg:lesion')}</span>Lesión / molestia</button>
         <button class="tile" data-acc="jControl"><span class="mini-ico">${K.ico('svg:control')}</span>Control</button>
         <button class="tile" data-acc="jExamen"><span class="mini-ico">${K.ico('svg:examen')}</span>Examen</button>
+        <button class="tile" data-acc="jProc"><span class="mini-ico">${K.ico('svg:jeringa')}</span>Procedimiento</button>
         <button class="tile" data-acc="jMed"><span class="mini-ico">${K.ico('svg:medicamento')}</span>Medicamento</button>
         <button class="tile" data-acc="jCiru"><span class="mini-ico">${K.ico('svg:cirugia')}</span>Cirugía</button>
       </div>`}
@@ -513,7 +515,7 @@
   Object.assign(K.acciones, {
     jAtencion() { K.formAtencion({ jugadorId: cj() }); }, jRepetir() { K.formAtencion({ jugadorId: cj(), repetir: true }); }, jCaso() { K.formCaso({ jugadorId: cj() }); },
     jControl() { K.formEvento('control', { jugadorId: cj() }); }, jExamen() { K.formEvento('examen', { jugadorId: cj() }); },
-    jMed() { K.formEvento('medicamento', { jugadorId: cj() }); }, jCiru() { K.formEvento('cirugia', { jugadorId: cj() }); },
+    jProc() { K.formEvento('procedimiento', { jugadorId: cj() }); }, jMed() { K.formEvento('medicamento', { jugadorId: cj() }); }, jCiru() { K.formEvento('cirugia', { jugadorId: cj() }); },
     editCaso(el) { K.formCaso({ rec: K.inf().casos.find((c) => c.id === el.dataset.id) }); }
   });
 
@@ -651,7 +653,7 @@
       cuerpo: `<label class="campo"><span>Nombre</span><input type="text" name="nombre" value="${e(rec ? rec.nombre : '')}" placeholder="Ej. Ultrasonido"></label>
         ${pickerIcono(rec ? rec.icono : 'svg:estrella')}
         <label class="check"><input type="checkbox" name="intervencion" ${!rec || rec.intervencion ? 'checked' : ''}><span>Cuenta como intervención en los totales</span></label>
-        <p class="suave">Si lo desmarcas (por ejemplo, derivaciones al seguro), se registra y se cuenta aparte pero no suma a “Total de intervenciones”.</p>`,
+        <p class="suave">Si lo desmarcas, se registra y se cuenta aparte pero no suma a “Total de intervenciones”.</p>`,
       botones: [
         rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.confirmar('¿Eliminar este tratamiento? Las atenciones ya registradas dejarán de sumarlo.', 'Eliminar', () => { quitar(inf.tratamientos, rec.id); inf.indicadores = inf.indicadores.filter((i) => i.fuente !== 'trat:' + rec.id); guardar('Tratamiento eliminado'); }); return true; } } : { txt: 'Cancelar', cls: 'sec' },
         {
@@ -711,6 +713,9 @@
         <label class="campo"><span>Nombre (para elegirlo en la app)</span><input type="text" data-inf="nombre" value="${e(inf.nombre)}"></label>
         <label class="campo"><span>Categorías que aparecen en la portada</span><input type="text" data-inf="categorias" value="${e(inf.categorias)}" placeholder="Sub 15-16"></label>
         <label class="campo"><span>Título de la portada</span><input type="text" data-inf="titulo" value="${e(inf.titulo)}"></label>
+        <label class="campo"><span>Informe elaborado por (aparece en la portada y en el pie)</span><input type="text" data-inf="autor" value="${e(inf.autor || '')}" placeholder="${e(K.autorDefecto(inf))}"></label>
+        <label class="campo"><span>Texto al pie de cada página del informe</span><input type="text" data-inf="pie" value="${e(inf.pie || '')}" placeholder="${e(K.pieDefecto(inf))}"></label>
+        <p class="suave" style="margin:-4px 0 0">Si lo dejas vacío se usa: <b>${e(K.pieDefecto(inf))}</b>.</p>
       </div>
       <div class="card"><div class="fila sb"><h2 style="margin:0">Indicadores del resumen</h2><button class="btn sec chico" data-acc="nuevoInd">${K.uiIco('mas', 16)} Nuevo</button></div>
         <p class="sub">Qué aparece en las páginas de “Resumen final”, y en qué orden. El ojo oculta o muestra.</p>

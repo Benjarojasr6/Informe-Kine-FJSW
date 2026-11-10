@@ -460,7 +460,7 @@
 .pagina.p-ficha .f-linea { margin: .08in 0 .2in; }
 .pagina.p-ficha .f-pie { height: 2.95in; }
 .pagina.p-ficha .f-mapa .mapa-corporal { height: 2.42in; }
-.pagina.p-ficha .f-coment { margin-top: .22in; }
+.pagina.p-ficha .f-coment { margin-top: .36in; }
 
 .bit-print header .vs-logos { display: flex; align-items: center; gap: 8px; flex: none; }
 .bit-print header img.rv-logo { margin-left: 0; }
@@ -620,4 +620,22 @@ mark.epi-rep { background: #fff200; color: #1f2937; padding: 0 3px; border-radiu
 .f-tot3 { display: flex; justify-content: center; gap: 14px; font-family: Caladea, Georgia, serif; font-size: 14px; line-height: 1.2; margin-bottom: 2px; color: var(--tinta); }
 .f-tot3 b { font-size: 20px; font-weight: 700; color: var(--verde); margin-left: 3px; }
 .f-zonas { margin: 4px 6px 0; font-size: 12px; line-height: 1.25; text-align: center; color: var(--tinta); }
-.pagina.p-ficha .f-mapa .mapa-corporal { height: 2.1in; }
+.pagina.p-ficha .f-mapa .mapa-corporal { height: 2in; }
+
+/* v1.9.2 · ficha clínica: hitos de la misma lesión y fecha en un solo cuadro */
+.fj-tgs { display: flex; flex-direction: column; gap: 3px; }
+.fj-tgs .fj-tg { display: block; }
+
+.fj-it.fj-dia { grid-template-columns: 64px minmax(0, 1fr); }
+.fj-dsecs { display: flex; flex-direction: column; }
+.fj-dsec { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: start; padding: 5px 0; border-top: 1px solid var(--borde); }
+.fj-dsec:first-child { padding-top: 0; border-top: 0; }
+.fj-dsec:last-child { padding-bottom: 0; }
+
+/* v1.9.3 · portada: quién elabora el informe (abajo a la izquierda, sobre la barra verde) */
+.pagina.portada .p-autor { left: .8in; bottom: 1.02in; display: flex; flex-direction: column; gap: 3px; padding-left: 12px; border-left: 4px solid #8fbf9f; }
+.p-autor span { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #6b776f; }
+.p-autor b { font-family: Caladea, Georgia, serif; font-size: 22px; font-weight: 700; line-height: 1.1; color: #1d5a33; }
+/* v1.9.4: la tarjeta de disponibilidad tiene 4 cifras; los rótulos largos se parten en líneas juntas */
+.cg-nums.cg-4 span { display: block; line-height: 1.3; }
+.cg-nums.cg-4 div { padding: 0 2px; }

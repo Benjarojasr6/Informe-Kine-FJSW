@@ -438,12 +438,20 @@
 
   /* ---------- Controles, exámenes, medicamentos, cirugías ---------- */
   const EV = {
-    control: { t: 'Control médico', sug: ['Traumatólogo', 'Médico del club', 'Nutricionista', 'Psicólogo', 'Kinesiólogo externo'], ph: 'Ej. Traumatólogo' },
+    control: { t: 'Control', sug: ['Traumatólogo', 'Médico del club', 'Nutricionista', 'Psicólogo', 'Kinesiología externa', 'Fisiatra', 'Cardiólogo', 'Neurólogo', 'Podólogo'], ph: 'Ej. Traumatólogo' },
     examen: { t: 'Examen', sug: ['Radiografía', 'RNM', 'Ecografía', 'TAC', 'Examen de sangre'], ph: 'Ej. Radiografía' },
+    procedimiento: { t: 'Procedimiento', sug: ['Ondas de choque', 'Plasma rico en plaquetas (PRP)', 'Infiltración', 'Ácido hialurónico', 'Láser de alta potencia'], ph: 'Ej. Ondas de choque' },
     medicamento: { t: 'Medicamento', sug: ['Ibuprofeno', 'Paracetamol', 'Diclofenaco', 'Naproxeno'], ph: 'Ej. Ibuprofeno' },
     cirugia: { t: 'Cirugía', sug: [], ph: 'Ej. Meniscectomía' }
   };
   K.EV = EV;
+  // v1.9.4: la etiqueta de un control en el historial es el tipo de control elegido (Nutricionista, Kinesiología externa…); sin tipo dice «Control».
+  K.ctlEtiqueta = function (nombre) {
+    const n = String(nombre || '').trim().replace(/\s+/g, ' ');
+    if (!n) return 'Control';
+    if (/^kinesi[oó]logo[s]? externo[s]?$/i.test(n)) return 'Kinesiología externa';
+    return n.charAt(0).toUpperCase() + n.slice(1);
+  };
   K.formEvento = function (tipo, o) {
     o = o || {};
     const inf = K.inf(); const rec = o.rec; tipo = rec ? rec.tipo : tipo;
@@ -457,11 +465,11 @@
           <label class="campo"><span>Fecha</span><input type="date" name="fecha" value="${e(rec ? rec.fecha : K.hoy())}"></label>
           <div class="campo"><span class="lbl-j">Jugador</span>${K.selJugador('jugadorId', { inf, sel: jid, nuevo: true })}</div>
         </div>
-        <label class="campo"><span>${tipo === 'control' ? 'Con quién' : tipo === 'examen' ? 'Tipo de examen' : tipo === 'medicamento' ? 'Medicamento' : 'Cirugía'}</span>
+        <label class="campo"><span>${tipo === 'control' ? 'Tipo de control (con quién)' : tipo === 'examen' ? 'Tipo de examen' : tipo === 'procedimiento' ? 'Procedimiento' : tipo === 'medicamento' ? 'Medicamento' : 'Cirugía'}</span>
           <input type="text" name="nombre" list="dl-ev" value="${e(rec ? rec.nombre || '' : '')}" placeholder="${def.ph}" autocomplete="off">
           <datalist id="dl-ev">${def.sug.map((s) => `<option value="${e(s)}">`).join('')}</datalist></label>
         ${tipo === 'examen' ? `<label class="campo"><span>Resultado (opcional)</span><input type="text" name="resultado" maxlength="160" value="${e(rec ? rec.resultado || '' : '')}" placeholder="Ej. Rotura parcial de fibras, grado II" autocomplete="off"></label>` : ''}
-        ${tipo === 'cirugia' ? '' : `<label class="campo"><span>${tipo === 'medicamento' ? 'Unidades / dosis entregadas' : 'Cantidad'}</span><input type="number" inputmode="numeric" min="1" name="cantidad" value="${e(rec ? rec.cantidad || 1 : 1)}"></label>`}
+        ${tipo === 'cirugia' ? '' : `<label class="campo"><span>${tipo === 'medicamento' ? 'Unidades / dosis entregadas' : tipo === 'procedimiento' ? 'Sesiones' : 'Cantidad'}</span><input type="number" inputmode="numeric" min="1" name="cantidad" value="${e(rec ? rec.cantidad || 1 : 1)}"></label>`}
         <label class="campo"><span>Lesión o molestia asociada (opcional)</span><select name="casoId">${casosOpts(inf, jid, rec ? rec.casoId : o.casoId || ((K.casoActivo(jid) || {}).id || ''))}</select></label>
         <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>`,
       botones: [
@@ -527,7 +535,7 @@
       out.push({ k: 'atencion', jid: a.jugadorId, fecha: a.fecha, icono: 'img:atenciones', t: 'Atención', j: nom(a.jugadorId), d: [K.nombreClase(a.clase), partes.join(' · ') || 'Sin intervenciones', a.origen === 'externo' ? 'fuera de SW' : a.origen === 'gira' ? 'en gira' : ''].filter(Boolean).join(' · '), abrir: () => K.formAtencion({ rec: a }) });
     });
     inf.casos.filter(ok).forEach((c) => out.push({ k: c.tipo === 'lesion' ? 'lesion' : 'molestia', jid: c.jugadorId, fecha: c.inicio, icono: c.tipo === 'lesion' ? 'svg:lesion' : 'svg:molestia', t: c.tipo === 'lesion' ? 'Lesión' : 'Molestia', j: nom(c.jugadorId), d: c.titulo, g: c.gravedad, abrir: () => K.formCaso({ rec: c }) }));
-    inf.eventos.filter(ok).forEach((v) => out.push({ k: v.tipo, jid: v.jugadorId, fecha: v.fecha, icono: { control: 'svg:control', examen: 'svg:examen', medicamento: 'svg:medicamento', cirugia: 'svg:cirugia' }[v.tipo], t: EV[v.tipo].t, j: nom(v.jugadorId), d: `${v.nombre || ''}${v.cantidad > 1 ? ' ×' + v.cantidad : ''}${v.tipo === 'examen' && v.resultado ? ' · resultado: ' + v.resultado : ''}${K.evRealizado(v) ? '' : ' · programado (aún no ocurre)'}`, abrir: () => K.formEvento(v.tipo, { rec: v }) }));
+    inf.eventos.filter(ok).forEach((v) => out.push({ k: v.tipo, jid: v.jugadorId, fecha: v.fecha, icono: { control: 'svg:control', examen: 'svg:examen', procedimiento: 'svg:jeringa', medicamento: 'svg:medicamento', cirugia: 'svg:cirugia' }[v.tipo], t: v.tipo === 'control' ? K.ctlEtiqueta(v.nombre) : EV[v.tipo].t, j: nom(v.jugadorId), d: `${v.tipo === 'control' ? '' : v.nombre || ''}${v.cantidad > 1 ? ' ×' + v.cantidad : ''}${v.tipo === 'examen' && v.resultado ? ' · resultado: ' + v.resultado : ''}${K.evRealizado(v) ? '' : ' · programado (aún no ocurre)'}`, abrir: () => K.formEvento(v.tipo, { rec: v }) }));
     return out.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   };
   K.listaRegistros = function (regs, limite) {

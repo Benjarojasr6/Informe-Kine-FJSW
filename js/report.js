@@ -3,7 +3,13 @@
   const K = window.K;
   const e = K.esc;
 
-  const PIE = (n) => `<div class="pie"><span>Santiago Wanderers · Kinesiología Fútbol Joven SW</span><span>${e(n)}</span></div>`;
+  // Texto al pie de las páginas: editable por informe (Ajustes → Este informe); de base lleva a quien firma el informe de cada grupo de categorías.
+  // Quien elabora el informe (portada y pie): de base, Josefa en Sub 18-20 y Benjamín en Sub 15-16; editable en Ajustes → Este informe.
+  K.autorDefecto = (inf) => { const g = inf && K.grupoDeInforme ? K.grupoDeInforme(inf) : null; return g ? (g.id === '18-20' ? 'Josefa Robert V.' : 'Benjamín Rojas R.') : ''; };
+  K.autorTexto = (inf) => { inf = inf || K.inf(); const t = inf && typeof inf.autor === 'string' ? inf.autor.trim() : ''; return t || K.autorDefecto(inf); };
+  K.pieDefecto = (inf) => { const a = K.autorTexto(inf); return 'Kinesiología Fútbol Joven Santiago Wanderers' + (a ? ' - ' + a : ''); };
+  K.pieTexto = (inf) => { inf = inf || K.inf(); const t = inf && typeof inf.pie === 'string' ? inf.pie.trim() : ''; return t || K.pieDefecto(inf); };
+  const PIE = (n, inf) => `<div class="pie"><span>${e(K.pieTexto(inf))}</span><span>${e(n)}</span></div>`;
   const pagina = (cls, inner) => `<section class="pagina ${cls}"><div class="panel">${inner}<!--PIE--></div></section>`;
   const chunk = (arr, n) => {
     const out = [];
@@ -31,6 +37,7 @@
         <p class="p-club">Santiago Wanderers · Fútbol Joven</p>
         <h1>${e(inf.titulo).replace(/ (\S+)$/, '<br>$1')}</h1>
       </div>
+      ${K.autorTexto(inf) ? `<div class="p-autor"><span>Elaborado por</span><b>${e(K.autorTexto(inf))}</b></div>` : ''}
       <div class="p-pie">
         <p class="p-cat">Categorías ${e(inf.categorias.replace(/^Categor[ií]as?\s*/i, ''))}</p>
         <p class="p-per">${e(per.completo)}</p>
@@ -140,9 +147,20 @@
       const ancla = Math.abs(Math.cos(am)) < 0.2 ? 'm' : der ? 's' : 'e';
       const espacio = 28 + (ancla === 'e' ? lx : ancla === 's' ? 340 - lx : 2 * Math.min(lx, 340 - lx));
       const ancho = (t) => [...t].reduce((w, ch) => w + (/[MW@%]/.test(ch) ? 10 : /[mw]/.test(ch) ? 9.8 : /[A-ZÑÁÉÍÓÚÜ]/.test(ch) ? 8 : /[ilItfjr.,;:·'() ]/.test(ch) ? 3.8 : 6.8), 0);
-      let nombre = x.nombre.length > 24 ? x.nombre.slice(0, 23) + '…' : x.nombre;
-      if (ancho(nombre) > espacio) { let t = nombre.replace(/…$/, ''); while (t.length > 3 && ancho(t) + 6 > espacio) t = t.slice(0, -1); nombre = t.replace(/\s+$/, '') + '…'; }
-      rot += `<text x="${lx.toFixed(1)}" y="${(ly - 2).toFixed(1)}" text-anchor="${Math.abs(Math.cos(am)) < 0.2 ? 'middle' : der ? 'start' : 'end'}" class="d-et">${e(nombre)}</text><text x="${lx.toFixed(1)}" y="${(ly + 11).toFixed(1)}" text-anchor="${Math.abs(Math.cos(am)) < 0.2 ? 'middle' : der ? 'start' : 'end'}" class="d-n">${x.n}</text>`;
+      // si no cabe en una línea, se parte en dos (por palabras) en vez de cortarlo con «…»; solo se acorta si ni así cabe
+      let lineas = null;
+      if (ancho(x.nombre) > espacio) {
+        const ws = x.nombre.split(' ');
+        for (let k = 1; k < ws.length; k++) { const par = [ws.slice(0, k).join(' '), ws.slice(k).join(' ')], m = Math.max(ancho(par[0]), ancho(par[1])); if (m + 6 <= espacio && (!lineas || m < lineas.m)) lineas = { l: par, m }; }
+        lineas = lineas ? lineas.l : null;
+      }
+      if (!lineas) {
+        let nombre = x.nombre.length > 24 ? x.nombre.slice(0, 23) + '…' : x.nombre;
+        if (ancho(nombre) > espacio) { let t = nombre.replace(/…$/, ''); while (t.length > 3 && ancho(t) + 6 > espacio) t = t.slice(0, -1); nombre = t.replace(/\s+$/, '') + '…'; }
+        lineas = [nombre];
+      }
+      const anc = Math.abs(Math.cos(am)) < 0.2 ? 'middle' : der ? 'start' : 'end';
+      rot += lineas.map((t, q) => `<text x="${lx.toFixed(1)}" y="${(ly - 2 - 13 * (lineas.length - 1 - q)).toFixed(1)}" text-anchor="${anc}" class="d-et">${e(t)}</text>`).join('') + `<text x="${lx.toFixed(1)}" y="${(ly + 11).toFixed(1)}" text-anchor="${anc}" class="d-n">${x.n}</text>`;
       a0 = a1;
     });
     return `<svg class="donut" viewBox="0 0 340 260">${segs}<text x="${cx}" y="${cy + 12}" text-anchor="middle" class="d-total">${total}</text>${rot}</svg>`;
@@ -221,8 +239,8 @@
         </div>
         <div class="f-col">
           <div class="tarjeta carga"><h3>Disponibilidad para entrenar y jugar</h3>
-            <div class="cg-nums"><div><b>${baja.dias}</b><span>días de baja</span></div><div><b>${baja.pct}%</b><span>disponibilidad</span></div><div><b>${iv.atenciones}</b><span>atenciones</span></div></div>
-            <p class="cg-ayuda">Porcentaje de días del período en que el jugador estuvo sin lesión activa, es decir, disponible para el equipo.</p>
+            <div class="cg-nums cg-4"><div><b>${baja.dias}</b><span>días de baja por lesión</span></div><div><b>${baja.sinEntrenar}</b><span>días sin entrenar por molestias</span></div><div><b>${baja.pct}%</b><span>disponibilidad</span></div><div><b>${iv.atenciones}</b><span>atenciones</span></div></div>
+            <p class="cg-ayuda">Porcentaje de días del período en que el jugador estuvo disponible para entrenar y jugar: descuenta los días de baja por lesión y los días sin entrenar por una molestia.</p>
             ${K.barrasMini(atMes, meses.map(K.etiquetaMes), 34)}<div class="mb-tit mb-abajo">Atenciones por mes</div></div>
           <div class="tarjeta asis${semaf}"><h3>Asistencia a kinesiología</h3>${asis.esp ? `<div class="as-fila"><b>${asis.pct}%</b><span>${asis.si} de ${asis.esp} sesiones</span></div>${asis.enf ? `<p class="vacio" style="font-style:normal">${asis.enf} ${asis.enf === 1 ? 'día' : 'días'} por enfermedad</p>` : ''}` : '<p class="vacio">Sin sesiones de kinesiología registradas.</p>'}</div>
           <div class="tarjeta flex ctrl"><h3>Controles y exámenes</h3><div class="cg-nums"><div><b>${nCtrl}</b><span>controles médicos</span></div><div><b>${nExa}</b><span>exámenes</span></div></div></div>
@@ -401,7 +419,7 @@
     const p1 = pagina('p-resumen p-equipo', `<h2>Análisis de lesiones</h2>${sub}
       <div class="eq-kpis">${kpi(r.lesiones, 'lesiones')}${kpi(r.molestias, 'molestias')}${kpi(r.disp == null ? '--' : r.disp + '%', 'disponibilidad del plantel')}${kpi(r.retorno == null ? '--' : r.retorno + ' d', 'retorno promedio')}</div>
       <div class="eq-kpis eq-kpis-2">${kpi(r.limCasos, 'molestias que limitaron el entrenamiento')}${kpi(r.limDias, 'días de entrenamiento limitado')}</div>
-      <p class="kn-nota" style="margin:-4px 2px 8px">Disponibilidad del plantel: porcentaje de los días del período en que los jugadores no estuvieron de baja por una lesión.</p>
+      <p class="kn-nota" style="margin:-4px 2px 8px">Disponibilidad del plantel: porcentaje de los días del período en que los jugadores no estuvieron de baja por una lesión ni sin entrenar por una molestia.</p>
       ${panelEq('Casos por mes', meses)}
       <div class="eq-2">
         ${panelEq('Por gravedad', barrasH(K.GRAV_ORDEN.filter((k) => (k !== 'pordefinir' || g.pordefinir) && (k !== 'nolimitante' || g.nolimitante)).map((k) => [K.GRAVEDADES[k], g[k], K.COLORES_GRAV[k]]), 0) + '<p class="nota-grav">Días fuera: no limitante 0 (duele pero no limita) · mínima 1-3 · leve 4-7 · moderada 8-28 · grave más de 28.</p>')}
@@ -489,7 +507,7 @@
       const tabla = (arr) => `<table class="kn-t"><thead><tr><th>Partido</th><th>Fecha</th><th>Atenciones</th><th>Jugadores</th><th>En cancha</th><th>Se retiraron</th></tr></thead><tbody>${arr.map(({ p, r }) => `<tr><td><b>${e(p.rival)}</b><small>${p.torneo ? e(p.torneo) + ' · ' : ''}${p.cat ? 'Sub ' + p.cat + ' · ' : ''}${p.local ? 'Local' : 'Visita'}${p.res ? ' · ' + e(p.res) : ''}</small></td><td>${e(K.fechaCorta(p.fecha))}</td><td class="n">${r.n}</td><td class="n">${r.jugadores}</td><td class="n">${r.enCancha}</td><td class="n">${r.retiros}</td></tr>`).join('')}</tbody></table>`;
       const corto = res.length <= 9;
       out.push(pagina('p-resumen p-equipo', `<h2>Atenciones en partidos</h2>${sub}
-        <div class="eq-kpis">${kpi(conInc.length, 'partidos con atenciones')}${kpi(sum((r) => r.n), 'atenciones')}${kpi(sum((r) => r.enCancha), 'atenciones en cancha')}${kpi(sum((r) => r.retiros), 'jugadores que se retiraron')}</div>
+        <div class="eq-kpis">${kpi(conInc.length, 'partidos con atenciones')}${kpi(sum((r) => r.n), 'atenciones')}${kpi(sum((r) => r.enCancha), 'atenciones en cancha')}${sum((r) => r.enBanca || 0) ? kpi(sum((r) => r.enBanca || 0), 'atenciones en banca') : ''}${kpi(sum((r) => r.retiros), 'jugadores que se retiraron')}</div>
         <div class="eq-2">${panelEq('Cuándo ocurrió', barrasH(mom, 0))}${panelEq('Tipo de atención', barrasH(cl, 0))}</div>${corto ? tabla(res) : ''}`));
       if (!corto) chunkH(res, ({ p }) => 40 + 13 * (Math.max(lin(p.rival, 30), lin((p.torneo || '') + ' · Sub 16 · Visita · ' + (p.res || ''), 45)) - 1), 14, 780).forEach((arr, i) => out.push(pagina('p-resumen p-equipo', `<h2>Detalle por partido${i ? ' <small>(cont.)</small>' : ''}</h2>${sub}${tabla(arr)}`)));
     }

@@ -17,7 +17,7 @@
   const SEG_TIPO = { control: 'Control médico', examen: 'Examen', procedimiento: 'Procedimiento', kinesiologia: 'Kinesiología', cirugia: 'Cirugía', hosp: 'Hospitalización' };
   const MOM = { pre: 'Pre partido', t1: '1.er tiempo', et: 'Entretiempo', t2: '2.º tiempo', post: 'Post partido' };
   // Tipos de registro (chips). Clave · rótulo · clase de color.
-  const TIPOS = [['caso', 'Lesiones y molestias', 'les'], ['scat', 'Evaluaciones SCAT5', 'les'], ['hito', 'Altas y retornos', 'hi'], ['atencion', 'Atenciones', 'at'], ['control', 'Controles', 'ev'], ['examen', 'Exámenes', 'ev'],
+  const TIPOS = [['caso', 'Lesiones y molestias', 'les'], ['scat', 'Evaluaciones SCAT5', 'les'], ['hito', 'Altas y retornos', 'hi'], ['atencion', 'Atenciones', 'at'], ['control', 'Controles', 'ev'], ['examen', 'Exámenes', 'ev'], ['procedimiento', 'Procedimientos', 'ev'],
     ['medicamento', 'Medicamentos', 'ev'], ['cirugia', 'Cirugías', 'ev'], ['partido', 'Partidos', 'pa'], ['seguro', 'Seguro', 'se'], ['club', 'Club y categoría', 'cl']];
   K.HIST_TIPOS = TIPOS;
 
@@ -102,7 +102,7 @@
     K.state.informes.forEach((i) => (i.partidos || []).forEach((p) => {
       const min = Number((p.minutos || {})[jid]) || 0, incs = (p.incidencias || []).filter((x) => x.jugadorId === jid);
       if (!(min > 0) && !incs.length) return;
-      const lineas = incs.map((x) => [MOM[x.momento] || 'Incidencia', [x.minuto !== '' && x.minuto != null ? `min ${x.minuto}'` : '', K.nombreClase(x.clase), x.zona ? K.nombreZona(x.zona) : '', x.enCancha ? 'atendido en cancha' : '', x.retiro ? 'se retiró' : ''].filter(Boolean).join(' · ')]);
+      const lineas = incs.map((x) => [MOM[x.momento] || 'Incidencia', [x.minuto !== '' && x.minuto != null ? `min ${x.minuto}'` : '', K.nombreClase(x.clase), x.zona ? K.nombreZona(x.zona) : '', x.enCancha ? 'atendido en cancha' : x.enBanca ? 'atendido en banca' : '', x.retiro ? 'se retiró' : ''].filter(Boolean).join(' · ')]);
       const conm = K.conmocion ? incs.filter((x) => x.scat5) : []; // sospechas de conmoción cerebral (SCAT5) de este partido
       conm.forEach((x) => lineas.push(['Conmoción cerebral (SCAT5)', K.conmocion.resumenTxt(x.scat5)]));
       const sub = [min > 0 ? `${min}'` : '', p.cat ? 'Sub ' + p.cat : '', p.torneo || '', p.local ? 'Local' : 'Visita', p.res || '', incs.length ? `${incs.length} incidencia${incs.length === 1 ? '' : 's'}` : '', conm.length ? 'sospecha de conmoción cerebral' : ''].filter(Boolean).join(' · ');
@@ -123,7 +123,7 @@
       it.zn = zn(it.zonas);
       it.q = K.norm([it.tag, it.titulo, it.sub, it.notas, it.zn.join(' '), K.nombreTemporada(it.temp)].concat(it.det.map((d) => d[0] + ' ' + d[1])).join(' '));
     });
-    const ORD = { club: 0, caso: 1, scat: 1.5, hito: 2, atencion: 3, control: 4, examen: 5, medicamento: 6, cirugia: 7, partido: 8, seguro: 9 };
+    const ORD = { club: 0, caso: 1, scat: 1.5, hito: 2, atencion: 3, control: 4, examen: 5, procedimiento: 5.5, medicamento: 6, cirugia: 7, partido: 8, seguro: 9 };
     items.sort((a, b) => b.f.localeCompare(a.f) || (ORD[b.k] || 0) - (ORD[a.k] || 0));
     const zonas = Array.from(new Set([].concat(...items.map((it) => it.zn)))).sort((a, b) => a.localeCompare(b, 'es'));
     const cuenta = {}; items.forEach((it) => { cuenta[it.k] = (cuenta[it.k] || 0) + 1; });
@@ -155,21 +155,31 @@
 
   /* ======================= LÍNEA DE TIEMPO (pantalla) ======================= */
   const chipsCaso = (it) => `<i class="chip g-${it.grav}" data-grav>${e(K.GRAVEDADES[it.grav])}</i>${it.recid ? '<i class="chip rec" data-recid>Recidiva</i>' : ''}`;
-  function itemHTML(it, i, edit) {
+  // v1.9.2: los hitos de una misma lesión y la misma fecha (alta kinésica, alta médica, retorno…) van en un solo cuadro, con la lesión una sola vez.
+  const agrupar = (arr) => { const out = []; arr.forEach((it, i) => { const u = out[out.length - 1]; if (it.k === 'hito' && it.f && u && u.it.k === 'hito' && u.it.f === it.f && u.it.casoId === it.casoId) u.mas.push(it); else out.push({ it, i, mas: [] }); }); return out; };
+  // v1.9.3: además, todo lo de una misma fecha va en un solo cuadro (días sin fecha: cada registro aparte)
+  const agruparDias = (arr) => { const out = []; agrupar(arr).forEach((x) => { const u = out[out.length - 1]; if (x.it.f && u && u.f === x.it.f) u.secs.push(x); else out.push({ f: x.it.f, secs: [x] }); }); return out; };
+  const tagsHTML = (it, mas, cls) => (mas && mas.length ? `<span class="${cls}">${[it].concat(mas).map((x) => `<span class="bit-tag t-${x.cls}${cls === 'fj-tgs' ? ' fj-tg' : ''}">${e(x.tag)}</span>`).join('')}</span>` : `<span class="bit-tag${cls === 'fj-tgs' ? ' fj-tg' : ''} t-${it.cls}">${e(it.tag)}</span>`);
+  function cuerpoItem(it, i, edit, mas) {
     const lesion = it.k === 'caso' || it.k === 'hito';
     const det = it.det.length || it.notas ? `<details class="th-det"><summary>Ver detalle</summary><dl>${it.det.map(([l, v]) => `<div><dt>${e(l)}</dt><dd>${e(v)}</dd></div>`).join('')}</dl>${it.notas ? `<p class="bit-n"><b>Notas:</b> ${e(it.notas).replace(/\n/g, '<br>')}</p>` : ''}</details>` : '';
-    return `<div class="th-it" data-k="${it.k}"><div class="th-f"><b>${FECHA.test(it.f || '') ? K.fechaCorta(it.f) : '—'}</b></div>
-      <div class="th-c"><div class="th-h"><span class="bit-tag t-${it.cls}">${e(it.tag)}</span><b>${e(it.titulo)}</b></div>
+    return `<div class="th-c"><div class="th-h${mas && mas.length ? ' th-h-g' : ''}">${tagsHTML(it, mas, 'th-tags')}<b>${e(it.titulo)}</b></div>
         ${lesion ? `<div class="th-ch">${chipsCaso(it)}</div>` : ''}${it.sub ? `<p class="th-s">${e(it.sub)}</p>` : ''}${det}${it.k === 'caso' && it.raw && it.raw.conmocion === true && K.scat5 && K.scat5.deCaso(it.raw) ? `<button type="button" class="btn sec chico sc-pdf-btn" data-scat-pdf-tl="${e(it.raw.id)}">${K.uiIco('pdf', 16)} Ficha SCAT5 (PDF)</button>` : ''}</div>
-      ${edit && it.edit ? `<button type="button" class="btn ghost chico th-ed" data-acc="histAbrir" data-i="${i}" aria-label="Abrir para editar" title="Abrir para editar">${K.uiIco('editar', 18)}</button>` : ''}</div>`;
+      ${edit && it.edit ? `<button type="button" class="btn ghost chico th-ed" data-acc="histAbrir" data-i="${i}" aria-label="Abrir para editar" title="Abrir para editar">${K.uiIco('editar', 18)}</button>` : ''}`;
+  }
+  const fechaTh = (f) => `<div class="th-f"><b>${FECHA.test(f || '') ? K.fechaCorta(f) : '—'}</b></div>`;
+  // Un cuadro por día: todo lo de esa fecha (altas y retornos, seguro, exámenes, atenciones…) junto, en secciones separadas por una línea fina.
+  function diaHTML(dia, edit) {
+    if (dia.secs.length === 1) { const x = dia.secs[0]; return `<div class="th-it" data-k="${x.it.k}">${fechaTh(x.it.f)}${cuerpoItem(x.it, x.i, edit, x.mas)}</div>`; }
+    return `<div class="th-it th-dia" data-k="dia">${fechaTh(dia.f)}<div class="th-secs">${dia.secs.map((x) => `<div class="th-sec" data-k="${x.it.k}">${cuerpoItem(x.it, x.i, edit, x.mas)}</div>`).join('')}</div></div>`;
   }
   function listaHTML(lista, s) {
     const edit = K.puedeEditar(), vis = lista.slice(0, s.n);
     let mes = '', h = '';
-    vis.forEach((it, i) => {
-      const m = it.f ? K.nombreMesLargo(it.f) : 'Sin fecha';
+    agruparDias(vis).forEach((dia) => {
+      const m = dia.f ? K.nombreMesLargo(dia.f) : 'Sin fecha';
       if (m !== mes) { mes = m; h += `<h3 class="bit-mes">${e(m)}</h3>`; }
-      h += itemHTML(it, i, edit);
+      h += diaHTML(dia, edit);
     });
     if (lista.length > s.n) h += `<div class="th-mas"><button type="button" class="btn sec" data-acc="histMas">Ver más <small>(${lista.length - s.n} restantes)</small></button></div>`;
     return h || '<p class="vacio-msg">No hay registros con estos filtros.</p>';
@@ -367,18 +377,25 @@
     return out;
   }
   // Fila compacta de la línea de tiempo en el PDF
-  function filaPdf(it) {
+  // contenido de un registro en el PDF: etiquetas + título, chips, subtítulo y notas
+  function seccionPdf(it, mas) {
     const lesion = it.k === 'caso' || it.k === 'hito';
     const inc = it.k === 'partido' ? it.det.filter((d) => !['Condición', 'Torneo', 'Categoría', 'Resultado', 'Minutos jugados'].includes(d[0])).map(([l, v]) => `<div class="fj-n"><b>${e(l)}:</b> ${e(v)}</div>`).join('') : '';
     const notas = it.notas ? `<div class="fj-n"><b>Notas:</b> ${e(recorta(it.notas, 260))}</div>` : '';
-    return `<div class="fj-it"><span class="fj-f">${it.f ? e(K.fechaCorta(it.f)) : 'Sin fecha'}</span><span class="bit-tag fj-tg t-${it.cls}">${e(it.tag)}</span><div class="fj-c"><b>${e(it.titulo)}</b>${lesion ? ` <span class="fj-ch">${chipsCaso(it)}</span>` : ''}${it.sub ? `<div class="fj-s">${e(recorta(it.sub, 220))}</div>` : ''}${inc}${notas}</div></div>`;
+    return `${tagsHTML(it, mas, 'fj-tgs')}<div class="fj-c"><b>${e(it.titulo)}</b>${lesion ? ` <span class="fj-ch">${chipsCaso(it)}</span>` : ''}${it.sub ? `<div class="fj-s">${e(recorta(it.sub, 220))}</div>` : ''}${inc}${notas}</div>`;
+  }
+  // Fila del PDF: un día. Si tiene varios registros, van en un solo cuadro separados por una línea fina.
+  function filaPdf(dia) {
+    const f = `<span class="fj-f">${dia.f ? e(K.fechaCorta(dia.f)) : 'Sin fecha'}</span>`;
+    if (dia.secs.length === 1) { const x = dia.secs[0]; return `<div class="fj-it">${f}${seccionPdf(x.it, x.mas)}</div>`; }
+    return `<div class="fj-it fj-dia">${f}<div class="fj-dsecs">${dia.secs.map((x) => `<div class="fj-dsec">${seccionPdf(x.it, x.mas)}</div>`).join('')}</div></div>`;
   }
 
   /* ---- Paginación por altura medida ---- */
   // bloques: [html]. Devuelve una lista de páginas (cada una, lista de html). La página 1 empieza con su propia cabecera (parte del primer bloque);
   // las siguientes llevan la cabecera corta. Los bloques nunca se parten.
   // Envoltorio de cada bloque: las filas de la línea de tiempo van más juntas.
-  const envolver = (b) => `<div class="${/^<(h4 class="fj-mes"|div class="fj-it")/.test(b) ? 'fj-blq fj-blq-s' : 'fj-blq'}">${b}</div>`;
+  const envolver = (b) => `<div class="${/^<(h4 class="fj-mes"|div class="fj-it[ "])/.test(b) ? 'fj-blq fj-blq-s' : 'fj-blq'}">${b}</div>`;
   function repartir(bloques, cabCorta) {
     const host = document.createElement('div');
     host.setAttribute('aria-hidden', 'true');
@@ -426,10 +443,10 @@
     const filtro = o.filtrar && hayFiltro(s) ? descFiltro(data, s) : '';
     bloques.push(`<h3 class="fj-sec">Línea de tiempo <small>${lista.length} registro${lista.length === 1 ? '' : 's'}</small></h3><p class="fj-nota" style="margin:0">${filtro ? 'Filtrada: ' + e(filtro) : 'Todo el historial'}${conSeg ? '' : ' · sin datos del seguro'}.</p>`);
     let mes = '', pend = '';
-    lista.forEach((it) => {
-      const m = it.f ? K.nombreMesLargo(it.f) : 'Sin fecha';
+    agruparDias(lista).forEach((dia) => {
+      const m = dia.f ? K.nombreMesLargo(dia.f) : 'Sin fecha';
       if (m !== mes) { mes = m; pend = `<h4 class="fj-mes">${e(m)}</h4>`; }
-      bloques.push(pend + filaPdf(it)); pend = '';
+      bloques.push(pend + filaPdf(dia)); pend = '';
     });
     if (!lista.length) bloques.push('<p class="fj-nota">No hay registros con estos filtros.</p>');
     const cabCorta = `<div class="fj-cab fj-cab-c">${ESC}<div class="fj-cab-t"><h1>${e(data.j.nombre)}</h1><p>Ficha Clínica${o.emitida ? ' · ' + e(K.fechaCorta(hoy)) : ''}</p></div></div>`;
@@ -441,7 +458,7 @@
     // ficha anual del informe (opcional): va primero, con su página de detalle si hay más lesiones/molestias de las que caben
     const anuales = o.anual ? K.fichaAnualPaginas(jid, anio) : [];
     const todas = anuales.concat(clinicas), T = todas.length;
-    return todas.map((h, i) => h.replace('<!--PIE-->', K.rep.PIE(`${data.j.nombre} · ${i + 1} / ${T}`)));
+    return todas.map((h, i) => h.replace('<!--PIE-->', K.rep.PIE(`${data.j.nombre} · ${i + 1} / ${T}`, data.inf)));
   };
 
   // Ventana de opciones y descarga

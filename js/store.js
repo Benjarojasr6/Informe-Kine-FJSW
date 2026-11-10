@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.9.2';
+  K.version = '1.9.5';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -87,10 +87,10 @@
     { id: 'preso', nombre: 'Presoterapia', icono: 'img:presoterapia', intervencion: true },
     { id: 'puncion', nombre: 'Punción seca', icono: 'img:puncion', intervencion: true },
     { id: 'masaje', nombre: 'Masajes', icono: 'img:masaje', intervencion: true },
-    { id: 'seguro', nombre: 'Derivaciones al seguro', icono: 'img:mok', intervencion: false },
+    { id: 'seguro', nombre: 'Derivaciones al seguro', icono: 'img:mok', intervencion: true },
     { id: 'carga', nombre: 'Manejo de carga', icono: 'svg:balanza', intervencion: true },
     { id: 'farmaco', nombre: 'Farmacología', icono: 'svg:medicamento', intervencion: true },
-    { id: 'deriv', nombre: 'Derivación externa', icono: 'svg:estetoscopio', intervencion: false },
+    { id: 'deriv', nombre: 'Derivación externa', icono: 'svg:estetoscopio', intervencion: true },
     { id: 'sangrado', nombre: 'Manejo de sangrado', icono: 'svg:gota', intervencion: true },
     { id: 'evalcancha', nombre: 'Evaluación en cancha', icono: 'svg:atenciones', intervencion: true },
     { id: 'ortopedia', nombre: 'Ortopedia', icono: 'svg:muleta', intervencion: true },
@@ -104,6 +104,7 @@
     { id: 'i-intervenciones', nombre: 'Total de intervenciones', fuente: 'intervenciones', icono: 'svg:intervencion' },
     { id: 'i-controles', nombre: 'Total de controles médicos', fuente: 'controles', icono: 'svg:control' },
     { id: 'i-examenes', nombre: 'Total de exámenes', fuente: 'examenes', icono: 'svg:examen' },
+    { id: 'i-procedimientos', nombre: 'Total de procedimientos', fuente: 'procedimientos', icono: 'svg:jeringa' },
     { id: 'i-medicamentos', nombre: 'Total de medicamentos', fuente: 'medicamentos', icono: 'svg:medicamento' },
     { id: 'i-cirugias', nombre: 'Total de cirugías', fuente: 'cirugias', icono: 'svg:cirugia' }
   ];
@@ -155,6 +156,7 @@
       anio,
       anioTexto: anio,
       tempIniciada: anio, // última temporada iniciada con el asistente (aparte de dónde viven los textos: escribir en el año nuevo no la da por iniciada)
+      derivInterv: true, // v1.9.4: las derivaciones ya cuentan como intervención (la corrección única de los informes antiguos está en app.js)
       anios: {},
       conclusiones: '',
       objetivos: '',
@@ -465,7 +467,7 @@
     });
     if (inf.documentos) inf.documentos = inf.documentos.filter((d) => d.img);
     if (Array.isArray(inf.indicadores)) inf.indicadores = inf.indicadores.filter((i) => typeof i.fuente === 'string' && i.fuente); // un indicador sin su fuente de datos no se puede calcular
-    if (Array.isArray(inf.eventos)) inf.eventos = inf.eventos.filter((v) => ['control', 'examen', 'medicamento', 'cirugia'].includes(v.tipo)); // un tipo desconocido no se puede mostrar ni editar
+    if (Array.isArray(inf.eventos)) inf.eventos = inf.eventos.filter((v) => ['control', 'examen', 'procedimiento', 'medicamento', 'cirugia'].includes(v.tipo)); // un tipo desconocido no se puede mostrar ni editar
     (inf.casos || []).forEach((c) => { if (c.zonas !== undefined) c.zonas = arrObj(c.zonas).filter((x) => typeof x === 'string'); });
     (inf.staff || []).forEach((st) => { st.personas = arrObj(st.personas).filter((x) => x && typeof x === 'object').map((x) => Object.assign(x, { nombre: typeof x.nombre === 'string' ? x.nombre : '' })); });
     (inf.casos || []).forEach((c) => { if (c.gravedad && !K.GRAVEDADES[c.gravedad]) c.gravedad = 'pordefinir'; });

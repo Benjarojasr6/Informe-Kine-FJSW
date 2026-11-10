@@ -341,7 +341,7 @@
           const fx = MARGEN * ESCALA, fy = MARGEN * ESCALA;
           await dibujar(ctx, svgURL(css, inner, ancho, h, ESCALA, tt, base, modo), fx, fy, ancho * ESCALA, h * ESCALA);
           ctx.fillStyle = '#6b776f'; ctx.font = `${8.5 * ESCALA}px Inter, Arial, sans-serif`; ctx.textBaseline = 'alphabetic';
-          ctx.textAlign = 'left'; ctx.fillText('Santiago Wanderers · Kinesiología Fútbol Joven SW', fx, (LH - 0.3 * PX) * ESCALA);
+          ctx.textAlign = 'left'; ctx.fillText(K.pieTexto ? K.pieTexto() : 'Kinesiología Fútbol Joven Santiago Wanderers', fx, (LH - 0.3 * PX) * ESCALA);
           ctx.textAlign = 'right'; ctx.fillText(`${i + 1} / ${tramos.length}`, (LW - MARGEN) * ESCALA, (LH - 0.3 * PX) * ESCALA);
           out.push({ jpg: await aJPEG(c), w: c.width, h: c.height });
           c.width = c.height = 1; await pausa(0);

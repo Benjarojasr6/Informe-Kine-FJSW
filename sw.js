@@ -1,6 +1,6 @@
 /* Service worker: la app funciona sin conexión.
    Al subir una versión nueva a GitHub, cambia VERSION para forzar la actualización. */
-const VERSION = '1.9.2';
+const VERSION = '1.9.5';
 const CACHE = 'kine-sw-' + VERSION;
 
 const ARCHIVOS = [
@@ -30,7 +30,7 @@ const SDK_ARCHIVOS = ['firebase-app-compat.js', 'firebase-auth-compat.js', 'fire
 self.addEventListener('install', (e) => {
   e.waitUntil(Promise.all([
     caches.open(CACHE).then((c) => c.addAll(ARCHIVOS.map((u) => new Request(u, { cache: 'reload' })))), // siempre lo último de GitHub, no una copia vieja del navegador
-    caches.open(SDK_CACHE).then((c) => Promise.all(SDK_ARCHIVOS.map((u) => c.add(new Request(u, { mode: 'no-cors' })).catch(() => {}))))
+    caches.open(SDK_CACHE).then((c) => Promise.all(SDK_ARCHIVOS.map((u) => fetch(new Request(u, { mode: 'no-cors' })).then((r) => c.put(u, r)).catch(() => {})))) // v1.9.4: cache.add() rechaza las respuestas «opacas» (no-cors); con fetch + put sí se guardan
   ]));
 });
 

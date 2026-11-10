@@ -3,7 +3,7 @@
 (function () {
   const K = window.K, e = K.esc;
   const MES3 = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  const EV = { controles: 'control', examenes: 'examen', medicamentos: 'medicamento', cirugias: 'cirugia' };
+  const EV = { controles: 'control', examenes: 'examen', procedimientos: 'procedimiento', medicamentos: 'medicamento', cirugias: 'cirugia' };
   const zonaTxt = (z) => K.nombreZonaLimpia ? K.nombreZonaLimpia(z) : K.nombreZona(z);
 
   // Registros que suman al total (sin los ajustes manuales). Cada uno: { f, jid, cant, donde, zonas[], txt }

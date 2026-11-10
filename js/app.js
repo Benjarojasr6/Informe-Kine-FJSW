@@ -22,6 +22,14 @@
       if (!inf.tratamientos.some((x) => x.id === t.id)) inf.tratamientos.push(Object.assign({}, t));
       if (!inf.indicadores.some((i) => i.fuente === 'trat:' + t.id)) inf.indicadores.push({ id: 'i-t-' + t.id, nombre: t.nombre, fuente: 'trat:' + t.id, icono: t.icono, grupo: 'tratamiento', visible: true });
     });
+    // v1.9.4: indicador «Total de procedimientos» en los informes que no lo tenían (queda después de «Total de exámenes»)
+    if (!inf.indicadores.some((i) => i.fuente === 'procedimientos')) {
+      const nuevo = Object.assign({ grupo: 'general', visible: true }, K.INDICADORES_GENERALES.find((i) => i.fuente === 'procedimientos'));
+      const pos = inf.indicadores.findIndex((i) => i.fuente === 'examenes');
+      if (pos >= 0) inf.indicadores.splice(pos + 1, 0, nuevo); else inf.indicadores.push(nuevo);
+    }
+    // v1.9.4: las derivaciones (al seguro y externa) ahora cuentan como intervención; se corrige una sola vez en los informes que venían con la regla anterior
+    if (!inf.derivInterv) { inf.tratamientos.forEach((t) => { if (t && (t.id === 'seguro' || t.id === 'deriv')) t.intervencion = true; }); inf.derivInterv = true; }
     // Temporadas: los textos de siempre pertenecen al año vigente (nunca anterior al año actual, para que lo ya escrito se siga viendo en el informe de este año)
     if (!Number.isInteger(inf.anioTexto)) inf.anioTexto = Math.max(Number(inf.anio) || 0, new Date().getFullYear());
     if (!Number.isInteger(inf.tempIniciada)) inf.tempIniciada = inf.anioTexto;

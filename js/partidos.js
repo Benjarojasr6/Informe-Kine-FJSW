@@ -44,7 +44,7 @@
     const porClase = K.CLASES_ATENCION.map(([k, t]) => [t, cnt((i) => i.clase === k)]);
     const interv = {}; l.forEach((i) => Object.keys(i.trat || {}).forEach((id) => { if (i.trat[id] > 0) interv[id] = (interv[id] || 0) + Number(i.trat[id]); }));
     return {
-      lista: l.slice().sort((a, b) => ((Number(b._cat) || 0) - (Number(a._cat) || 0)) || ordenInc(a, b)), n: l.length, jugadores: new Set(l.map((i) => i.jugadorId)).size, enCancha: cnt((i) => i.enCancha === true),
+      lista: l.slice().sort((a, b) => ((Number(b._cat) || 0) - (Number(a._cat) || 0)) || ordenInc(a, b)), n: l.length, jugadores: new Set(l.map((i) => i.jugadorId)).size, enCancha: cnt((i) => i.enCancha === true), enBanca: cnt((i) => i.enBanca === true),
       retiros: cnt((i) => i.retiro === true), porMom, porClase, interv
     };
   }
@@ -176,7 +176,7 @@
   const contratados = (per) => { per = per || K.resolverPeriodo(K.state.periodo); const out = []; K.state.informes.forEach((i) => i.jugadores.forEach((j) => { if (j.contrato && K.estaEn(j, per.desde, per.hasta)) out.push({ j, inf: i }); })); return out.sort((a, b) => a.j.nombre.localeCompare(b.j.nombre, 'es')); };
   /* ---------- Informes de jugadores con contrato ---------- */
   const cabecera = (tit, sub) => `<header><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><div><h1>${tit}</h1><p>${sub}</p></div></header>`;
-  const detalleInc = (inf, l) => l.map((i) => `${e(momTxt(i))}: ${e(K.nombreClase(i.clase))}${i.zona ? ' · ' + e(zonaTxt(i.zona)) : ''}${i.enCancha ? ' · atendido en cancha' : ''}${tratTxt(inf, i) ? ' · ' + e(tratTxt(inf, i)) : ''}${i.retiro ? ' · <b>se retiró</b>' : ''}${i.scat5 ? ' · <b>sospecha de conmoción cerebral</b>' : ''}${i.notas ? '<small>' + e(i.notas) + '</small>' : ''}`).join('<br>');
+  const detalleInc = (inf, l) => l.map((i) => `${e(momTxt(i))}: ${e(K.nombreClase(i.clase))}${i.zona ? ' · ' + e(zonaTxt(i.zona)) : ''}${i.enCancha ? ' · atendido en cancha' : i.enBanca ? ' · atendido en banca' : ''}${tratTxt(inf, i) ? ' · ' + e(tratTxt(inf, i)) : ''}${i.retiro ? ' · <b>se retiró</b>' : ''}${i.scat5 ? ' · <b>sospecha de conmoción cerebral</b>' : ''}${i.notas ? '<small>' + e(i.notas) + '</small>' : ''}`).join('<br>');
   // Todos los jugadores con contrato: resumen y partidos de cada uno.
   // Categoría del jugador al terminar el período del informe (un jugador que subió después sigue figurando en la de ese año).
   const catJ = (j, per) => { if (!K.tieneHistorial(j)) return j.categoria || ''; const n = K.catPeriodo(j, per.desde, per.hasta); return n ? 'Sub ' + n : j.categoria || ''; };
@@ -384,7 +384,7 @@
     const kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
     const tabs = jn.ps.length > 1 ? `<div style="margin:0 0 12px">${K.seg('partVista', jn.ps.map((x) => [String(x.cat || ''), catTxt(x) || 'Partido']).concat([['comb', 'Combinado']]), vista)}</div>` : '';
     const fila = (i) => `<div class="item"${ed ? ` data-acc="partIncEditar" data-id="${i._p.id}" data-inc="${i.id}"` : ''}><span class="pm-tag" style="background:${MOM_COL[i.momento] || '#8a9a90'}">${e(MOM_TXT[i.momento] || '')}${jugando(i.momento) && i.minuto !== '' && i.minuto != null ? `<b>${e(i.minuto)}'</b>` : ''}</span>
-          <div class="txt"><b>${e(nomJ(i.jugadorId))}${vista === 'comb' && i._cat ? ` <span class="suave">· Sub ${i._cat}</span>` : ''}</b><span>${minCorrido(i) != null ? `${e(minCorrido(i))}' del partido · ` : ''}${e(K.nombreClase(i.clase))}${i.zona ? ' · ' + e(zonaTxt(i.zona)) : ''} · ${i.enCancha ? 'atendido en cancha' : 'atendido fuera de la cancha'}${tratTxt(inf, i) ? ' · ' + e(tratTxt(inf, i)) : ''}</span>${i.scat5 ? `<div class="cm-chips"><span class="chip g-grave" data-conmocion>Conmoción</span>${i.retiro ? '<span class="chip g-grave">Se retiró</span>' : ''}</div>` : ''}${!i.scat5 && i.reemplazo && i.reemplazo.hecho ? '<div class="cm-chips"><span class="chip g-moderada" data-reemplazo-chip>Reemplazo por lesión</span></div>' : ''}</div>${i.scat5 ? '' : i.retiro ? '<span class="chip g-grave">Se retiró</span>' : ''}</div>`;
+          <div class="txt"><b>${e(nomJ(i.jugadorId))}${vista === 'comb' && i._cat ? ` <span class="suave">· Sub ${i._cat}</span>` : ''}</b><span>${minCorrido(i) != null ? `${e(minCorrido(i))}' del partido · ` : ''}${e(K.nombreClase(i.clase))}${i.zona ? ' · ' + e(zonaTxt(i.zona)) : ''} · ${i.enCancha ? 'atendido en cancha' : i.enBanca ? 'atendido en banca' : 'atendido fuera de la cancha'}${tratTxt(inf, i) ? ' · ' + e(tratTxt(inf, i)) : ''}</span>${i.scat5 ? `<div class="cm-chips"><span class="chip g-grave" data-conmocion>Conmoción</span>${i.retiro ? '<span class="chip g-grave">Se retiró</span>' : ''}</div>` : ''}${!i.scat5 && i.reemplazo && i.reemplazo.hecho ? '<div class="cm-chips"><span class="chip g-moderada" data-reemplazo-chip>Reemplazo por lesión</span></div>' : ''}</div>${i.scat5 ? '' : i.retiro ? '<span class="chip g-grave">Se retiró</span>' : ''}</div>`;
     const conm = K.conmocion ? K.conmocion.filas(ps) : [];
     const minutos = vista !== 'comb' ? (() => {
       const cit = citadosDe(p), js = listaMin(inf, p), dur = p.duracion || 90;
@@ -405,7 +405,7 @@
       ${tabs}
       ${vista === 'comb' ? '<p class="suave" style="margin:0 0 10px">Informe combinado: todas las categorías de este día juntas. Para agregar atenciones, minutos u observaciones elige una categoría arriba.</p>' : ''}
       ${vista !== 'comb' ? citadosCard(p, ed) : ''}
-      <div class="bd-kpis">${kpi(r.n, 'atenciones')}${kpi(r.jugadores, 'jugadores atendidos')}${kpi(r.enCancha, 'atendidos en cancha')}${kpi(r.retiros, 'se retiraron del partido')}${conm.length ? kpi(conm.length, 'conmociones') : ''}</div>
+      <div class="bd-kpis">${kpi(r.n, 'atenciones')}${kpi(r.jugadores, 'jugadores atendidos')}${kpi(r.enCancha, 'atendidos en cancha')}${r.enBanca ? kpi(r.enBanca, 'atendidos en banca') : ''}${kpi(r.retiros, 'se retiraron del partido')}${conm.length ? kpi(conm.length, 'conmociones') : ''}</div>
       <div class="card"><h2>Atenciones del partido</h2>
         ${r.lista.length ? `<div class="lista">${r.lista.map(fila).join('')}</div>` : `<p class="vacio-msg">Aún no hay atenciones en este partido.${ed && vista !== 'comb' ? ' Toca <b>Agregar atención</b> para registrar la primera.' : ''}</p>`}</div>
       ${conm.length ? `<div class="card cm-card" data-conm-card><div class="fila sb wrap gap"><h2 style="margin:0">Conmociones cerebrales (SCAT5)</h2>${K.conmocion.botonTodasHTML(conm, 'Informe SCAT5 vs ' + jn.rival + (jn.fecha ? ' ' + jn.fecha : ''))}</div><p class="sub">${e(K.conmocion.AVISO)} Aquí va el resumen; cada jugador tiene su informe SCAT5 completo.</p><div class="kt-scroll">${K.conmocion.tablaHTML(conm, { partido: vista === 'comb', breve: true, botones: true })}</div></div>` : ''}
@@ -434,7 +434,7 @@
         <label class="campo ${jugando(mom0) ? '' : 'oculto'}" data-blq="min"><span>Minuto del tiempo (0 a ${mitad(p) + 15})</span><input type="number" inputmode="numeric" min="0" max="${mitad(p) + 15}" name="minuto" value="${rec && rec.minuto != null ? e(rec.minuto) : ''}" placeholder="Ej. 38"><small class="suave" data-conv></small></label>
         <div class="grid2">
           <label class="campo"><span>Tipo de atención</span><select name="clase">${K.opts(K.CLASES_ATENCION, rec ? rec.clase : 'molestia')}</select></label>
-          <div class="campo">${lbl('¿Atendido en cancha?')}${K.seg('enCancha', [['si', 'Sí'], ['no', 'No']], rec ? (rec.enCancha ? 'si' : 'no') : jugando(mom0) ? 'si' : 'no')}</div>
+          <div class="campo">${lbl('¿Atendido en cancha?')}${K.seg('enCancha', [['si', 'Sí'], ['no', 'No'], ['banca', 'En banca']], rec ? (rec.enBanca ? 'banca' : rec.enCancha ? 'si' : 'no') : jugando(mom0) ? 'si' : 'no')}<small class="suave oculto" data-banca-ayuda></small></div>
         </div>
         <div class="grid2">
           <div class="campo">${lbl('Mecanismo')}${K.seg('mec', MECANISMOS, rec ? rec.mec || 'na' : 'contacto')}</div>
@@ -457,7 +457,7 @@
             if (!d.jugadorId) { K.aviso('Elige un jugador', true); return false; }
             const tr = {}; hoja.querySelectorAll('.contador').forEach((c) => { const n = Number(c.querySelector('[data-n]').value) || 0; if (n > 0) tr[c.dataset.cont] = n; });
             const campos = {
-              jugadorId: d.jugadorId, momento, minuto: jugando(momento) && d.minuto !== '' ? Number(d.minuto) : '', clase: d.clase, enCancha: K.segValor(hoja, 'enCancha') === 'si',
+              jugadorId: d.jugadorId, momento, minuto: jugando(momento) && d.minuto !== '' ? Number(d.minuto) : '', clase: d.clase, enCancha: K.segValor(hoja, 'enCancha') === 'si', enBanca: K.segValor(hoja, 'enCancha') === 'banca',
               mec: K.segValor(hoja, 'mec') || 'na', zona: d.zona || '', retiro: retira(momento) && K.segValor(hoja, 'retiro') === 'si', trat: tr, casoId: d.clase === 'molestia' ? d.casoId || '' : '', notas: (d.notas || '').trim()
             };
             let inc = rec;
@@ -472,14 +472,25 @@
         const sel = hoja.querySelector('[name=jugadorId]'), cas = hoja.querySelector('[name=casoId]');
         const conv = hoja.querySelector('[data-conv]'), inMin = hoja.querySelector('[name=minuto]');
         const actConv = () => { const m = K.segValor(hoja, 'momento'); conv.textContent = m === 't2' && inMin.value !== '' ? `= minuto ${mitad(p) + Number(inMin.value)}' del partido` : m === 't2' ? `El minuto se cuenta desde el inicio del 2.º tiempo (el 83' del partido = minuto 38 del 2.º tiempo).` : ''; };
+        // aviso (no cambia nada solo): si el minuto de la atención es posterior a los minutos que jugó, tal vez fue en la banca
+        const ayB = hoja.querySelector('[data-banca-ayuda]');
+        const actBanca = () => {
+          const mm = K.segValor(hoja, 'momento'), jug = sel && sel.value ? Number((p.minutos || {})[sel.value]) : 0, mt = inMin.value !== '' ? Number(inMin.value) : null;
+          const mc = mt == null ? null : mm === 't2' ? mitad(p) + mt : mm === 't1' ? mt : null;
+          const sug = jug > 0 && mc != null && mc > jug && K.segValor(hoja, 'enCancha') !== 'banca';
+          ayB.classList.toggle('oculto', !sug);
+          if (sug) ayB.textContent = `Jugó ${jug}' y la atención es al ${mc}': si ya lo habían reemplazado, elige «En banca».`;
+        };
         inMin.addEventListener('input', actConv); hoja.addEventListener('seg', actConv);
+        inMin.addEventListener('input', actBanca); hoja.addEventListener('seg', actBanca);
         const ajustar = () => { actConv(); const j = jugando(K.segValor(hoja, 'momento')); hoja.querySelector('[data-blq=min]').classList.toggle('oculto', !j); const mm = K.segValor(hoja, 'momento'); hoja.querySelector('[data-blq=retiro]').classList.toggle('oculto', !retira(mm)); hoja.querySelector('[data-ret-et]').classList.toggle('oculto', mm !== 'et'); };
         hoja.addEventListener('seg', (ev) => {
           if (ev.target.dataset.seg !== 'momento') return;
           ajustar();
           if (!rec) K.segSet(hoja, 'enCancha', jugando(ev.detail) ? 'si' : 'no');
         });
-        sel.addEventListener('change', () => { cas.innerHTML = casosDe(sel.value); });
+        sel.addEventListener('change', () => { cas.innerHTML = casosDe(sel.value); actBanca(); });
+        actBanca();
         const bc = hoja.querySelector('[data-cm-abrir]');
         if (bc) bc.addEventListener('click', () => { // lo ya anotado (jugador, cuándo y minuto) pasa al formulario de conmoción
           const momento = K.segValor(hoja, 'momento') || 't1', mn = inMin.value;
@@ -645,7 +656,7 @@
     const a = Object.assign({ id: inc.atencionId || K.uid() }, previa || {}, {
       fecha, jugadorId: inc.jugadorId, casoId, trat: Object.assign({}, inc.trat), origen: tor && tor.viaje ? 'gira' : 'ssw', clase: inc.clase, partidoId: p.id, incId: inc.id, catJuego: p.cat ? Number(p.cat) : null,
       temporada: (previa && previa.temporada) || K.ui.ultTemporada || (Number(fecha.slice(5, 7)) <= 6 ? 'camp1' : 'camp2'),
-      notas: `Partido vs ${p.rival}${p.cat ? ' (Sub ' + p.cat + ')' : ''} · ${momTxt(inc, p)}${inc.enCancha ? ' · en cancha' : ''}${inc.retiro ? ' · se retiró del partido' : ''}${conm ? ' · sospecha de conmoción cerebral' : ''}${inc.notas ? ' · ' + inc.notas : ''}`
+      notas: `Partido vs ${p.rival}${p.cat ? ' (Sub ' + p.cat + ')' : ''} · ${momTxt(inc, p)}${inc.enCancha ? ' · en cancha' : inc.enBanca ? ' · en banca (ya reemplazado)' : ''}${inc.retiro ? ' · se retiró del partido' : ''}${conm ? ' · sospecha de conmoción cerebral' : ''}${inc.notas ? ' · ' + inc.notas : ''}`
     });
     if (tor) a.torneoId = tor.id; else delete a.torneoId;
     g.inf.atenciones.push(a); inc.atencionId = a.id;
@@ -811,12 +822,12 @@
     const por = ps.map((x) => x.realizadoPor).find(Boolean) || '';
     const secciones = ps.map((p) => {
       const r = resumen(inf, [p]);
-      const filas = r.lista.map((i) => `<tr><td>${e(momTxt(i))}</td><td><b>${e(nomJ(i.jugadorId))}</b></td><td>${e(K.nombreClase(i.clase))}${i.zona ? '<small>' + e(zonaTxt(i.zona)) + '</small>' : ''}</td><td class="n">${i.enCancha ? 'Sí' : 'No'}</td><td><b class="kt-iv">${e(tratTxt(inf, i)) || '—'}</b>${i.notas ? '<small>' + e(i.notas) + '</small>' : ''}</td><td class="n">${i.retiro ? '<b>Sí</b>' : 'No'}</td></tr>`).join('');
+      const filas = r.lista.map((i) => `<tr><td>${e(momTxt(i))}</td><td><b>${e(nomJ(i.jugadorId))}</b></td><td>${e(K.nombreClase(i.clase))}${i.zona ? '<small>' + e(zonaTxt(i.zona)) + '</small>' : ''}</td><td class="n">${i.enCancha ? 'Sí' : i.enBanca ? 'En banca' : 'No'}</td><td><b class="kt-iv">${e(tratTxt(inf, i)) || '—'}</b>${i.notas ? '<small>' + e(i.notas) + '</small>' : ''}</td><td class="n">${i.retiro ? '<b>Sí</b>' : 'No'}</td></tr>`).join('');
       const conMin = Object.keys(p.minutos || {}).filter((id) => Number(p.minutos[id]) > 0 && K.jugadorGlobal(id)).sort((a, b) => nomJ(a).localeCompare(nomJ(b), 'es'));
       const pares = []; for (let k = 0; k < conMin.length; k += 2) pares.push([conMin[k], conMin[k + 1]]);
       const cel = (id) => (id ? `<td>${e(nomJ(id))}</td><td class="n">${p.minutos[id]}'</td>` : '<td></td><td></td>');
       return `<div class="pt-sec">${ps.length > 1 ? `<h2 class="bit-h2">${e(catTxt(p) || 'Partido')}${p.res ? ' · Resultado ' + e(p.res) : ''}</h2>` : ''}
-        ${ps.length > 1 ? `<p class="pt-kp"><b>${r.n}</b> atenciones · <b>${r.jugadores}</b> jugadores atendidos · <b>${r.enCancha}</b> atendidos en cancha · <b>${r.retiros}</b> se retiraron${citadosDe(p) ? ' · ' + e(citTxt(p)) : ''}</p>` : citadosDe(p) ? `<p class="pt-kp">${e(citTxt(p))}</p>` : ''}
+        ${ps.length > 1 ? `<p class="pt-kp"><b>${r.n}</b> atenciones · <b>${r.jugadores}</b> jugadores atendidos · <b>${r.enCancha}</b> atendidos en cancha${r.enBanca ? ` · <b>${r.enBanca}</b> en banca` : ''} · <b>${r.retiros}</b> se retiraron${citadosDe(p) ? ' · ' + e(citTxt(p)) : ''}</p>` : citadosDe(p) ? `<p class="pt-kp">${e(citTxt(p))}</p>` : ''}
         ${r.n ? `<table class="kt"><thead><tr><th>Momento</th><th>Jugador</th><th>Tipo</th><th>Atendido en cancha</th><th>Intervención y comentarios</th><th>Se retiró</th></tr></thead><tbody>${filas}</tbody></table>` : '<p>Sin atenciones registradas en este partido.</p>'}
         ${conMin.length ? `<h2 class="bit-h2">Minutos jugados${ps.length > 1 ? e(sufCat(p)) : ''}</h2><table class="kt kt-min"><thead><tr><th>Jugador</th><th>Min</th><th>Jugador</th><th>Min</th></tr></thead><tbody>${pares.map(([a, b]) => `<tr>${cel(a)}${cel(b)}</tr>`).join('')}</tbody></table>` : ''}
         ${lineas(p.observaciones).length ? `<h2 class="bit-h2">Observaciones${ps.length > 1 ? e(sufCat(p)) : ''}</h2>${vinetas(p.observaciones)}` : ''}</div>`;
@@ -826,7 +837,7 @@
     const src = logoSrc(jn);
     return `<div class="bit-print kine-print"><header><div class="vs-logos"><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><b class="vs-t">vs</b>${src ? `<img class="rv-logo" src="${e(src)}" alt="">` : `<span class="rv-ini">${e((jn.rival || '?').slice(0, 1))}</span>`}</div><div style="flex:1"><h1>Informe Kinésico · Partido · vs ${e(jn.rival)}</h1><p>Santiago Wanderers · ${e(sub.join(' · '))}</p>${por ? `<p>Informe realizado por: <b>${e(por)}</b></p>` : ''}</div></header>
       ${ps.length > 1 ? `<p style="margin:0 0 6px">${ps.map((p) => `<b>${e(catTxt(p) || 'Partido')}</b>${p.res ? ' ' + e(p.res) : ''}`).join(' · ')}</p>` : ''}
-      <div class="bd-kpis">${kpi(rTodo.n, 'atenciones')}${kpi(rTodo.jugadores, 'jugadores atendidos')}${kpi(rTodo.enCancha, 'atendidos en cancha')}${kpi(rTodo.retiros, 'se retiraron del partido')}${K.conmocion ? K.conmocion.kpiHTML(conm.length) : ''}</div>
+      <div class="bd-kpis">${kpi(rTodo.n, 'atenciones')}${kpi(rTodo.jugadores, 'jugadores atendidos')}${kpi(rTodo.enCancha, 'atendidos en cancha')}${rTodo.enBanca ? kpi(rTodo.enBanca, 'atendidos en banca') : ''}${kpi(rTodo.retiros, 'se retiraron del partido')}${K.conmocion ? K.conmocion.kpiHTML(conm.length) : ''}</div>
       ${rTodo.n ? `<div class="bd-g" style="margin:10px 0"><section class="bd-p"><h4>Cuándo ocurrió</h4>${hbar(rTodo.porMom)}</section><section class="bd-p"><h4>Tipo de atención</h4>${hbar(rTodo.porClase, '#2f7a4a')}</section></div>` : ''}
       ${secciones}${K.conmocion ? K.conmocion.seccionHTML(conm, { partido: ps.length > 1, breve: true }) : ''}</div>`;
   }

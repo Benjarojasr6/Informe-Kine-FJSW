@@ -64,7 +64,7 @@
   K.contar = function (inf, per, jugadorId) {
     const okJ = (x) => !jugadorId || x.jugadorId === jugadorId;
     const de = (arr) => (jugadorId ? K.porJugador(arr, jugadorId) : arr); // con jugador: solo sus registros (mismo orden)
-    const r = { lesiones: 0, molestias: 0, atenciones: 0, intervenciones: 0, controles: 0, examenes: 0, medicamentos: 0, cirugias: 0 };
+    const r = { lesiones: 0, molestias: 0, atenciones: 0, intervenciones: 0, controles: 0, examenes: 0, procedimientos: 0, medicamentos: 0, cirugias: 0 };
     const trat = {};
     de(inf.casos).forEach((c) => {
       if (!okJ(c) || !K.enPeriodo(c.inicio, per)) return;
@@ -86,6 +86,7 @@
       const n = Number(e.cantidad) || 1;
       if (e.tipo === 'control') r.controles += n;
       else if (e.tipo === 'examen') r.examenes += n;
+      else if (e.tipo === 'procedimiento') r.procedimientos += n;
       else if (e.tipo === 'medicamento') r.medicamentos += n;
       else if (e.tipo === 'cirugia') r.cirugias += n;
     });
@@ -235,10 +236,27 @@
     const ini = c.inicio > per.desde ? c.inicio : per.desde, tope = K.hastaPer(per), f = fin < tope ? fin : tope;
     return f >= ini ? Math.max(1, dif(ini, f)) : 0;
   };
+  // v1.9.4: días en que una molestia dejó al jugador SIN ENTRENAR (limitación «Entrenamiento completo»), dentro del período y hasta hoy.
+  // Cuentan desde la fecha de la molestia; si ya hay baja por lesión ese día no se vuelve a contar (se pasan los días de baja ya ocupados).
+  K.diasSinEntrenarCaso = (c, per) => {
+    if (!c || c.tipo === 'lesion' || c.limita !== 'si' || c.limitaParte !== 'completo' || K.esMecPartido(c.mecanismo) || !c.inicio) return [];
+    const n = c.limitaDias === 'indef' ? 0 : Math.max(1, Number(c.limitaDias) || 1), tope = K.hastaPer(per), out = [];
+    for (let i = 0; i < n; i++) { const d = sumaDias(c.inicio, i); if (d > tope) break; if (d >= per.desde) out.push(d); }
+    return out;
+  };
+  K.diasBajaFechas = (c, per) => {
+    const n = K.diasBajaCaso(c, per); if (!n) return [];
+    const ini = c.inicio > per.desde ? c.inicio : per.desde, out = [];
+    for (let i = 0; i < n; i++) out.push(sumaDias(ini, i));
+    return out;
+  };
   K.bajaJugador = (inf, per, j) => {
-    const dias = K.porJugador(inf.casos, j.id).reduce((s, c) => s + K.diasBajaCaso(c, per), 0);
-    const dp = K.diasPeriodo(per);
-    return { dias, pct: Math.max(0, Math.round(100 * (1 - Math.min(dias, dp) / dp))) };
+    const casos = K.porJugador(inf.casos, j.id);
+    const dias = casos.reduce((s, c) => s + K.diasBajaCaso(c, per), 0);
+    const ocupados = new Set(); casos.forEach((c) => K.diasBajaFechas(c, per).forEach((d) => ocupados.add(d)));
+    const libres = new Set(); casos.forEach((c) => K.diasSinEntrenarCaso(c, per).forEach((d) => { if (!ocupados.has(d)) libres.add(d); }));
+    const sinEntrenar = libres.size, dp = K.diasPeriodo(per);
+    return { dias, sinEntrenar, pct: Math.max(0, Math.round(100 * (1 - Math.min(dias + sinEntrenar, dp) / dp))) };
   };
   K.mesesPeriodo = (per) => {
     const out = []; let y = Number(per.desde.slice(0, 4)), m = Number(per.desde.slice(5, 7));
@@ -284,10 +302,10 @@
     });
     r.lesPorCat = Object.keys(porCat).map((k) => { const o = porCat[k]; return { cat: o.cat, total: o.total, top: Object.keys(o.d).map((q) => [o.d[q].txt.charAt(0).toUpperCase() + o.d[q].txt.slice(1), o.d[q].n]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es')).slice(0, 5) }; })
       .sort((a, b) => K.numCat(b.cat) - K.numCat(a.cat) || String(a.cat).localeCompare(String(b.cat), 'es'));
-    // v1.6.11: disponibilidad del plantel = % de los días del período en que los jugadores NO estuvieron de baja por lesión
+    // v1.6.11: disponibilidad del plantel = % de los días del período en que los jugadores NO estuvieron de baja por lesión (v1.9.4: ni sin entrenar por una molestia)
     // (la suma de días de baja de todos los jugadores puede pasar de 365, por eso no se muestra sola).
     const act = inf.jugadores.filter((j) => j.activo !== false), dp = K.diasPeriodo(per);
-    r.disp = act.length ? Math.max(0, Math.min(100, Math.round(100 * (1 - act.reduce((t, j) => t + Math.min(K.bajaJugador(inf, per, j).dias, dp), 0) / (act.length * dp))))) : null;
+    r.disp = act.length ? Math.max(0, Math.min(100, Math.round(100 * (1 - act.reduce((t, j) => { const b = K.bajaJugador(inf, per, j); return t + Math.min(b.dias + b.sinEntrenar, dp); }, 0) / (act.length * dp))))) : null;
     // ranking de zonas (agrupando lado derecho e izquierdo bajo su nombre)
     r.top = Object.keys(r.zonas).map((id) => [K.nombreZona(id), r.zonas[id]]).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'es')).slice(0, 8);
     // medicamentos entregados (total por nombre)
@@ -317,7 +335,7 @@
   K.NO_EXCLUYE = ['descanso', 'control', 'examen', 'procedimiento', 'pauta', 'kineparticular', 'kineseguro', 'entrenocompleto']; // la pauta en casa y el entrenamiento completo no penalizan
   K.asisEsperada = (a) => a.v === 'si' || (a.v === 'no' && !K.NO_EXCLUYE.includes(a.no));
   // Controles, exámenes y cirugías con fecha posterior a hoy todavía no ocurrieron: no cuentan en totales.
-  K.evRealizado = (e) => !['control', 'examen', 'cirugia'].includes(e.tipo) || !e.fecha || e.fecha <= K.hoy();
+  K.evRealizado = (e) => !['control', 'examen', 'procedimiento', 'cirugia'].includes(e.tipo) || !e.fecha || e.fecha <= K.hoy();
   K.asistenciaKine = function (inf, jugadorId, per) {
     const rs = K.porJugador(inf.asistencias || [], jugadorId).filter((a) => !per || K.enPeriodo(a.fecha, per));
     const si = rs.filter((a) => a.v === 'si').length;
