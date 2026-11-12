@@ -94,7 +94,13 @@
           <label class="campo"><span>Lesión o molestia asociada (opcional)</span><select name="casoId">${casosOpts(inf, jid, casoIni)}</select></label>
           <button type="button" class="btn sec chico" data-nuevo-caso style="margin:-4px 0 10px">${K.uiIco('mas', 16)} Registrar una lesión o molestia nueva</button>
         </div>
-        <details class="mas-clin mas-det" data-mas${masAbierto ? ' open' : ''}><summary>Más detalles <small class="suave">(dónde se originó, período, tipo, medicamento, comentarios)</small></summary><div class="mas-cuerpo">
+        ${rec ? '' : `<div class="oculto" data-bloque-med><h3 style="margin:6px 0 4px;font-size:15px">Medicamentos entregados</h3>
+            <p class="suave" style="margin:0 0 6px;font-size:13px">Sale una fila por cada unidad de Farmacología (1, 2 o 3). La lista se arma con los medicamentos que ya has anotado; si es uno nuevo, elige «Otro».</p>
+            <div data-med-filas></div></div>`}
+        <div class="oculto" data-bloque-seg><h3 style="margin:6px 0 4px;font-size:15px">Derivaciones al seguro</h3>
+          <p class="suave" style="margin:0 0 6px;font-size:13px">Una fila por cada derivación: elige el motivo (urgencia, control de continuidad, examen…).</p>
+          <div data-seg-filas></div></div>
+        <details class="mas-clin mas-det" data-mas${masAbierto ? ' open' : ''}><summary>Más detalles <small class="suave">(dónde se originó, período, tipo, comentarios)</small></summary><div class="mas-cuerpo">
           <div class="campo">${lbl('¿Dónde se originó lo que se atiende?')}
             ${K.seg('origen', K.ORIGENES, origen, 'v')}</div>
           ${K.selTorneoHTML(inf, rec ? rec.torneoId || '' : '')}
@@ -102,9 +108,6 @@
             <label class="campo"><span>Período de la temporada</span><select name="temporada">${K.opts(K.TEMPORADAS, rec ? rec.temporada || temporadaPorDefecto(rec.fecha) : temporadaPorDefecto())}</select></label>
             <label class="campo"><span>Tipo de atención</span><select name="clase">${K.opts(K.CLASES_ATENCION, clase)}</select></label>
           </div>
-          ${rec ? '' : `<div class="oculto" data-bloque-med><h3 style="margin:6px 0 4px;font-size:15px">Medicamento entregado</h3>
-            <div class="grid2"><label class="campo"><span>Medicamento</span><input type="text" name="medNombre" list="dl-med" placeholder="Ej. Ibuprofeno" autocomplete="off"><datalist id="dl-med">${EV.medicamento.sug.map((x) => `<option value="${e(x)}">`).join('')}</datalist></label>
-            <label class="campo"><span>Unidades / dosis</span><input type="number" inputmode="numeric" min="1" name="medCant" value="1"></label></div></div>`}
           <label class="campo" style="margin-top:6px"><span>Comentarios de la intervención</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>
         </div></details>`,
       botones: rec ? [
@@ -123,10 +126,31 @@
         const vm = K.variosMontar(hoja);
         hoja._vm = vm; hoja._enVarios = () => enVarios;
         det.addEventListener('toggle', () => { K.ui.atMas = det.open; });
+        // lista de medicamentos: primero los que ya se han anotado, luego las sugerencias; una fila por cada unidad de Farmacología
+        const listaMed = () => {
+          const v = [], vis = new Set(), add = (x) => { const t = String(x || '').trim(), k = K.norm(t); if (t && !vis.has(k)) { vis.add(k); v.push(t); } };
+          (inf.eventos || []).filter((x) => x.tipo === 'medicamento').map((x) => x.nombre).sort((x, y) => String(x).localeCompare(String(y), 'es')).forEach(add);
+          EV.medicamento.sug.forEach(add);
+          return v;
+        };
+        const filaMed = (n) => `<div class="grid2" data-med-fila style="align-items:start"><label class="campo"><span>Medicamento ${n}</span><select data-med-sel><option value="">Elige de la lista…</option>${listaMed().map((x) => `<option value="${e(x)}">${e(x)}</option>`).join('')}<option value="__otro">Otro (escribir)…</option></select><input type="text" data-med-otro class="oculto" placeholder="Nombre del medicamento" autocomplete="off" style="margin-top:6px"></label>
+          <label class="campo"><span>Unidades / dosis</span><input type="number" inputmode="numeric" min="1" data-med-cant value="1"></label></div>`;
+        const motIni = rec ? (rec.motSeguro || []) : [];
+        const filaSeg = (n) => `<label class="campo" data-seg-fila><span>Motivo de la derivación ${n}</span><select data-seg-sel><option value="">Sin especificar</option>${K.MOTIVOS_SEGURO.map(([k, t]) => `<option value="${k}"${motIni[n - 1] === k ? ' selected' : ''}>${e(t)}</option>`).join('')}</select></label>`;
         const sync = () => {
+          { const bs = hoja.querySelector('[data-bloque-seg]'), fs = hoja.querySelector('.contador[data-cont="seguro"] [data-n]'), n = Math.min(10, Math.max(0, Number(fs && fs.value) || 0)), cont = bs.querySelector('[data-seg-filas]');
+            bs.classList.toggle('oculto', n <= 0);
+            while (cont.children.length > n) cont.lastElementChild.remove();
+            while (cont.children.length < n) cont.insertAdjacentHTML('beforeend', filaSeg(cont.children.length + 1)); }
           bloqueCaso.classList.toggle('oculto', selClase.value !== 'molestia' || enVarios);
           const med = hoja.querySelector('[data-bloque-med]');
-          if (med) { const f = hoja.querySelector('.contador[data-cont="farmaco"] [data-n]'); med.classList.toggle('oculto', !(f && Number(f.value) > 0)); }
+          if (med) {
+            const f = hoja.querySelector('.contador[data-cont="farmaco"] [data-n]'), n = Math.min(10, Math.max(0, Number(f && f.value) || 0)), cont = med.querySelector('[data-med-filas]');
+            med.classList.toggle('oculto', n <= 0);
+            while (cont.children.length > n) cont.lastElementChild.remove();
+            while (cont.children.length < n) cont.insertAdjacentHTML('beforeend', filaMed(cont.children.length + 1));
+            cont.querySelectorAll('[data-med-fila]').forEach((fl) => fl.querySelector('[data-med-otro]').classList.toggle('oculto', fl.querySelector('[data-med-sel]').value !== '__otro'));
+          }
         };
         selClase.addEventListener('change', sync);
         hoja.addEventListener('click', () => setTimeout(sync, 0)); hoja.addEventListener('input', sync); hoja.addEventListener('change', sync);
@@ -193,7 +217,8 @@
         // después de “Guardar y registrar otro”: queda lo que se repite (intervenciones, fecha, tipo, origen) y se limpia lo de cada jugador
         hoja._otro = () => {
           hoja.querySelector('[name=notas]').value = '';
-          const mn = hoja.querySelector('[name=medNombre]'); if (mn) mn.value = '';
+          const mf = hoja.querySelector('[data-med-filas]'); if (mf) mf.innerHTML = '';
+          const sf = hoja.querySelector('[data-seg-filas]'); if (sf) sf.innerHTML = '';
           if (enVarios) { vm.limpiar(); hoja.querySelector('.cuerpo').scrollTop = 0; } else { K.selJugadorSet(selj, '', false); selC.innerHTML = casosOpts(inf, '', ''); actualizarRepetir(); catJ(); setTimeout(() => K.selJugadorAbrir(selj), 120); }
           sync();
         };
@@ -217,11 +242,14 @@
       const cj = K.catJuegoValor(hoja); if (cj) meta.catJuego = cj; else if (cj === 0 && rec) delete rec.catJuego;
       K.ui.ultTemporada = d.temporada; K.ui.ultOrigen = meta.origen;
       const caso = () => (d.clase === 'molestia' && ids.length === 1 ? d.casoId || '' : '');
+      const motSeg = tr.seguro ? Array.from(hoja.querySelectorAll('[data-seg-sel]')).map((x) => x.value).filter(Boolean).slice(0, tr.seguro) : [];
+      if (motSeg.length) meta.motSeguro = motSeg; else if (rec) delete rec.motSeguro;
+      const meds = tr.farmaco ? Array.from(hoja.querySelectorAll('[data-med-fila]')).map((fl) => { const s = fl.querySelector('[data-med-sel]').value; return { nombre: (s === '__otro' ? fl.querySelector('[data-med-otro]').value : s).trim(), cantidad: Math.max(1, Number(fl.querySelector('[data-med-cant]').value) || 1) }; }).filter((m) => m.nombre) : [];
       if (rec) { Object.assign(rec, meta, { fecha: d.fecha, jugadorId: ids[0], casoId: caso(), trat: tr, notas: d.notas }); delete rec.soap; }
       else {
         ids.forEach((id) => {
           inf.atenciones.push(Object.assign({ id: K.uid(), fecha: d.fecha, jugadorId: id, casoId: caso(), trat: Object.assign({}, tr), notas: d.notas }, meta));
-          if (tr.farmaco && (d.medNombre || '').trim()) inf.eventos.push({ id: K.uid(), tipo: 'medicamento', fecha: d.fecha, jugadorId: id, nombre: d.medNombre.trim(), cantidad: Math.max(1, Number(d.medCant) || 1), casoId: caso(), notas: '' });
+          if (tr.farmaco) meds.forEach((m) => inf.eventos.push({ id: K.uid(), tipo: 'medicamento', fecha: d.fecha, jugadorId: id, nombre: m.nombre, cantidad: m.cantidad, casoId: caso(), notas: '' }));
         });
       }
       ids.slice().reverse().forEach((id) => K.recienteJugador(id));
@@ -471,9 +499,10 @@
         ${tipo === 'examen' ? `<label class="campo"><span>Resultado (opcional)</span><input type="text" name="resultado" maxlength="160" value="${e(rec ? rec.resultado || '' : '')}" placeholder="Ej. Rotura parcial de fibras, grado II" autocomplete="off"></label>` : ''}
         ${tipo === 'cirugia' ? '' : `<label class="campo"><span>${tipo === 'medicamento' ? 'Unidades / dosis entregadas' : tipo === 'procedimiento' ? 'Sesiones' : 'Cantidad'}</span><input type="number" inputmode="numeric" min="1" name="cantidad" value="${e(rec ? rec.cantidad || 1 : 1)}"></label>`}
         <label class="campo"><span>Lesión o molestia asociada (opcional)</span><select name="casoId">${casosOpts(inf, jid, rec ? rec.casoId : o.casoId || ((K.casoActivo(jid) || {}).id || ''))}</select></label>
+        ${tipo === 'medicamento' && !rec ? '<p class="suave" style="font-size:13px;margin:0 0 8px">Al guardar, cuenta también como 1 atención con Farmacología (1 intervención).</p>' : ''}
         <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>`,
       botones: [
-        rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.conDeshacer('Registro eliminado', () => { quitar(inf.eventos, rec.id); }); } } : { txt: 'Cancelar', cls: 'sec' },
+        rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.conDeshacer('Registro eliminado', () => { quitar(inf.eventos, rec.id); inf.atenciones.filter((a) => a.evMed === rec.id).forEach((a) => quitar(inf.atenciones, a.id)); }); } } : { txt: 'Cancelar', cls: 'sec' },
         {
           txt: 'Guardar',
           fn: (m, hoja) => {
@@ -483,6 +512,12 @@
             const resultado = tipo === 'examen' ? (d.resultado || '').trim() : '';
             const reg = rec || Object.assign({ id: K.uid() }, campos);
             if (rec) Object.assign(rec, campos); else inf.eventos.push(reg);
+            // v1.9.6: un medicamento registrado solo cuenta también como 1 atención con Farmacología (así suma igual que desde «Atención»)
+            if (tipo === 'medicamento') {
+              const lig = inf.atenciones.find((a) => a.evMed === reg.id);
+              if (lig) Object.assign(lig, { fecha: d.fecha, jugadorId: d.jugadorId, casoId: d.casoId || '' });
+              else if (!rec) inf.atenciones.push({ id: K.uid(), fecha: d.fecha, jugadorId: d.jugadorId, casoId: d.casoId || '', trat: { farmaco: 1 }, notas: '', clase: 'otras', origen: 'ssw', temporada: temporadaPorDefecto(d.fecha), evMed: reg.id });
+            }
             K.recienteJugador(d.jugadorId);
             if (resultado) reg.resultado = resultado; else delete reg.resultado;
             hecho('Guardado');

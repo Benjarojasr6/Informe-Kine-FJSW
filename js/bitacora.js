@@ -62,6 +62,7 @@
   function entAtencion(inf, a) {
     const tr = Object.keys(a.trat || {}).filter((id) => a.trat[id] > 0).map((id) => `${(K.trat(inf, id) || { nombre: id }).nombre} ×${a.trat[id]}`);
     const det = [['Tipo de atención', K.nombreClase(a.clase) || '—'], ['Origen', K.nombreOrigen(a.origen) || '—'], ['Período de la temporada', K.nombreTemporada(a.temporada) || '—'], ['Intervenciones', tr.length ? tr.join(', ') : 'Sin intervenciones anotadas']];
+    if ((a.motSeguro || []).length && K.MOTIVOS_SEGURO) det.push(['Derivación al seguro', a.motSeguro.map((k) => (K.MOTIVOS_SEGURO.find((m) => m[0] === k) || [0, k])[1]).join(', ')]);
     const caso = a.casoId && inf.casos.find((c) => c.id === a.casoId); if (caso) det.push(['Asociada a', caso.titulo]);
     { const tn = a.torneoId && (K.state.informes.map((i) => (i.torneos || []).find((t) => t.id === a.torneoId)).find(Boolean)); if (tn) det.push(['Torneo', tn.nombre]); }
     return { f: a.fecha || '', j: a.jugadorId, k: 'atenciones', tag: 'Atención', cls: 'at', titulo: 'Atención kinésica', det, notas: a.notas || '', raw: a };
@@ -156,7 +157,7 @@
     }
     return { html: html || '<p class="vacio-msg">No hay registros con estos filtros.</p>', n: lista.length };
   };
-  K.bit = { entCaso, entAtencion, entEvento, fc };
+  K.bit = { entCaso, entAtencion, entEvento, fc, vista: vinf, estado: () => st() };
   K.nombreMesLargo = (iso) => { const m = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][Number(iso.slice(5, 7)) - 1]; const t = (m || '') + ' ' + iso.slice(0, 4); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 
@@ -268,7 +269,8 @@
         <label class="campo"><span>Origen de las atenciones</span><select data-acc-change="bitFiltro" data-k="origen">${K.opts([['todo', 'Todas'], ['gira', 'Solo las hechas en gira / torneo fuera de sede'], ['singira', 'Sin las de gira']], f.origen || 'todo')}</select></label>
         <label class="campo"><span>Categorías</span><select data-acc-change="bitFiltro" data-k="alc">${K.opts(ALCANCES(), alcance(f))}</select></label>
         <label class="campo"><span>Buscar en todo el texto</span><input type="search" value="${e(f.texto)}" placeholder="Ej. rodilla, ibuprofeno, post partido…" data-acc-input="bitTexto"></label>
-        <div class="fila wrap gap"><button class="btn chico" data-acc="bitPdf">${K.uiIco('pdf', 16)} Descargar PDF</button><button class="btn sec chico" data-acc="bitCsv">${K.uiIco('descargar', 16)} Descargar Excel (CSV)</button></div>
+        <div class="fila wrap gap"><button class="btn chico" data-acc="bitPdf">${K.uiIco('pdf', 16)} Descargar PDF</button><button class="btn sec chico" data-acc="bitCsv">${K.uiIco('descargar', 16)} Descargar Excel (CSV)</button><button class="btn sec chico" data-acc="bitXlsx">${K.uiIco('descargar', 16)} Excel de todos los jugadores (.xlsx)</button></div>
+        <p class="suave" style="margin:6px 0 0;font-size:13px">El Excel (.xlsx) incluye a todos los jugadores de las categorías elegidas, en hojas: resumen, lesiones, atenciones, controles, medicamentos y asistencia. Respeta «Categorías» y «Período».</p>
       </div>
       <h2 class="bit-h2">Resumen visual · ${e(inf.nombre)}</h2>
       <div class="bit-dash" id="bit-dash">${dash}</div>

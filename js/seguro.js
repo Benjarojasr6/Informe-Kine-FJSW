@@ -281,7 +281,7 @@
         const letra = x ? (x.L ? 'L' : x.A ? 'A' : x.R ? 'R' : '') : '';
         const fondo = letra === 'L' ? '#d62839' : letra === 'A' ? '#0b7a43' : letra === 'R' ? '#1f5fbf' : k ? AC[k][1] : x && x.les ? LESION_COL : '';
         const tit = `${K.fechaCorta(iso)}${x ? ': ' + (x.tx.length ? x.tx.join('; ') : x.les ? 'lesionado' : '') : ''}${x && x.les && k ? ' · lesionado' : ''}`;
-        celdas += `<i class="ac${iso === hoy ? ' hoy' : ''}${k && x.les && !x.L ? ' con-les' : ''}${letra ? ' dia-' + letra : ''}"${fondo ? ` style="background:${fondo}"` : ''} title="${e(tit)}">${letra}</i>`;
+        celdas += `<i data-adia data-j="${sel.j.id}" data-f="${iso}" class="ac${iso === hoy ? ' hoy' : ''}${k && x.les && !x.L ? ' con-les' : ''}${letra ? ' dia-' + letra : ''}"${fondo ? ` style="background:${fondo}"` : ''} title="${e(tit)}">${letra}</i>`;
       }
       filas += `<div class="ac-fila"><span>${MESES[mes - 1].slice(0, 3)}</span>${celdas}</div>`;
     }
@@ -289,12 +289,74 @@
     return `<div class="card"><h2>Calendario de asistencia anual</h2>
       <div class="grid2"><label class="campo"><span>Jugador</span><select data-acc-change="anualJ">${conLes.map((x) => `<option value="${x.j.id}"${x.j.id === s.anualJ ? ' selected' : ''}>${e(x.j.nombre)} · ${e(x.j.categoria || 'Sub ' + x.cat)}</option>`).join('')}</select></label>
         ${selAnio}</div>
+      <label class="campo"><span>Ver o cambiar un día</span><input type="date" min="${ini}" max="${fin}" value="" data-acc-change="anualDiaSel" data-j="${sel.j.id}" aria-label="Elegir un día para ver qué pasó y cambiar la asistencia"></label>
       <div class="ac-grid"><div class="ac-fila ac-dias"><span></span>${Array.from({ length: 31 }, (_, i) => `<em>${i + 1}</em>`).join('')}</div>${filas}</div>
       <div class="ac-ley">${ley}</div>
-      <p class="sub" style="margin:8px 0 0">Cada cuadro es un día. Un cuadro de color con borde rojo abajo = ese día estaba lesionado. Los cuadros vacíos son días sin registro (no se entrena). Toca o mantén sobre un cuadro para ver el detalle.</p></div>`;
+      <p class="sub" style="margin:8px 0 0">Cada cuadro es un día. Un cuadro de color con borde rojo abajo = ese día estaba lesionado. Los cuadros vacíos son días sin registro (no se entrena). Para ver qué pasó un día y cambiar la asistencia de este jugador, <b>elige la fecha arriba</b> (en «Ver o cambiar un día») o toca su cuadro.</p></div>`;
   };
 
+  // v1.9.6: detalle de un día del calendario anual (qué pasó) y cambio rápido de la asistencia de ese jugador
+  const ASIS_OPC = () => [['', 'Sin registro (no se entrena)'], ['si:', 'Asistió (sin tipo de sesión)'], ['si:SK', 'Asistió · SK (sesión de kinesiología)'], ['si:RD:K', 'Asistió · RD (K)'], ['si:RD:KPF', 'Asistió · RD (K+PF)'], ['si:RD:KPA', 'Asistió · RD (K+PA)']]
+    .concat(K.MOTIVOS_NO.map(([k, t]) => ['no:' + k, 'No asistió · ' + t]), [['no:pauta', 'Pauta para hacer en casa']]);
+  const asisValor = (a) => (!a ? '' : a.v === 'si' ? 'si:' + (a.t === 'RD' ? 'RD:' + (a.sub || 'K') : a.t || '') : 'no:' + (a.no || 'noasiste'));
+  function queHizo(inf, j, iso, cat) {
+    const L = [], hoy = K.hoy(), nom = (id) => (K.trat(inf, id) || { nombre: id }).nombre;
+    inf.casos.forEach((c) => {
+      if (c.jugadorId !== j.id || !c.inicio) return;
+      const tp = c.tipo === 'lesion' ? 'lesión' : 'molestia';
+      if (c.inicio === iso) L.push(['Inicio de ' + tp, c.titulo]);
+      else if (c.tipo === 'lesion' && c.inicio < iso && iso <= (c.alta || hoy)) L.push(['Lesionado', c.titulo]);
+      if (c.alta === iso) L.push(['Alta kinésica', c.titulo]);
+      if (c.altaMedica === iso && c.altaMedica !== c.alta) L.push(['Alta médica', c.titulo]);
+      if (c.tipo === 'lesion' && K.inicioReintegro && K.inicioReintegro(inf, c) === iso) L.push(['Inicio del reintegro deportivo', c.titulo]);
+    });
+    (inf.atenciones || []).forEach((a) => {
+      if (a.jugadorId !== j.id || a.fecha !== iso) return;
+      const tr = Object.keys(a.trat || {}).filter((id) => a.trat[id] > 0).map((id) => `${nom(id)} ×${a.trat[id]}`).join(', ');
+      const ms = (a.motSeguro || []).map((k) => (K.MOTIVOS_SEGURO.find((m) => m[0] === k) || [0, k])[1]).join(', ');
+      L.push(['Atención kinésica', [K.nombreClase(a.clase), tr, ms ? 'seguro: ' + ms : ''].filter(Boolean).join(' · ') || 'sin intervenciones anotadas']);
+    });
+    inf.eventos.forEach((x) => { if (x.jugadorId === j.id && x.fecha === iso && K.evRealizado(x)) L.push([(K.EV[x.tipo] || { t: x.tipo }).t, (x.nombre || '') + (Number(x.cantidad) > 1 ? ' ×' + x.cantidad : '')]); });
+    (inf.segEventos || []).forEach((x) => { if (x.jugadorId === j.id && (x.fecha === iso || (x.tipo === 'hosp' && x.hasta && x.fecha < iso && iso <= x.hasta))) L.push(['Seguro · ' + (TIPO_TXT[x.tipo] || x.tipo), x.detalle || '']); });
+    (inf.partidos || []).forEach((p) => { if (p.fecha === iso && (p.cat === undefined || p.cat === null || String(p.cat) === String(cat) || (p.minutos && p.minutos[j.id] !== undefined))) L.push(['Partido', 'vs ' + (p.rival || '') + (p.minutos && p.minutos[j.id] ? ` · ${p.minutos[j.id]} min` : '')]); });
+    return L;
+  }
+  function formDia(jid, iso) {
+    const r = K.kineJugadores().find((x) => x.j.id === jid); if (!r) return;
+    const inf = r.inf, j = r.j;
+    const a = (inf.asistencias || []).find((q) => q.jugadorId === jid && q.fecha === iso), val = asisValor(a);
+    const lista = queHizo(inf, j, iso, r.cat);
+    K.modal({
+      titulo: 'Detalle del día ' + K.fechaCorta(iso),
+      cuerpo: `<p style="margin:0 0 8px"><b>${e(j.nombre)}</b></p>
+        <h3 style="margin:6px 0 4px;font-size:15px">Qué pasó este día</h3>
+        ${lista.length ? `<ul class="denso">${lista.map(([t, d]) => `<li><b>${e(t)}</b>${d ? ': ' + e(d) : ''}</li>`).join('')}</ul>` : '<p class="suave" style="margin:0 0 8px">Sin atenciones, controles ni eventos anotados ese día.</p>'}
+        <label class="campo" style="margin-top:10px"><span>Asistencia a kinesiología ese día</span><select name="asis">${K.opts(ASIS_OPC(), val)}</select></label>
+        <p class="suave" style="margin:0;font-size:13px">Por ejemplo, si figura «No asiste» pero tuvo kinesiología externa, elige «No asistió · Kinesiología externa…». Los cambios se calculan solos en el informe.</p>`,
+      botones: [
+        { txt: '‹ Día anterior', cls: 'sec', fn: (m) => { m.cerrar(); setTimeout(() => formDia(jid, suma(iso, -1)), 230); return false; } },
+        { txt: 'Día siguiente ›', cls: 'sec', fn: (m) => { m.cerrar(); setTimeout(() => formDia(jid, suma(iso, 1)), 230); return false; } },
+        { txt: 'Guardar', fn: (m, hoja) => {
+          const nuevo = hoja.querySelector('[name=asis]').value;
+          if (nuevo === val) return;
+          K.conDeshacer('Asistencia del ' + K.fechaCorta(iso) + ' cambiada', () => {
+            inf.asistencias = inf.asistencias || [];
+            const ex = inf.asistencias.find((q) => q.jugadorId === jid && q.fecha === iso);
+            if (!nuevo) { if (ex) inf.asistencias.splice(inf.asistencias.indexOf(ex), 1); return; }
+            const [v, t, sb] = nuevo.split(':');
+            const reg = v === 'si' ? { v: 'si', t: t || '', sub: t === 'RD' ? sb || 'K' : '', no: '' } : { v: 'no', t: '', sub: '', no: t };
+            if (ex) Object.assign(ex, reg); else inf.asistencias.push(Object.assign({ id: K.uid(), jugadorId: jid, fecha: iso }, reg));
+          });
+        } }
+      ]
+    });
+  }
+  K.diaAsistencia = formDia;
+  // los cuadritos del calendario no son botones (miden 8 px y no cumplirían los 44 px táctiles): se tocan, pero lo accesible es el selector de fecha
+  document.addEventListener('click', (ev) => { const c = ev.target.closest && ev.target.closest('[data-adia]'); if (c) formDia(c.dataset.j, c.dataset.f); });
+
   Object.assign(K.acciones, {
+    anualDiaSel(el) { if (el.value) { formDia(el.dataset.j, el.value); el.value = ''; } },
     segNuevo() { formIngreso(''); },
     segToggle(el, ev) { if (ev && ev.target.closest('[data-acc=segEditar]')) return; const st = ss(); st.segAbierto = st.segAbierto || {}; st.segAbierto[el.dataset.sid] = !st.segAbierto[el.dataset.sid]; K.render(); },
     segEditar(el, ev) { if (ev) ev.stopPropagation(); formIngreso(el.dataset.sid); },

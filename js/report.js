@@ -187,6 +187,15 @@
   // Mes del registro entre paréntesis, siempre con año: « (octubre 2026)»
   const mesTxt = (c) => (c.inicio && /^\d{4}-\d{2}/.test(c.inicio) ? ` (${K.nombreMesLargo(c.inicio).toLowerCase()})` : '');
   const conLado = (c) => { const l = K.ladoCaso(c); return l && !/derech|izquierd/i.test(c.titulo) ? ` · ${l}` : ''; };
+  // v1.9.6: textos del historial de la ficha y cuántos ítems se muestran (si el historial es largo se acortan primero los más antiguos, para que «Molestias» y «Lesiones» no queden aplastados)
+  const nomHistLes = (c, j) => `${c.titulo}${tagCat(c, j)}${conLado(c)}${c.inicio ? ' · ' + c.inicio.slice(0, 4) : ''}`;
+  const nomHistCir = (x) => `${x.nombre || 'Cirugía'}${x.fecha ? ' · ' + K.fechaCorta(x.fecha) : ''}`;
+  const histVista = (h, campo, per, quitar) => {
+    let enP = h.lista.filter((x) => K.enPeriodo(x[campo], per)).slice(-4), ant = h.lista.filter((x) => !K.enPeriodo(x[campo], per)).slice(-3), q = quitar || 0;
+    while (q > 0 && ant.length) { ant = ant.slice(1); q--; }
+    while (q > 0 && enP.length > 1) { enP = enP.slice(1); q--; }
+    return { enP, ant };
+  };
   K.fichaHTML = function (inf, per, j) {
     const st = K.statsJugador(inf, per, j);
     const casos = K.casosJugador(inf, per, j).sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
@@ -213,11 +222,11 @@
     const atJ = K.porJugador(inf.atenciones, j.id), atMes = meses.map((m) => atJ.filter((a) => (a.fecha || '').slice(0, 7) === m.clave).length);
     const asis = K.asistenciaKine(inf, j.id, per), hh = K.historialJugador(inf, j, per);
     const semaf = asis.pct == null ? '' : asis.pct < 80 ? ' rojo' : asis.pct < 90 ? ' amarillo' : ' verde';
-    const histo = (tit, h, nombre, campo) => {
-      const enP = h.lista.filter((x) => K.enPeriodo(x[campo], per)), ant = h.lista.filter((x) => !K.enPeriodo(x[campo], per)).slice(-3);
+    const histo = (tit, h, nombre, campo, quitar) => {
+      const vista = histVista(h, campo, per, quitar), enP = vista.enP, ant = vista.ant;
       return `<div class="tarjeta hist"><h3>${tit}</h3>
       <div class="hs-nums"><div><b>${h.hist}</b><span>histórico</span></div><div><b>${h.anio}</b><span>año ${e(h.anioTxt)}</span></div><div><b>${h.per}</b><span>este período</span></div></div>
-      ${enP.length ? `<ul class="denso hist-per">${enP.slice(-4).map((x) => `<li>${e(nombre(x))}</li>`).join('')}</ul>` : ''}
+      ${enP.length ? `<ul class="denso hist-per">${enP.map((x) => `<li>${e(nombre(x))}</li>`).join('')}</ul>` : ''}
       ${ant.length ? `<div class="hist-ant"><small>Anteriores</small><ul class="denso">${ant.map((x) => `<li>${e(nombre(x))}</li>`).join('')}</ul></div>` : ''}</div>`;
     };
     const pc = K.fichaComentario(inf, j);
@@ -234,8 +243,8 @@
         <div class="f-col">
           ${conNum('Molestias', molestias, 'Sin molestias en este período.', nMol, '#e8a900')}
           ${conNum('Lesiones', lesiones, 'Sin lesiones en este período.', nLes, '#d9363e')}
-          ${histo('Historial de lesiones', hh.lesiones, (c) => `${c.titulo}${tagCat(c, j)}${conLado(c)}${c.inicio ? ' · ' + c.inicio.slice(0, 4) : ''}`, 'inicio')}
-          ${histo('Historial de cirugías', hh.cirugias, (x) => `${x.nombre || 'Cirugía'}${x.fecha ? ' · ' + K.fechaCorta(x.fecha) : ''}`, 'fecha')}
+          ${histo('Historial de lesiones', hh.lesiones, (c) => nomHistLes(c, j), 'inicio', pf.qL)}
+          ${histo('Historial de cirugías', hh.cirugias, nomHistCir, 'fecha', pf.qC)}
         </div>
         <div class="f-col">
           <div class="tarjeta carga"><h3>Disponibilidad para entrenar y jugar</h3>
@@ -260,9 +269,17 @@
     const mol = casos.filter((c) => c.tipo !== 'lesion').map((c) => { const dm = K.duracionCaso(c); return { g: c.gravedad || 'leve', t: c.titulo + tagCat(c, j) + conLado(c) + K.tagTorneo(inf, c) + mesTxt(c) + (c.contexto ? ` (${c.contexto})` : '') + (/sin limitar/.test(dm) ? ` (${dm})` : '') + (K.limitaTxt(c, true) ? ` · limita entrenamiento: ${K.limitaTxt(c, true)}` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
     const les = casos.filter((c) => c.tipo === 'lesion').map((c) => { const d = K.duracionCaso(c); return { g: c.gravedad || 'moderada', t: c.titulo + tagCat(c, j) + conLado(c) + K.tagTorneo(inf, c) + mesTxt(c) + (c.contexto ? ` – ${c.contexto}` : '') + (d ? ` (${d})` : '') + (K.origenCasoTxt(c) ? ` · ${K.origenCasoTxt(c)}` : '') }; });
     const hh = K.historialJugador(inf, j, per);
-    const altoHist = (h, campo) => { const enP = h.lista.filter((x) => K.enPeriodo(x[campo], per)).slice(-4).length, ant = h.lista.filter((x) => !K.enPeriodo(x[campo], per)).slice(-3).length; return 76 + (enP + ant) * 15.5 + (ant ? 22 : 0); };
+    const altoHist = (h, campo, nombre, quitar) => { const v = histVista(h, campo, per, quitar); return 76 + [].concat(v.enP, v.ant).reduce((s, x) => s + lineasDe(nombre(x), 50) * 15.5, 0) + (v.ant.length ? 22 : 0); };
+    // si el historial es largo, se acorta (primero lo más antiguo) hasta dejar al menos lo mínimo para «Molestias» y «Lesiones»
+    let qL = 0, qC = 0;
+    const libreCon = () => 403 - 23 - altoHist(hh.lesiones, 'inicio', (c) => nomHistLes(c, j), qL) - altoHist(hh.cirugias, 'fecha', nomHistCir, qC) - 2 * 46;
+    const minimo = (mol.length ? 37 : 0) + (les.length ? 37 : 0);
+    while (libreCon() < minimo) {
+      const vL = histVista(hh.lesiones, 'inicio', per, qL), vC = histVista(hh.cirugias, 'fecha', per, qC), nL = vL.enP.length + vL.ant.length, nC = vC.enP.length + vC.ant.length;
+      if (nL > 1 && nL >= nC) qL++; else if (nC > 1) qC++; else if (nL > 1) qL++; else break;
+    }
     // alto libre para los dos cuadros (columna 403 px, separaciones 23 px) y lo que ocupa cada ítem (≈48 caracteres por línea, 15,5 px por línea)
-    const libre0 = 403 - 23 - altoHist(hh.lesiones, 'inicio') - altoHist(hh.cirugias, 'fecha') - 2 * 46;
+    const libre0 = libreCon();
     // al recortar cada ítem queda en 2 líneas (≈80 caracteres) o, si el espacio es muy poco, en 1 línea (≈40)
     const maxCar = (libre0 - 37) / 2 < 34 ? 40 : 80;
     const corta = (t) => (t.length > maxCar ? t.slice(0, maxCar).replace(/\s+\S*$/, '') + '…' : t);
@@ -288,7 +305,7 @@
     if (recortado) { r = elegir(true); r.sale.mol.forEach((x) => { x.t = corta(x.t); }); r.sale.les.forEach((x) => { x.t = corta(x.t); }); }
     const sale2 = recortado ? r.sale : sale, resto2 = r.resto;
     if (recortado) ['mol', 'les'].forEach((k) => { if (resto2[k].length) sale2[k].push({ mas: true, t: '+ ' + resto2[k].length + ' más (ver detalle en la página siguiente)' }); });
-    return { mol: sale2.mol, les: sale2.les, recortado };
+    return { mol: sale2.mol, les: sale2.les, recortado, qL, qC };
   };
   // Cuadro “Comentarios”: caben ≈60 px de texto (el “Estado actual” va en letra chica: 13,5 px por línea, 122 caracteres; el comentario 15,5 px, 108 caracteres).
   // Lo que no cabe (estados o texto) se completa en una página siguiente.
@@ -522,7 +539,8 @@
     // Uso del seguro (sin datos personales). Solo si hay eventos en el período (los ven únicamente los administradores).
     const sev = (inf.segEventos || []).filter((x) => ids.has(x.jugadorId) && K.enPeriodo(x.fecha, per));
     const sini = (inf.seguros || []).filter((x) => ids.has(x.jugadorId) && x.activacion && K.enPeriodo(x.activacion, per)).length; // activaciones iniciales (sin datos personales)
-    if (K.bloqueOn(inf, 'seguro') && (sev.length || sini)) {
+    const dm = K.derivMotivos(inf, per, ids); // derivaciones al seguro anotadas en las atenciones, por motivo (solo si se eligió motivo)
+    if (K.bloqueOn(inf, 'seguro') && (sev.length || sini || dm.conMotivo)) {
       const c = {}, ex = {}, pr = {};
       sev.forEach((x) => { c[x.tipo] = (c[x.tipo] || 0) + 1; if (x.tipo === 'examen') ex[x.detalle || 'Sin nombre'] = (ex[x.detalle || 'Sin nombre'] || 0) + 1; if (x.tipo === 'procedimiento') pr[x.detalle || 'Sin nombre'] = (pr[x.detalle || 'Sin nombre'] || 0) + 1; });
       const ses = sev.filter((x) => x.tipo === 'kinesiologia').reduce((a, x) => a + (Number(x.cantidad) || 1), 0);
@@ -531,7 +549,7 @@
       const tp = [['Control médico', c.control || 0, '#7b4fb8'], ['Examen', c.examen || 0, '#f08a24'], ['Procedimiento', c.procedimiento || 0, '#c2479b'], ['Kinesiología', c.kinesiologia || 0, '#14a3a3'], ['Cirugía', c.cirugia || 0, '#1f2937'], ['Hospitalización', c.hosp || 0, '#b3202a']];
       out.push(pagina('p-resumen p-equipo', `<h2>Uso del seguro</h2>${sub}
         <div class="eq-kpis">${kpi(sini, 'activaciones iniciales (urgencias)')}${kpi(sini + sev.length, 'activaciones + continuidad')}${kpi(c.examen || 0, 'exámenes')}${kpi(ses, 'sesiones de kinesiología')}</div>
-        ${panelEq('Eventos por tipo', barrasH(tp, 0))}
+        ${panelEq('Eventos por tipo', barrasH(tp, 0))}${dm.conMotivo ? panelEq('Derivaciones al seguro por motivo', barrasH(K.MOTIVOS_SEGURO.map(([k, t]) => [t, dm.mot[k] || 0]).concat(dm.sin ? [['Sin especificar', dm.sin]] : []).filter((x) => x[1]), 0, '#0e7c7c') + `<p class="nota-grav">${dm.total} derivaciones al seguro anotadas en las atenciones del período.</p>`) : ''}
         <div class="eq-2">${panelEq('Exámenes más frecuentes', lista(top(ex), '#f08a24'))}${panelEq('Procedimientos más frecuentes', lista(top(pr), '#c2479b'))}</div>`));
     }
     return out;

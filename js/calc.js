@@ -93,6 +93,19 @@
     return { porFuente: r, trat };
   };
 
+  // v1.9.6: derivaciones al seguro por motivo (urgencia, control de continuidad, examen…). Las que no tienen motivo van en «sin»
+  K.derivMotivos = function (inf, per, ids) {
+    const r = { total: 0, conMotivo: 0, mot: {}, sin: 0 };
+    (inf.atenciones || []).forEach((a) => {
+      if (!K.enPeriodo(a.fecha, per) || (ids && !ids.has(a.jugadorId))) return;
+      const n = Number((a.trat || {}).seguro) || 0; if (!n) return;
+      r.total += n;
+      const m = (a.motSeguro || []).slice(0, n);
+      m.forEach((k) => { r.mot[k] = (r.mot[k] || 0) + 1; }); r.conMotivo += m.length; r.sin += n - m.length;
+    });
+    return r;
+  };
+
   // Valor de un indicador = calculado + ajustes manuales del período.
   K.valorIndicador = function (inf, per, ind, cont) {
     cont = cont || K.contar(inf, per);

@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.9.5';
+  K.version = '1.9.6';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -96,6 +96,8 @@
     { id: 'ortopedia', nombre: 'Ortopedia', icono: 'svg:muleta', intervencion: true },
     { id: 'inmov', nombre: 'Inmovilización', icono: 'svg:hueso', intervencion: true }
   ];
+  // v1.9.6: motivo de cada derivación al seguro (una por unidad de «Derivaciones al seguro» en la atención)
+  K.MOTIVOS_SEGURO = [['urgencia', 'Urgencia'], ['continuidad', 'Control de continuidad'], ['examen', 'Examen'], ['procedimiento', 'Procedimiento'], ['otro', 'Otro motivo']];
   K.TRAT_NUEVOS = ['carga', 'farmaco', 'deriv', 'sangrado', 'ortopedia', 'inmov', 'evalcancha'];
   K.INDICADORES_GENERALES = [
     { id: 'i-lesiones', nombre: 'Total de lesiones', fuente: 'lesiones', icono: 'svg:lesion' },
@@ -135,7 +137,7 @@
   K.gravPorDias = (n) => (n >= 29 ? 'grave' : n >= 8 ? 'moderada' : n >= 4 ? 'leve' : n >= 1 ? 'minima' : 'pordefinir');
 
   /* ---------- Ficha clínica (v1.6): catálogos de los datos clínicos nuevos ---------- */
-  K.TEJIDOS = [['muscular', 'Muscular'], ['tendon', 'Tendón'], ['ligamento', 'Ligamento'], ['oseo', 'Óseo'], ['articular', 'Articular'], ['nervioso', 'Nervioso'], ['piel', 'Piel'], ['otro', 'Otro']];
+  K.TEJIDOS = [['muscular', 'Muscular'], ['tendon', 'Tendón'], ['ligamento', 'Ligamento'], ['cartilago', 'Cartílago'], ['oseo', 'Óseo'], ['articular', 'Articular'], ['nervioso', 'Nervioso'], ['piel', 'Piel'], ['otro', 'Otro']];
   K.CONTACTOS = [['contacto', 'Con contacto'], ['sin', 'Sin contacto']];
   K.GRUPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Desconocido'];
   K.TIPOS_DOC = ['Examen', 'Informe médico', 'Consentimiento', 'Otro'];
@@ -484,6 +486,9 @@
     });
     (inf.atenciones || []).forEach((a) => {
       if (a.trat && typeof a.trat === 'object') Object.keys(a.trat).forEach((k) => { if (!/^[\w-]+$/.test(k)) delete a.trat[k]; });
+      // v1.9.6: motivos de las derivaciones al seguro y vínculo con el medicamento que la creó (todo opcional)
+      if (a.motSeguro !== undefined) { if (Array.isArray(a.motSeguro)) { a.motSeguro = a.motSeguro.filter((x) => K.MOTIVOS_SEGURO.some((m) => m[0] === x)).slice(0, 20); if (!a.motSeguro.length) delete a.motSeguro; } else delete a.motSeguro; }
+      if (a.evMed !== undefined && !ID_OK(a.evMed)) delete a.evMed;
     });
     // conmoción cerebral (SCAT5, v1.6): incidencia.scat5 (enums, números en su rango, fecha ISO, textos) y caso.conmocion / caso.rtpConmocion (6 etapas). Todo opcional.
     if (K.conmocion) K.conmocion.normalizarInforme(inf);
