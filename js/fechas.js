@@ -23,9 +23,12 @@
     const y0 = Number(min.slice(0, 4)), y1 = Number(max.slice(0, 4));
     const fondo = document.createElement('div');
     fondo.className = 'kd-fondo';
-    fondo.innerHTML = '<div class="kd" role="dialog" aria-modal="true" aria-label="Elegir fecha"></div>';
+    fondo.innerHTML = `<div class="kd" role="dialog" aria-modal="true" aria-label="Elegir fecha"><div data-cal></div>
+      <div class="kd-esc"><label for="kd-txt">O escribe la fecha (dd-mm-aaaa)</label>
+        <div class="kd-esc-fila"><input id="kd-txt" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="dd-mm-aaaa" value="${actual ? esc(actual.slice(8, 10) + '-' + actual.slice(5, 7) + '-' + actual.slice(0, 4)) : ''}"><button type="button" class="btn chico" data-aceptar>Aceptar</button></div>
+        <p class="kd-err" data-err role="alert"></p></div></div>`;
     document.body.appendChild(fondo);
-    const caja = fondo.firstChild;
+    const caja = fondo.firstChild, cal = caja.querySelector('[data-cal]'), txt = caja.querySelector('#kd-txt'), err = caja.querySelector('[data-err]');
 
     function dibujar() {
       const primero = (new Date(y, m, 1).getDay() + 6) % 7; // lunes = 0
@@ -38,7 +41,7 @@
       }
       let anios = '';
       for (let a = y0; a <= y1; a++) anios += `<option value="${a}"${a === y ? ' selected' : ''}>${a}</option>`;
-      caja.innerHTML = `<div class="kd-cab"><button type="button" class="kd-nav" data-mov="-1" aria-label="Mes anterior">‹</button>
+      cal.innerHTML = `<div class="kd-cab"><button type="button" class="kd-nav" data-mov="-1" aria-label="Mes anterior">‹</button>
           <span class="kd-sel"><select data-mes aria-label="Mes">${MESES.map((n, i) => `<option value="${i}"${i === m ? ' selected' : ''}>${n}</option>`).join('')}</select><select data-anio aria-label="Año">${anios}</select></span>
           <button type="button" class="kd-nav" data-mov="1" aria-label="Mes siguiente">›</button></div>
         <div class="kd-sem">${SEM.map((s) => `<i>${s}</i>`).join('')}</div>
@@ -52,9 +55,23 @@
       cerrar();
       try { input.focus({ preventScroll: true }); } catch (x) { /* sigue */ }
     }
+    // fecha escrita: solo números, los guiones se ponen solos (dd-mm-aaaa)
+    const fmt = (v) => { const d = String(v || '').replace(/\D/g, '').slice(0, 8); return d.length > 4 ? `${d.slice(0, 2)}-${d.slice(2, 4)}-${d.slice(4)}` : d.length > 2 ? `${d.slice(0, 2)}-${d.slice(2)}` : d; };
+    const leer = () => {
+      const m2 = /^(\d{2})-(\d{2})-(\d{4})$/.exec(txt.value.trim());
+      if (!m2) return { e: 'Escribe la fecha completa: día, mes y año (por ejemplo 05-03-2026).' };
+      const f = `${m2[3]}-${m2[2]}-${m2[1]}`, dt = new Date(+m2[3], +m2[2] - 1, +m2[1]);
+      if (dt.getFullYear() !== +m2[3] || dt.getMonth() !== +m2[2] - 1 || dt.getDate() !== +m2[1]) return { e: 'Esa fecha no existe. Revisa el día y el mes.' };
+      if (f < min || f > max) return { e: `La fecha debe estar entre ${min.slice(8, 10)}-${min.slice(5, 7)}-${min.slice(0, 4)} y ${max.slice(8, 10)}-${max.slice(5, 7)}-${max.slice(0, 4)}.` };
+      return { f };
+    };
+    const aceptar = () => { const r = leer(); if (r.e) { err.textContent = r.e; txt.focus(); return; } poner(r.f); };
+    txt.addEventListener('input', () => { const a = fmt(txt.value); if (a !== txt.value) txt.value = a; err.textContent = ''; });
+    txt.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); aceptar(); } });
     caja.addEventListener('click', (ev) => {
       const t = ev.target.closest('button'); if (!t) return;
       ev.stopPropagation();
+      if (t.hasAttribute('data-aceptar')) return aceptar();
       if (t.dataset.f) return poner(t.dataset.f);
       if (t.dataset.mov) { m += Number(t.dataset.mov); if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } y = Math.max(y0, Math.min(y1, y)); return dibujar(); }
       if (t.hasAttribute('data-hoy')) return poner(hoyIso);
@@ -67,7 +84,7 @@
     document.addEventListener('keydown', tecla, true);
     dibujar();
     cierre = () => { document.removeEventListener('keydown', tecla, true); fondo.remove(); };
-    const sel = caja.querySelector('.kd-d.sel') || caja.querySelector('.kd-d.hoy') || caja.querySelector('.kd-d:not([disabled])');
+    const sel = cal.querySelector('.kd-d.sel') || cal.querySelector('.kd-d.hoy') || cal.querySelector('.kd-d:not([disabled])');
     if (sel) sel.focus({ preventScroll: true });
   }
   K.abrirFecha = abrir;

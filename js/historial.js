@@ -95,7 +95,7 @@
       (inf.segEventos || []).forEach((x) => {
         if (x.jugadorId !== jid) return;
         const t = SEG_TIPO[x.tipo] || x.tipo || 'Evento';
-        items.push(nuevo({ id: 'v' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: 'seguro', tag: 'Seguro · ' + t, cls: 'se', titulo: x.detalle || t, sub: [x.tipo === 'examen' && x.resultado ? 'Resultado: ' + x.resultado : '', x.nAsist ? 'N.º ' + x.nAsist : ''].filter(Boolean).join(' · '), det: [['Tipo', t], ['Detalle', x.detalle || '—']].concat(x.resultado ? [['Resultado', x.resultado]] : []) }));
+        items.push(nuevo({ id: 'v' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: 'seguro', tag: 'Seguro · ' + t, cls: 'se', titulo: x.detalle || t, sub: [x.tipo === 'examen' && x.resultado ? 'Resultado: ' + x.resultado : '', x.centro || x.centroKine || '', x.medico || '', x.nAsist ? 'N.º ' + x.nAsist : ''].filter(Boolean).join(' · '), det: [['Tipo', t], ['Detalle', x.detalle || '—']].concat(x.resultado ? [['Resultado', x.resultado]] : []) }));
       });
     }
     // ---- partidos (de cualquier informe: un jugador puede jugar en otra categoría)
@@ -307,14 +307,14 @@
   const ESC = '<img class="sw-vs" src="img/escudo-sw-vs.png" alt="" width="35" height="56">';
   const campo = (l, v, c) => (v === '' || v == null ? '' : `<div${c ? ` class="${c}"` : ''}><dt>${e(l)}</dt><dd>${v}</dd></div>`);
   const edadTxt = (j) => { const n = K.edadAnios(j.nacimiento); return n != null ? `${n} años (nació en ${e(String(j.nacimiento).slice(0, 4))}${j.excepcion ? ' · ' + e(j.excepcionNota ? 'excepción: ' + j.excepcionNota : 'excepción') : ''})` : ''; };
-  function bloqueDatos(data, fechaTxt) {
+  function bloqueDatos(data, fechaTxt, extra) {
     const j = data.j, inf = data.inf, ini = (j.nombre || '?').split(/\s+/).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
     const ch = (Array.isArray(j.catHist) ? j.catHist : []).filter((x) => x && Number.isFinite(Number(x.cat))).slice().sort((a, b) => String(a.desde || '').localeCompare(String(b.desde || '')));
     const hist = ch.length ? ch.map((x, i) => `Sub ${Number(x.cat)}${x.desde ? ' desde ' + e(K.fechaCorta(x.desde)) : i ? '' : ' (inicial)'}`).join(' → ') : '';
     const estadoTxt = K.inscrito(j) ? `Inscrito${FECHA.test(j.ingreso || '') ? ' desde ' + e(K.fechaCorta(j.ingreso)) : ''}` : `${e(K.nombreEstado(j.estado))} el ${e(K.fechaCorta(K.salidaDe(j)))}${j.motivoSalida ? ' · ' + e(j.motivoSalida) : ''}`;
     const foto = j.foto ? `<img src="${e(j.foto)}" alt="">` : `<span>${e(ini)}</span>`;
     return `<div class="fj-cab">${ESC}<div class="fj-cab-t"><h1>${e(j.nombre)}</h1><p>Santiago Wanderers – Kinesiología Fútbol Joven</p>${fechaTxt ? `<p>${e(fechaTxt)}</p>` : ''}</div><div class="fj-foto">${foto}</div></div>
-      <div class="fj-card"><h3>Datos del jugador</h3><dl class="fj-dl">${campo('Pertenece a', e(j.categoria || '—'))}${campo('Edad', edadTxt(j))}${campo('Posición', e(j.posicion || ''))}${campo('Pierna dominante', e(j.pierna || ''))}
+      <div class="fj-card"><h3>Datos del jugador</h3><dl class="fj-dl">${campo('Pertenece a', e(j.categoria || '—'))}${campo('Edad', edadTxt(j))}${campo('Posición', e(j.posicion || ''))}${campo('Pierna dominante', e(j.pierna || ''))}${extra || ''}
         ${campo('Estado en el club', estadoTxt)}${campo('Jugador de plantel', j.contrato ? 'Sí' : '')}${campo('También juega en', e((j.tambien || []).filter((x) => x !== j.categoria).join(', ')))}${campo('Historial de categorías', hist, 'x')}</dl></div>`;
   }
   const imc = (talla, peso) => (talla > 0 && peso > 0 ? Math.round((peso / Math.pow(talla / 100, 2)) * 10) / 10 : null);
@@ -365,7 +365,7 @@
     if (!segs.length && !evs.length) return [];
     const out = [];
     segs.forEach((s) => {
-      const mios = evs.filter((x) => (x.seguroId ? x.seguroId === s.id : segs[segs.length - 1] === s)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+      const mios = evs.filter((x) => !x.sinAct && (x.seguroId ? x.seguroId === s.id : segs[segs.length - 1] === s)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
       const cab = `<b>${e(s.diagnostico || 'Sin diagnóstico')}</b><small>${s.activacion ? 'Activado el ' + e(K.fechaCorta(s.activacion)) : 'Sin fecha de activación'}${s.clinica ? ' · ' + e(s.clinica) : ''}${s.nClinica ? ' · N.º ' + e(s.nClinica) : ''}</small>`;
       const fila = (x) => `<tr><td>${x.fecha ? e(K.fechaCorta(x.fecha)) : '—'}</td><td>${e(SEG_TIPO[x.tipo] || x.tipo || '')}</td><td>${e(x.detalle || '')}${x.tipo === 'examen' && x.resultado ? `<small>Resultado: ${e(x.resultado)}</small>` : ''}</td></tr>`;
       if (!mios.length) out.push(`<div class="fj-card"><h3>Seguro</h3><p class="fj-seg">${cab}</p><p class="fj-nota">Sin eventos.</p></div>`);
@@ -374,6 +374,8 @@
         out.push(`<div class="fj-card"><h3>Seguro${i ? ' <small>(cont.)</small>' : ''}</h3><p class="fj-seg">${cab}</p><table class="kn-t"><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th></tr></thead><tbody>${mios.slice(i, i + 8).map(fila).join('')}</tbody></table></div>`);
       }
     });
+    const solas = evs.filter((x) => x.sinAct).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    if (solas.length) out.push(`<div class="fj-card"><h3>Hospitalizaciones</h3><table class="kn-t"><thead><tr><th>Ingreso</th><th>Alta</th><th>Motivo</th></tr></thead><tbody>${solas.slice(0, 8).map((x) => `<tr><td>${x.fecha ? e(K.fechaCorta(x.fecha)) : '—'}</td><td>${x.hasta ? e(K.fechaCorta(x.hasta)) : '—'}</td><td>${e(x.detalle || '')}${x.centro ? `<small>${e(x.centro)}</small>` : ''}</td></tr>`).join('')}</tbody></table></div>`);
     return out;
   }
   // Fila compacta de la línea de tiempo en el PDF
@@ -430,7 +432,10 @@
     const hoy = K.hoy(), anio = K.anioVista(), r = K.resumenJugador(jid, anio), s = estado(jid);
     let lista = o.filtrar ? K.histFiltrar(data, s) : data.items;
     if (!conSeg) lista = lista.filter((it) => it.k !== 'seguro');
-    const bloques = [bloqueDatos(data, o.emitida ? 'Emitida el ' + K.fechaCorta(hoy) : '')];
+    // RUT, fecha de nacimiento y previsión: solo si se marcaron (son datos privados)
+    const aId = priv ? K.antecedentesDe(data.inf, data.jid) : null;
+    const extraDatos = aId ? (o.rut && aId.rut ? campo('RUT', e(K.formatoRut(aId.rut))) : '') + (o.fechaNac && aId.fechaNac ? campo('Fecha de nacimiento', e(K.fechaCorta(aId.fechaNac))) : '') + (o.prevision && aId.prevision ? campo('Previsión de salud', e(K.previsionTxt(aId))) : '') : '';
+    const bloques = [bloqueDatos(data, o.emitida ? 'Emitida el ' + K.fechaCorta(hoy) : '', extraDatos)];
     if (conAnt) { const b = bloqueAntecedentes(data); if (b) bloques.push(b); }
     bloques.push(...bloquesResumen(r, o.partidos));
     if (data.casos.length) {
@@ -474,8 +479,11 @@
         <label class="check"><input type="checkbox" name="emitida" checked><span>Mostrar la fecha de emisión <small class="suave">(«Emitida el ${e(K.fechaCorta(K.hoy()))}»)</small></span></label>
         ${priv ? `<label class="check"><input type="checkbox" name="antecedentes"><span>Incluir antecedentes y datos de contacto</span></label>
         <label class="check"><input type="checkbox" name="seguro"><span>Incluir seguro</span></label>
+        <label class="check"><input type="checkbox" name="rut"><span>Incluir el RUT</span></label>
+        <label class="check"><input type="checkbox" name="fechaNac"><span>Incluir la fecha de nacimiento</span></label>
+        <label class="check"><input type="checkbox" name="prevision"><span>Incluir la previsión de salud</span></label>
         <p class="suave" style="margin:6px 0 0;font-size:13px">Son datos sensibles: déjalos sin marcar si el PDF se va a compartir fuera del área kinésica.</p>` : ''}`,
-      botones: [{ txt: 'Cancelar', cls: 'sec' }, { txt: 'Descargar PDF', fn: (m, hoja) => { const d = K.datos(hoja); setTimeout(() => K.fichaPdf(jid, { filtrar: !!d.filtrar, antecedentes: !!d.antecedentes, seguro: !!d.seguro, anual: !!d.anual, partidos: !!d.partidos, emitida: !!d.emitida }), 60); } }]
+      botones: [{ txt: 'Cancelar', cls: 'sec' }, { txt: 'Descargar PDF', fn: (m, hoja) => { const d = K.datos(hoja); setTimeout(() => K.fichaPdf(jid, { filtrar: !!d.filtrar, antecedentes: !!d.antecedentes, seguro: !!d.seguro, rut: !!d.rut, fechaNac: !!d.fechaNac, prevision: !!d.prevision, anual: !!d.anual, partidos: !!d.partidos, emitida: !!d.emitida }), 60); } }]
     });
   };
   K.fichaPdf = async function (jid, o) {

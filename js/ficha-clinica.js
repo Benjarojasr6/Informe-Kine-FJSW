@@ -126,7 +126,16 @@
   const CAMPOS_TXT = [['alergias', 'Alergias'], ['enfermedades', 'Enfermedades'], ['medicacionHabitual', 'Medicación habitual'], ['lesionesPrevias', 'Lesiones previas (otros clubes)'], ['cirugiasPrevias', 'Cirugías previas']];
   const telHref = (t) => 'tel:' + String(t || '').replace(/[^\d+]/g, '');
   const telHTML = (t) => (t ? `<a href="${e(telHref(t))}">${e(t)}</a>` : '');
-  const antVacio = (a) => !a || (!a.grupoSanguineo && !a.apoderado && !a.telefonoApoderado && !a.contactoEmergencia && !a.telefonoEmergencia && CAMPOS_TXT.every(([k]) => !String(a[k] || '').trim()) && !(a.antropometria || []).length);
+  const antVacio = (a) => !a || (!a.rut && !a.fechaNac && !a.prevision && !a.previsionRevisada && !a.grupoSanguineo && !a.apoderado && !a.telefonoApoderado && !a.contactoEmergencia && !a.telefonoEmergencia && CAMPOS_TXT.every(([k]) => !String(a[k] || '').trim()) && !(a.antropometria || []).length);
+  // v1.9.7: previsión de salud. Los certificados de afiliación valen unos 2 meses: si la última revisión pasó de 60 días, se avisa.
+  K.previsionTxt = (a) => (a && a.prevision ? a.prevision + (a.previsionDetalle ? ' · ' + a.previsionDetalle : '') : '');
+  K.previsionEstado = function (a, hoy) {
+    if (!a || !a.prevision) return null;
+    hoy = hoy || K.hoy();
+    if (!a.previsionRevisada) return { vencida: true, dias: null, txt: 'Previsión sin fecha de revisión: revisa el certificado de afiliación' };
+    const dias = K.kineFechas.dif(a.previsionRevisada, hoy);
+    return dias > 60 ? { vencida: true, dias, txt: `Previsión de salud sin revisar hace más de 2 meses (${dias} días): los certificados de afiliación vencen` } : { vencida: false, dias, txt: `Previsión revisada el ${fc(a.previsionRevisada)}` };
+  };
   K.fichaClinica = {
     antecedentes(inf, j) {
       if (!K.verPrivado()) return '';
@@ -136,6 +145,9 @@
         const an = (a.antropometria || []).slice().sort((x, y) => (x.fecha || '').localeCompare(y.fecha || '')), u = an[an.length - 1];
         const m = u ? imc(u.talla, u.peso) : null;
         cuerpo = `<dl class="ant-datos">
+          ${dato('RUT', a.rut ? e(K.formatoRut ? K.formatoRut(a.rut) : a.rut) : '')}
+          ${dato('Fecha de nacimiento', a.fechaNac ? e(fc(a.fechaNac)) : '')}
+          ${dato('Previsión de salud', a.prevision ? `<b>${e(K.previsionTxt(a))}</b>${(() => { const p = K.previsionEstado(a); return p ? `<br><small class="${p.vencida ? 'prev-aviso' : 'suave'}">${e(p.txt)}</small> <button type="button" class="btn ghost chico" data-acc="prevRevisada" data-id="${j.id}">Marcar como revisada hoy</button>` : ''; })()}` : '')}
           ${dato('Grupo sanguíneo', a.grupoSanguineo ? `<b>${e(a.grupoSanguineo)}</b>` : '')}
           ${dato('Alergias', String(a.alergias || '').trim() ? e(a.alergias).replace(/\n/g, '<br>') : '', 'ant-alerta')}
           ${CAMPOS_TXT.slice(1).map(([k, t]) => dato(t, String(a[k] || '').trim() ? e(a[k]).replace(/\n/g, '<br>') : '')).join('')}
@@ -157,11 +169,12 @@
     seguro(inf, j) {
       if (!K.verPrivado()) return '';
       const segs = (inf.seguros || []).filter((s) => s.jugadorId === j.id).sort((a, b) => (b.activacion || '').localeCompare(a.activacion || ''));
-      const evs = (s) => (inf.segEventos || []).filter((x) => x.jugadorId === j.id && (x.seguroId ? x.seguroId === s.id : segs[segs.length - 1] === s)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+      const evs = (s) => (inf.segEventos || []).filter((x) => x.jugadorId === j.id && !x.sinAct && (x.seguroId ? x.seguroId === s.id : segs[segs.length - 1] === s)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
       const TIPO = { control: 'Control médico', examen: 'Examen', procedimiento: 'Procedimiento', kinesiologia: 'Kinesiología', cirugia: 'Cirugía', hosp: 'Hospitalización' };
+      const hs = (inf.segEventos || []).filter((x) => x.jugadorId === j.id && x.sinAct).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
       return `<div class="card" data-card-seg><div class="fila sb wrap gap"><h2 style="margin:0">Seguro <span class="suave" style="font-weight:400">(${segs.length} ${segs.length === 1 ? 'activación' : 'activaciones'})</span></h2><button class="btn sec chico" data-acc="irSeguro" data-id="${j.id}">Ir a Kine → Seguro</button></div>
         ${segs.length ? segs.map((s) => { const ev = evs(s); return `<div class="seg-fila"><b>${e(s.diagnostico || 'Sin diagnóstico')}</b><span class="suave"> · ${s.activacion ? 'activado el ' + fc(s.activacion) : 'sin fecha de activación'}${s.clinica ? ' · ' + e(s.clinica) : ''}${s.nClinica ? ' · N.º ' + e(s.nClinica) : ''}</span>
-          ${ev.length ? `<ul class="vin">${ev.slice(0, 6).map((x) => `<li>${e(fc(x.fecha))} · ${e(TIPO[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'examen' && x.resultado ? ' — ' + e(x.resultado) : ''}${x.nAsist ? ' <span class="suave">(N.º ' + e(x.nAsist) + ')</span>' : ''}</li>`).join('')}${ev.length > 6 ? `<li class="suave">y ${ev.length - 6} más…</li>` : ''}</ul>` : '<p class="suave" style="margin:2px 0 0">Sin eventos.</p>'}</div>`; }).join('') : '<p class="vacio-msg" style="margin:6px 0 0">Sin activaciones del seguro.</p>'}</div>`;
+          ${ev.length ? `<ul class="vin">${ev.slice(0, 6).map((x) => `<li>${e(fc(x.fecha))} · ${e(TIPO[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'examen' && x.resultado ? ' — ' + e(x.resultado) : ''}${x.nAsist ? ' <span class="suave">(N.º ' + e(x.nAsist) + ')</span>' : ''}</li>`).join('')}${ev.length > 6 ? `<li class="suave">y ${ev.length - 6} más…</li>` : ''}</ul>` : '<p class="suave" style="margin:2px 0 0">Sin eventos.</p>'}</div>`; }).join('') : '<p class="vacio-msg" style="margin:6px 0 0">Sin activaciones del seguro.</p>'}${hs.length ? `<div class="seg-fila"><b>Hospitalizaciones sin activación</b><ul class="vin">${hs.map((x) => `<li>${e(fc(x.fecha))}${x.hasta ? ' al ' + e(fc(x.hasta)) : ''}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.centro ? ' · ' + e(x.centro) : ''}</li>`).join('')}</ul></div>` : ''}</div>`;
     }
   };
 
@@ -177,6 +190,13 @@
     K.modal({
       titulo: 'Antecedentes · ' + j.nombre,
       cuerpo: `<p class="suave" style="margin-top:0">Todo es opcional. Son datos sensibles: solo los ven los administradores.</p>
+        <h3 class="clin-h">Identificación y previsión</h3>
+        <div class="grid2"><label class="campo"><span>RUT</span><input type="text" name="rut" maxlength="12" value="${e(K.formatoRut ? K.formatoRut(a.rut) : a.rut || '')}" placeholder="12.345.678-9" autocomplete="off"></label>
+          <label class="campo"><span>Fecha de nacimiento</span><input type="date" name="fechaNac" value="${e(a.fechaNac || '')}"></label></div>
+        <div class="grid2"><label class="campo"><span>Previsión de salud</span><select name="prevision"><option value="">—</option>${K.opts(K.PREVISIONES.map((g) => [g, g]), a.prevision || '')}</select></label>
+          <label class="campo"><span>Isapre u otro detalle</span><input type="text" name="previsionDetalle" maxlength="80" value="${e(a.previsionDetalle || '')}" placeholder="Ej. Colmena" autocomplete="off"></label></div>
+        <label class="campo"><span>Última revisión de la previsión (certificado de afiliación)</span><input type="date" name="previsionRevisada" value="${e(a.previsionRevisada || '')}"></label>
+        <p class="suave" style="margin:-4px 0 8px;font-size:13px">Si pasan más de 2 meses sin revisarla, la app avisa en la ficha del jugador. Estos datos se usan solos al activar el seguro.</p>
         <label class="campo"><span>Grupo sanguíneo</span><select name="grupoSanguineo"><option value="">—</option>${K.opts(K.GRUPOS_SANGRE.map((g) => [g, g]), a.grupoSanguineo || '')}</select></label>
         ${CAMPOS_TXT.map(([k, t]) => `<label class="campo"><span>${t}</span><textarea name="${k}" rows="2">${e(a[k] || '')}</textarea></label>`).join('')}
         <h3 class="clin-h">Apoderado y contacto</h3>
@@ -192,7 +212,7 @@
         fn: (m, hoja) => {
           const d = K.datos(hoja);
           const antro = Array.from(hoja.querySelectorAll('.antro-fila')).map((f) => { const g = (n) => f.querySelector(`[data-a=${n}]`).value; return { fecha: g('fecha'), talla: num(g('talla')), peso: num(g('peso')) }; }).filter((x) => x.talla !== '' || x.peso !== '');
-          const campos = { grupoSanguineo: d.grupoSanguineo || '', apoderado: (d.apoderado || '').trim(), telefonoApoderado: (d.telefonoApoderado || '').trim(), contactoEmergencia: (d.contactoEmergencia || '').trim(), telefonoEmergencia: (d.telefonoEmergencia || '').trim(), antropometria: antro };
+          const campos = { rut: K.formatoRut ? K.formatoRut(d.rut) : String(d.rut || '').trim(), fechaNac: d.fechaNac || '', prevision: d.prevision || '', previsionDetalle: d.prevision ? (d.previsionDetalle || '').trim() : '', previsionRevisada: d.prevision ? d.previsionRevisada || '' : '', grupoSanguineo: d.grupoSanguineo || '', apoderado: (d.apoderado || '').trim(), telefonoApoderado: (d.telefonoApoderado || '').trim(), contactoEmergencia: (d.contactoEmergencia || '').trim(), telefonoEmergencia: (d.telefonoEmergencia || '').trim(), antropometria: antro };
           CAMPOS_TXT.forEach(([k]) => { campos[k] = (d[k] || '').trim(); });
           inf.antecedentes = inf.antecedentes || [];
           const ya = K.antecedentesDe(inf, jid);
@@ -202,6 +222,7 @@
         }
       }],
       alMontar: (m, hoja) => {
+        const rt = hoja.querySelector('[name=rut]'); if (rt && K.formatoRut) rt.addEventListener('input', () => { rt.value = K.formatoRut(rt.value); });
         hoja.addEventListener('click', (ev) => {
           if (ev.target.closest('[data-antro-add]')) { hoja.querySelector('[data-antro]').insertAdjacentHTML('beforeend', filaAntro({ fecha: K.hoy() })); }
           const q = ev.target.closest('[data-antro-quitar]'); if (q) q.closest('.antro-fila').remove();
@@ -291,6 +312,10 @@
   /* ---------- Acciones ---------- */
   Object.assign(K.acciones, {
     antEditar(el) { K.formAntecedentes(el.dataset.id); },
+    prevRevisada(el) {
+      const inf = jinf(el.dataset.id), a = inf && K.antecedentesDe(inf, el.dataset.id); if (!a) return;
+      K.conDeshacer('Previsión marcada como revisada', () => { a.previsionRevisada = K.hoy(); });
+    },
     docNuevo(el) { K.formDocumento(el.dataset.id); },
     docVer(el) { verDocumento(el.dataset.id); },
     irSeguro(el) {

@@ -72,6 +72,8 @@
     if (x.tipo === 'control' && (x.nombre || '').trim()) det.push(['Tipo de control', K.ctlEtiqueta(x.nombre)]);
     if (x.tipo !== 'cirugia') det.push([x.tipo === 'medicamento' ? 'Unidades' : x.tipo === 'procedimiento' ? 'Sesiones' : 'Cantidad', String(x.cantidad || 1)]);
     if (x.tipo === 'examen' && x.resultado) det.push(['Resultado', x.resultado]);
+    if (x.centro) det.push(['Centro médico', x.centro]);
+    if (x.medico) det.push(['Médico', x.medico]);
     const caso = x.casoId && inf.casos.find((c) => c.id === x.casoId); if (caso) det.push(['Asociado a', caso.titulo]);
     const ctl = x.tipo === 'control';
     return { f: x.fecha || '', j: x.jugadorId, k: 'eventos', tag: ctl ? K.ctlEtiqueta(x.nombre) : def.t, cls: 'ev', titulo: ctl ? 'Control' : x.nombre || def.t, det, notas: x.notas || '', raw: x };

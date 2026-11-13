@@ -603,6 +603,15 @@ input[type=date][data-kd] { cursor: pointer; }
 .kd-d.sel { background: var(--verde-2, #154c2b); color: #fff; font-weight: 700; }
 .kd-d[disabled] { opacity: .3; cursor: default; }
 .kd-pie { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+.prev-aviso { margin: -4px 0 10px; padding: 6px 10px; border-radius: 10px; background: #fff4e0; border: 1px solid #f0c987; color: #7a4a00; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+small.prev-aviso { color: #9a5b00; font-weight: 600; }
+.kd-esc { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e3e8e5; }
+.kd-esc label { display: block; font-size: 13px; font-weight: 600; color: var(--suave, #5b6b62); margin-bottom: 4px; }
+.kd-esc-fila { display: flex; gap: 8px; align-items: stretch; }
+.kd-esc-fila input { flex: 1; min-width: 0; min-height: 44px; font-size: 16px; padding: 6px 10px; border: 1px solid #c9d3ce; border-radius: 10px; }
+.kd-esc-fila .btn { min-height: 44px; }
+.kd-err { margin: 4px 0 0; min-height: 0; font-size: 13px; color: #b3202a; }
+.kd-err:empty { display: none; }
 
 /* Temporadas: pestañas Inscritos/Archivo, ficha archivada, bajas y asistente */
 .seg.jtabs { display: flex; width: 100%; max-width: 420px; }
@@ -1384,3 +1393,7 @@ input.bl-sw[type=checkbox]:checked::after { transform: translateX(20px); }
 .th-sec .th-c { flex: 1; min-width: 0; }
 /* v1.9.3: con un número impar de botones en la ficha, el último ocupa todo el ancho */
 .tiles.compactos .tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* v1.9.7: ventana del informe del seguro */
+.sp-fs { border: 1px solid var(--linea); border-radius: 10px; padding: 8px 12px 10px; margin: 0 0 10px; }
+.sp-fs legend { padding: 0 6px; font-size: 13px; font-weight: 600; color: var(--verde-2); }

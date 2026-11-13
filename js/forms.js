@@ -7,7 +7,34 @@
     '<option value="">— sin asociar —</option>' +
     inf.casos.filter((c) => c.jugadorId === jid).sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''))
       .map((c) => `<option value="${c.id}"${c.id === sel ? ' selected' : ''}>${e(c.titulo)} (${c.tipo === 'lesion' ? 'lesión' : 'molestia'})</option>`).join('');
-  // Lesiones anteriores del mismo jugador en la misma zona (o con el mismo nombre): sirven para sugerir “recidiva”.
+  /* v1.9.7 · Listas que se van aprendiendo (centros médicos, médicos, centros kinésicos): una lista desplegable con lo ya usado + «Agregar nuevo…».
+     K.valoresUsados(campo) junta lo escrito en todos los registros (eventos, eventos del seguro, asistencias, activaciones); K.campoLista arma el campo; K.valorLista lo lee. */
+  const FUENTES_LISTA = {
+    centro: [['eventos', 'centro'], ['segEventos', 'centro'], ['seguros', 'clinica']],
+    medico: [['eventos', 'medico'], ['segEventos', 'medico']],
+    centroKine: [['asistencias', 'centroKine'], ['segEventos', 'centroKine']]
+  };
+  K.valoresUsados = (campo) => {
+    const m = {};
+    (K.state.informes || []).forEach((inf) => (FUENTES_LISTA[campo] || []).forEach(([arr, c]) => (inf[arr] || []).forEach((x) => {
+      const v = String((x && x[c]) || '').trim().replace(/\s+/g, ' '); if (!v) return;
+      const k = v.toLowerCase(); m[k] = m[k] || { v, n: 0 }; m[k].n++;
+    })));
+    return Object.keys(m).map((k) => m[k]).sort((a, b) => b.n - a.n || a.v.localeCompare(b.v, 'es')).map((x) => x.v);
+  };
+  K.campoLista = (name, titulo, campo, actual, extra) => {
+    const lista = K.valoresUsados(campo), act = String(actual || '').trim(), esta = !act || lista.some((x) => x.toLowerCase() === act.toLowerCase());
+    const lis = esta || !act ? lista : [act].concat(lista);
+    const sel = act ? (lis.find((x) => x.toLowerCase() === act.toLowerCase()) || act) : '';
+    return `<div class="campo" data-lista="${name}"><label for="ls-${name}"><span>${e(titulo)}</span></label><select id="ls-${name}" name="${name}" data-lista-sel${extra ? ' ' + extra : ''}><option value="">—</option>${lis.map((x) => `<option value="${e(x)}"${x === sel ? ' selected' : ''}>${e(x)}</option>`).join('')}<option value="__otro">+ Agregar nuevo…</option></select>
+      <input type="text" name="${name}__nuevo" class="oculto" maxlength="80" placeholder="Escribe el nombre y se guardará en la lista" aria-label="${e(titulo)}: nuevo" autocomplete="off" data-lista-nuevo></div>`;
+  };
+  K.valorLista = (d, name) => (d[name] === '__otro' ? String(d[name + '__nuevo'] || '') : String(d[name] || '')).trim().replace(/\s+/g, ' ').slice(0, 80);
+  document.addEventListener('change', (ev) => {
+    const s = ev.target && ev.target.closest && ev.target.closest('[data-lista-sel]'); if (!s) return;
+    const n = s.closest('[data-lista]').querySelector('[data-lista-nuevo]'); n.classList.toggle('oculto', s.value !== '__otro'); if (s.value === '__otro') n.focus();
+  });
+  // Lesiones anteriores del mismo jugador en la misma zona (o con el mismo nombre): sirven para sugerir «recidiva».
   K.casosPrevios = (inf, c) => (inf.casos || []).filter((x) => x.id !== c.id && x.jugadorId === c.jugadorId && x.tipo === 'lesion' && (x.inicio || '') < (c.inicio || '9999')
     && ((x.zonas || []).some((z) => (c.zonas || []).includes(z)) || (x.titulo || '').trim().toLowerCase() === (c.titulo || '').trim().toLowerCase()));
   // Lesiones del jugador a las que puede estar relacionada una molestia (las que tuvo o tiene; no la que nació de esta molestia)
@@ -497,6 +524,7 @@
           <input type="text" name="nombre" list="dl-ev" value="${e(rec ? rec.nombre || '' : '')}" placeholder="${def.ph}" autocomplete="off">
           <datalist id="dl-ev">${def.sug.map((s) => `<option value="${e(s)}">`).join('')}</datalist></label>
         ${tipo === 'examen' ? `<label class="campo"><span>Resultado (opcional)</span><input type="text" name="resultado" maxlength="160" value="${e(rec ? rec.resultado || '' : '')}" placeholder="Ej. Rotura parcial de fibras, grado II" autocomplete="off"></label>` : ''}
+        ${tipo === 'control' || tipo === 'examen' ? K.campoLista('centro', 'Centro médico donde fue', 'centro', rec ? rec.centro : '') + K.campoLista('medico', tipo === 'control' ? 'Médico con quien se vio' : 'Médico que lo vio o lo pidió', 'medico', rec ? rec.medico : '') : ''}
         ${tipo === 'cirugia' ? '' : `<label class="campo"><span>${tipo === 'medicamento' ? 'Unidades / dosis entregadas' : tipo === 'procedimiento' ? 'Sesiones' : 'Cantidad'}</span><input type="number" inputmode="numeric" min="1" name="cantidad" value="${e(rec ? rec.cantidad || 1 : 1)}"></label>`}
         <label class="campo"><span>Lesión o molestia asociada (opcional)</span><select name="casoId">${casosOpts(inf, jid, rec ? rec.casoId : o.casoId || ((K.casoActivo(jid) || {}).id || ''))}</select></label>
         ${tipo === 'medicamento' && !rec ? '<p class="suave" style="font-size:13px;margin:0 0 8px">Al guardar, cuenta también como 1 atención con Farmacología (1 intervención).</p>' : ''}
@@ -510,6 +538,7 @@
             if (!d.jugadorId) { K.aviso('Elige un jugador', true); return false; }
             const campos = { tipo, fecha: d.fecha, jugadorId: d.jugadorId, nombre: (d.nombre || '').trim(), cantidad: tipo === 'cirugia' ? 1 : Math.max(1, Number(d.cantidad) || 1), casoId: d.casoId || '', notas: d.notas };
             const resultado = tipo === 'examen' ? (d.resultado || '').trim() : '';
+            const centro = tipo === 'control' || tipo === 'examen' ? K.valorLista(d, 'centro') : '', medico = tipo === 'control' || tipo === 'examen' ? K.valorLista(d, 'medico') : '';
             const reg = rec || Object.assign({ id: K.uid() }, campos);
             if (rec) Object.assign(rec, campos); else inf.eventos.push(reg);
             // v1.9.6: un medicamento registrado solo cuenta también como 1 atención con Farmacología (así suma igual que desde «Atención»)
@@ -520,6 +549,8 @@
             }
             K.recienteJugador(d.jugadorId);
             if (resultado) reg.resultado = resultado; else delete reg.resultado;
+            if (centro) reg.centro = centro; else delete reg.centro;
+            if (medico) reg.medico = medico; else delete reg.medico;
             hecho('Guardado');
           }
         }

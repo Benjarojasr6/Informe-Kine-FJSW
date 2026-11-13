@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.9.6';
+  K.version = '1.9.7';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -54,8 +54,9 @@
     const lista = (k) => (Array.isArray(inf[k]) ? inf[k].filter((x) => x && typeof x === 'object') : []);
     const campos = (o, ks, f) => ks.forEach((c) => { if (typeof o[c] === 'string') { const v = (f || K.mayus)(o[c]); if (v !== o[c]) o[c] = v; } });
     lista('casos').forEach((c) => campos(c, ['titulo', 'proxExamenTipo', 'proxProcTipo', 'proxHitoTxt']));
-    lista('eventos').forEach((x) => campos(x, ['nombre']));
-    lista('segEventos').forEach((x) => campos(x, ['detalle']));
+    lista('eventos').forEach((x) => { campos(x, ['nombre']); campos(x, ['centro']); campos(x, ['medico'], K.nombrePropio); });
+    lista('segEventos').forEach((x) => { campos(x, ['detalle', 'centro', 'centroKine']); campos(x, ['medico'], K.nombrePropio); });
+    lista('asistencias').forEach((x) => campos(x, ['centroKine']));
     lista('seguros').forEach((x) => campos(x, ['diagnostico', 'clinica']));
     lista('camposExtra').forEach((x) => campos(x, ['titulo']));
     lista('documentos').forEach((x) => campos(x, ['titulo']));
@@ -140,6 +141,7 @@
   K.TEJIDOS = [['muscular', 'Muscular'], ['tendon', 'Tendón'], ['ligamento', 'Ligamento'], ['cartilago', 'Cartílago'], ['oseo', 'Óseo'], ['articular', 'Articular'], ['nervioso', 'Nervioso'], ['piel', 'Piel'], ['otro', 'Otro']];
   K.CONTACTOS = [['contacto', 'Con contacto'], ['sin', 'Sin contacto']];
   K.GRUPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Desconocido'];
+  K.PREVISIONES = ['Fonasa A', 'Fonasa B', 'Fonasa C', 'Fonasa D', 'Isapre', 'Capredena / Dipreca', 'Otra', 'Sin previsión']; // previsión de salud del jugador
   K.TIPOS_DOC = ['Examen', 'Informe médico', 'Consentimiento', 'Otro'];
   // Torneos (v1.6, fase 5): entidad propia por informe. Tipos y fases por defecto (los ids de las fases base son fijos y legibles).
   K.TORNEO_TIPOS = ['Internacional', 'Nacional', 'Amistoso', 'Gira'];
@@ -320,7 +322,7 @@
       });
     });
     // textos: si vienen con otro tipo (número, objeto, nulo) se convierten, para que ninguna pantalla se rompa
-    const TEXTOS = ['nombre', 'categoria', 'posicion', 'titulo', 'rival', 'torneo', 'cargo', 'res', 'comentarios', 'nota', 'estadoNota', 'estado', 'contexto', 'fuente', 'icono', 'lado', 'origen', 'clase', 'tipo', 'motivoSalida', 'nombres', 'apellido1', 'apellido2', 'tejido', 'contacto', 'resultado', 'alergias', 'enfermedades', 'medicacionHabitual', 'lesionesPrevias', 'cirugiasPrevias', 'grupoSanguineo', 'apoderado', 'telefonoApoderado', 'contactoEmergencia', 'telefonoEmergencia'];
+    const TEXTOS = ['nombre', 'categoria', 'posicion', 'titulo', 'rival', 'torneo', 'cargo', 'res', 'comentarios', 'nota', 'estadoNota', 'estado', 'contexto', 'fuente', 'icono', 'lado', 'origen', 'clase', 'tipo', 'motivoSalida', 'nombres', 'apellido1', 'apellido2', 'tejido', 'contacto', 'resultado', 'alergias', 'enfermedades', 'medicacionHabitual', 'lesionesPrevias', 'cirugiasPrevias', 'grupoSanguineo', 'apoderado', 'telefonoApoderado', 'contactoEmergencia', 'telefonoEmergencia', 'centro', 'medico', 'centroKine'];
     const arrObj = (v) => (Array.isArray(v) ? v : []);
     ARR_ID.forEach((k) => (inf[k] || []).forEach((it) => {
       TEXTOS.forEach((f) => { if (it[f] != null && typeof it[f] !== 'string') it[f] = typeof it[f] === 'number' ? String(it[f]) : ''; });
@@ -439,6 +441,8 @@
         if (s.pais !== undefined) { s.pais = txt(s.pais, 80); if (!s.pais) delete s.pais; }
         if (s.cobertura !== undefined && !K.COBERTURAS_SEGURO.includes(s.cobertura)) delete s.cobertura;
         if (s.poliza !== undefined) { s.poliza = txt(s.poliza, 60); if (!s.poliza) delete s.poliza; }
+        if (s.prevision !== undefined && !K.PREVISIONES.includes(s.prevision)) s.prevision = '';
+        if (s.previsionDetalle !== undefined) s.previsionDetalle = txt(s.previsionDetalle, 80);
       });
     }
     // plantillas de intervenciones (uso diario): [{ id, nombre, trat: { idTratamiento: cantidad } }]
@@ -449,6 +453,14 @@
         return { id: x.id, nombre: str(x.nombre).trim().slice(0, 40), trat };
       }).filter((x) => x.nombre && Object.keys(x.trat).length);
     }
+    // valores en pesos (opcionales) para estimar el dinero ahorrado con el seguro: { urgencia, control, examen, procedimiento, kinesiologia, cirugia, hosp, examenes: { nombre: valor } }
+    if (inf.seguroValores !== undefined) {
+      const sv = plano(inf.seguroValores) ? inf.seguroValores : {}, out = {}, num = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) && n > 0 && n <= 1e9 ? n : 0; };
+      ['urgencia', 'control', 'examen', 'procedimiento', 'kinesiologia', 'cirugia', 'hosp'].forEach((k) => { const n = num(sv[k]); if (n) out[k] = n; });
+      const ex = {}; if (plano(sv.examenes)) Object.keys(sv.examenes).slice(0, 60).forEach((k) => { const n = num(sv.examenes[k]); if (n && k.trim() && k.length <= 80) ex[k] = n; });
+      if (Object.keys(ex).length) out.examenes = ex;
+      inf.seguroValores = out;
+    }
     ['antecedentes', 'documentos'].forEach((k) => {
       if (inf[k] === undefined) return;
       inf[k] = inf[k].filter((x) => ID_OK(x.jugadorId)); // sin jugador no se puede mostrar en ninguna parte
@@ -457,6 +469,11 @@
       if (!['', ...K.GRUPOS_SANGRE].includes(a.grupoSanguineo || '')) a.grupoSanguineo = '';
       ['alergias', 'enfermedades', 'medicacionHabitual', 'lesionesPrevias', 'cirugiasPrevias'].forEach((c) => { if (a[c] !== undefined) a[c] = str(a[c]).slice(0, 4000); });
       ['apoderado', 'telefonoApoderado', 'contactoEmergencia', 'telefonoEmergencia'].forEach((c) => { if (a[c] !== undefined) a[c] = str(a[c]).slice(0, 120); });
+      // v1.9.7: identificación y previsión de salud (todo opcional)
+      if (a.rut !== undefined) a.rut = str(a.rut).replace(/[^0-9kK.\-]/g, '').slice(0, 12);
+      ['fechaNac', 'previsionRevisada'].forEach((c) => { if (a[c] !== undefined && !ISO_OK(a[c])) a[c] = ''; });
+      if (a.prevision !== undefined && !K.PREVISIONES.includes(a.prevision)) a.prevision = '';
+      if (a.previsionDetalle !== undefined) a.previsionDetalle = str(a.previsionDetalle).slice(0, 80);
       a.antropometria = arrObj(a.antropometria).filter((x) => x && typeof x === 'object').slice(0, 300)
         .map((x) => ({ fecha: ISO_OK(x.fecha) ? x.fecha : '', talla: NUM_OK(x.talla, 30, 260) ? Number(x.talla) : '', peso: NUM_OK(x.peso, 2, 400) ? Number(x.peso) : '' }))
         .filter((x) => x.talla !== '' || x.peso !== '');

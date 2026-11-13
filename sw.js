@@ -1,13 +1,13 @@
 /* Service worker: la app funciona sin conexión.
    Al subir una versión nueva a GitHub, cambia VERSION para forzar la actualización. */
-const VERSION = '1.9.6';
+const VERSION = '1.9.7';
 const CACHE = 'kine-sw-' + VERSION;
 
 const ARCHIVOS = [
   './', './index.html', './manifest.webmanifest',
   './css/app.css', './css/report.css',
   './js/store.js', './js/calc.js', './js/categorias.js', './js/icons.js', './js/bodymap.js',
-  './js/report.js', './js/epi.js', './js/totales.js', './js/pdf.js', './js/ui.js', './js/forms.js', './js/manual.js', './js/screens.js', './js/bitacora.js', './js/excel.js', './js/navegacion.js', './js/kine.js', './js/seguro.js', './js/partidos.js', './js/torneos.js', './js/torneo-carga.js', './js/torneo-informe.js', './js/conmocion.js', './js/scat5-datos.js', './js/scat5.js', './js/firebase-config.js', './js/nube.js', './js/chat.js', './js/importar-asistencia.js', './js/bloques.js', './js/avisos.js', './js/fuentes.js', './js/salud.js', './js/fechas.js', './js/temporadas.js', './js/temporada-ui.js', './js/ficha-clinica.js', './js/historial.js', './js/diario.js', './js/app.js', './js/recordatorios.js',
+  './js/report.js', './js/epi.js', './js/totales.js', './js/pdf.js', './js/ui.js', './js/forms.js', './js/manual.js', './js/screens.js', './js/bitacora.js', './js/excel.js', './js/navegacion.js', './js/kine.js', './js/seguro.js', './js/seguro-informe.js', './js/partidos.js', './js/torneos.js', './js/torneo-carga.js', './js/torneo-informe.js', './js/conmocion.js', './js/scat5-datos.js', './js/scat5.js', './js/firebase-config.js', './js/nube.js', './js/chat.js', './js/importar-asistencia.js', './js/bloques.js', './js/avisos.js', './js/fuentes.js', './js/salud.js', './js/fechas.js', './js/temporadas.js', './js/temporada-ui.js', './js/ficha-clinica.js', './js/historial.js', './js/diario.js', './js/app.js', './js/recordatorios.js',
   './fonts/Inter-Regular.woff', './fonts/Inter-SemiBold.woff', './fonts/Inter-Bold.woff', './fonts/Caladea-Regular.woff', './fonts/InterDisplay-Bold.woff', './fonts/InterDisplay-Regular.woff', './fonts/Poppins-Bold.woff', './fonts/YaHeiLight-Stand.woff', './fonts/YaHeiBold-Stand.woff', './fonts/Poppins-Regular.woff', './fonts/Pagella-Italic.woff', './fonts/Pagella-Bold.woff', './fonts/Pagella-Regular.woff', './fonts/Carlito-Bold.woff', './fonts/Carlito-Regular.woff', './fonts/Lora-Italic.woff', './fonts/Lora-Bold.woff', './fonts/Lora-Regular.woff', './fonts/Caladea-Bold.woff', './fonts/Caladea-Italic.woff',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png', './favicon.png',
   './img/insignia-512.png', './img/insignia-kinesiologia.png', './img/escudo-sw-verde.png', './img/escudo-sw-vs.png', './img/escudo-sw-blanco.png',

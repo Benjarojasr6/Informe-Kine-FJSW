@@ -486,6 +486,7 @@
       <div class="titulo-vista"><div class="fila gap"><button class="btn sec chico" data-acc="volverJugadores">${K.uiIco('atras', 16)} ${arch ? 'Archivo' : 'Jugadores'}</button></div><div class="fila gap wrap"><button class="btn sec chico" data-acc="editarJugador">${K.uiIco('editar', 16)} Datos y foto</button></div></div>
       ${K.cintilloArchivado(j0)}
       <div class="fila gap" style="margin-bottom:12px">${avatar(j, 'grande')}<div><h1 style="font-family:Caladea,serif;font-size:23px;color:var(--verde-2)">${e(j.nombre)} ${K.etiquetasJugador(j)}</h1><div class="suave">${e([j.posicion, K.nacTxt(j)].filter(Boolean).join(' · '))}</div>${K.pertenenciaHTML(j)}${(() => { const cj = K.catsJugadas(j, per), ck = Object.keys(cj).sort((a, b) => b - a); return ck.length ? `<div class="suave">Categorías en que ha jugado: ${ck.map((c) => `Sub ${c} (${cj[c]} partido${cj[c] === 1 ? '' : 's'})`).join(', ')}</div>` : ''; })()}</div></div>
+      ${(() => { const p = K.verPrivado && K.verPrivado() && !arch ? K.previsionEstado(K.antecedentesDe(inf, j0.id)) : null; return p && p.vencida ? `<p class="prev-aviso" role="status">${K.uiIco('alerta', 14)} ${e(p.txt)}. <button type="button" class="btn ghost chico" data-acc="prevRevisada" data-id="${j0.id}">Marcar como revisada hoy</button></p>` : ''; })()}
       ${K.fichaResumen ? K.fichaResumen(inf, j0) : ''}
       ${arch ? '' : `<div class="tiles compactos">
         <button class="tile prin" data-acc="jAtencion"><span class="mini-ico">${K.ico('img:atenciones')}</span>Atención</button>

@@ -639,3 +639,20 @@ mark.epi-rep { background: #fff200; color: #1f2937; padding: 0 3px; border-radiu
 /* v1.9.4: la tarjeta de disponibilidad tiene 4 cifras; los rótulos largos se parten en líneas juntas */
 .cg-nums.cg-4 span { display: block; line-height: 1.3; }
 .cg-nums.cg-4 div { padding: 0 2px; }
+
+/* ================= v1.9.7: Informe del seguro (PDF) ================= */
+.seg-print .sp-j { margin: 0 0 10px; }
+.seg-print .sp-j h3 { font: 700 14px Caladea, serif; color: #154c2b; margin: 10px 0 2px; break-after: avoid; }
+.seg-print .sp-j h3 small { font: 600 11px Inter, sans-serif; color: #5a665f; }
+.seg-print .sp-priv { margin: 0 0 3px; font-size: 11px; color: #2e3833; }
+.seg-print .sp-ad { margin: 5px 0 3px; font-size: 11.5px; break-after: avoid; }
+.seg-print .sp-t { width: 100%; border-collapse: collapse; font-size: 10.5px; margin: 0 0 6px; }
+.seg-print .sp-t th { background: #d8dfda; color: #1d3a2a; text-align: left; font-size: 9.5px; padding: 3px 5px; }
+.seg-print .sp-t td { padding: 3px 5px; border-bottom: 1px solid #d8dfda; vertical-align: top; }
+.seg-print .sp-t small { display: block; color: #5a665f; font-size: 9.5px; }
+.seg-print .sp-t .der { text-align: right; white-space: nowrap; }
+.seg-print .sp-t .sp-tot td { border-top: 2px solid #154c2b; border-bottom: 0; }
+.seg-print .sp-pto { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.seg-print .sp-nota { font-size: 10.5px; color: #5a665f; margin: 4px 0 6px; }
+.seg-print .bd-r.bd-m { grid-template-columns: minmax(70px, 34%) 1fr 70px; }
+.seg-print .bd-r.bd-m b { text-align: right; white-space: nowrap; }

@@ -115,7 +115,9 @@
         (a.t === 'RD' ? `<select ${id} data-f="sub" data-acc-change="kineAsisSel" aria-label="RD">${K.opts(RD_OPC, a.sub || 'K')}</select>` : '');
     }
     if (a.no === 'pauta') return '<span class="suave kf-no">Pauta para hacer en casa</span>';
-    return `<select ${id} data-f="no" data-acc-change="kineAsisSel" aria-label="Motivo"><option value="">Motivo…</option>${K.opts(K.MOTIVOS_NO, a.no || '')}</select>`;
+    const centros = a.no === 'kineparticular' || a.no === 'kineseguro' ? (() => { const l = K.valoresUsados('centroKine'); if (a.centroKine && !l.includes(a.centroKine)) l.unshift(a.centroKine);
+      return `<select ${id} data-f="centroKine" data-acc-change="kineAsisSel" aria-label="Centro kinésico"><option value="">Centro kinésico…</option>${l.map((x) => `<option value="${e(x)}"${x === a.centroKine ? ' selected' : ''}>${e(x)}</option>`).join('')}<option value="__otro">+ Agregar nuevo…</option></select>`; })() : '';
+    return `<select ${id} data-f="no" data-acc-change="kineAsisSel" aria-label="Motivo"><option value="">Motivo…</option>${K.opts(K.MOTIVOS_NO, a.no || '')}</select>${centros}`;
   };
   K.kineSelAsis = selAsis;
   K.kineAsisTxt = (a) => {
@@ -573,7 +575,13 @@
     kineAsisSel(el) {
       const it = item(el.dataset.caso); if (!it) return;
       const a = asisDia(it.inf, it.j.id, el.dataset.fecha || ks().fecha); if (!a) return;
+      if (el.dataset.f === 'centroKine' && el.value === '__otro') { // centro nuevo: se escribe y queda en la lista
+        K.modal({ titulo: 'Nuevo centro kinésico', cuerpo: '<label class="campo"><span>Nombre del centro kinésico</span><input type="text" name="n" maxlength="80" autocomplete="off"></label>',
+          botones: [{ txt: 'Cancelar', cls: 'sec', fn: () => { K.render(); } }, { txt: 'Guardar', fn: (m, hoja) => { const v = K.datos(hoja).n.trim().replace(/\s+/g, ' ').slice(0, 80); if (!v) { K.aviso('Escribe el nombre del centro', true); return false; } a.centroKine = K.mayus(v); K.guardar(); K.render(); } }] });
+        return;
+      }
       a[el.dataset.f] = el.value;
+      if (el.dataset.f === 'no' && el.value !== 'kineparticular' && el.value !== 'kineseguro') delete a.centroKine;
       if (el.dataset.f === 't') a.sub = el.value === 'RD' ? (a.sub || 'K') : '';
       K.guardar(); K.render();
     }
