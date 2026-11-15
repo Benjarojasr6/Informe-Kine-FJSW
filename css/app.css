@@ -1411,7 +1411,7 @@ input.bl-sw[type=checkbox]:checked::after { transform: translateX(20px); }
 #view .kc-grid { max-width: 680px; gap: 3px; }
 @media (min-width: 600px) { #view .kc-grid { gap: 5px; } }
 #view .kc-grid em { font-size: 15px; font-weight: 700; color: var(--texto); }
-#view .kc { font-size: 18px; font-weight: 700; color: #14301f; min-height: 54px; }
+#view .kc { font-size: 15px; font-weight: 700; color: #14301f; min-height: 54px; }
 #view .kc i { bottom: 5px; gap: 4px; }
 #view .kc u, #view .kc-ley u, #view .kc-pto { width: 10px; height: 10px; }
 #view .kc-L, #view .kc-R, #view .kc-A { width: 17px; height: 17px; line-height: 17px; font-size: 12px; top: 3px; right: 3px; }

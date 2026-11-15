@@ -143,6 +143,10 @@
       <li><b>Seguro en el exterior:</b> al registrar una activación del seguro puedes anotar la ciudad o país, la cobertura (seguro del club o de viaje) y la póliza. En la pestaña Viaje del torneo se ven las activaciones de los inscritos durante el torneo.</li>
       <li><b>Renombrar o eliminar:</b> si cambias el nombre del torneo se actualiza en todos sus partidos. Al eliminarlo, los partidos <b>no se borran</b>: quedan sin torneo (hay un aviso para <b>Deshacer</b>).</li>
       <li><b>Lo que ya tenías:</b> los partidos que antes tenían un torneo escrito se ordenaron solos en fichas de torneo; los informes salen igual que antes.</li></ul>`],
+    ['Novedades de la versión 1.9.9', `<ul>
+      <li><b>Registrar molestia:</b> el botón ahora usa el triángulo amarillo de «Totales del período» (en Registrar y en la ficha del jugador).</li>
+      <li><b>Calendario del mes:</b> los números de los días se achicaron un poco; el resto del calendario queda igual.</li>
+    </ul>`],
     ['Novedades de la versión 1.9.8', `<ul>
       <li><b>Aviso de previsión solo en lesionados:</b> el aviso «previsión sin revisar hace más de 2 meses» sale solo cuando el jugador tiene una <b>lesión activa</b> (sin alta). A los demás no se les avisa.</li>
       <li><b>Detalle del día (calendario anual):</b> además de cambiar la asistencia, cada cosa de ese día (control, examen, procedimiento, atención, lesión, urgencia…) tiene su botón <b>Editar</b>, y abajo están los botones <b>+ Atención, + Control, + Examen, + Procedimiento, + Medicamento y + Cirugía</b> para anotar algo en ese día con la fecha y el jugador ya puestos. Al cerrar esa ventana se vuelve al detalle del día.</li>

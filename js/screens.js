@@ -153,7 +153,7 @@
       <div class="tiles tiles-reg">
         <button class="tile prin" data-acc="nuevaAtencion"><span class="mini-ico">${K.ico('svg:atenciones')}</span>Registrar atención</button>
         <button class="tile" data-acc="hoyRepetir"><span class="mini-ico">${K.uiIco('copiar', 32)}</span>Repetir última atención</button>
-        <button class="tile" data-acc="nuevaMolestia"><span class="mini-ico">${K.uiIco('alerta', 32)}</span>Registrar molestia</button>
+        <button class="tile" data-acc="nuevaMolestia"><span class="mini-ico">${K.ico('svg:molestia')}</span>Registrar molestia</button>
         <button class="tile" data-acc="nuevoCaso"><span class="mini-ico">${K.ico('svg:lesion')}</span>Registrar lesión</button>
         <button class="tile" data-acc="nuevoControl"><span class="mini-ico">${K.ico('svg:control')}</span>Control</button>
         <button class="tile" data-acc="nuevoExamen"><span class="mini-ico">${K.ico('svg:examen')}</span>Examen</button>
@@ -491,7 +491,7 @@
       ${K.fichaResumen ? K.fichaResumen(inf, j0) : ''}
       ${arch ? '' : `<div class="tiles compactos">
         <button class="tile prin" data-acc="jAtencion"><span class="mini-ico">${K.ico('img:atenciones')}</span>Atención</button>
-        <button class="tile" data-acc="jMolestia"><span class="mini-ico">${K.uiIco('alerta', 32)}</span>Molestia</button>
+        <button class="tile" data-acc="jMolestia"><span class="mini-ico">${K.ico('svg:molestia')}</span>Molestia</button>
         <button class="tile" data-acc="jCaso"><span class="mini-ico">${K.ico('svg:lesion')}</span>Lesión</button>
         <button class="tile" data-acc="jControl"><span class="mini-ico">${K.ico('svg:control')}</span>Control</button>
         <button class="tile" data-acc="jExamen"><span class="mini-ico">${K.ico('svg:examen')}</span>Examen</button>
