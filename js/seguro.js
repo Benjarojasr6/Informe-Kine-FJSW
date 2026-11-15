@@ -261,10 +261,10 @@
 
   /* ---------- Pantalla Seguro ---------- */
   // La urgencia (la activación misma) es el primer evento de cada activación.
-  const urgFila = (s) => `<div class="item seg-ev" data-acc="segEditar" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL.urgencia}"></span><div class="txt"><b>Urgencia · activación del seguro${s.clinica ? ' · ' + e(s.clinica) : ''}</b><span>${s.activacion ? e(fc(s.activacion)) : 'sin fecha'} · ${s.nClinica ? 'N.º asistencia ' + e(s.nClinica) : 'sin N.º de asistencia'}</span></div></div>`;
+  const urgFila = (s, exU) => `<div class="item seg-ev" data-acc="segEditar" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL.urgencia}"></span><div class="txt"><b>Urgencia · activación del seguro${s.clinica ? ' · ' + e(s.clinica) : ''}</b><span>${s.activacion ? e(fc(s.activacion)) : 'sin fecha'} · ${s.nClinica ? 'N.º asistencia ' + e(s.nClinica) : 'sin N.º de asistencia'}</span>${exU && exU.length ? `<span>Exámenes de la urgencia: ${exU.map((x) => e(x.detalle) + (x.resultado ? ' (' + e(x.resultado) + ')' : '')).join(' · ')}</span>` : ''}</div></div>`;
   function tarjetaSeg(inf, s) {
     const j = K.jugador(inf, s.jugadorId); if (!j) return '';
-    const evs = evsDe(inf, s).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    const evsT = evsDe(inf, s).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')), exU = evsT.filter((x) => x.urg && x.tipo === 'examen'), evs = evsT.filter((x) => !(x.urg && x.tipo === 'examen')); // los exámenes de la urgencia son parte de la urgencia, no eventos nuevos
     const abierto = !!(ss().segAbierto || {})[s.id], cat = e(j.categoria || 'Sub ' + K.kineCatDe(j, inf));
     const nEv = evs.length + 1; // la urgencia (la activación) también es un evento
     if (!abierto) return `<button type="button" class="seg-mini" data-acc="segToggle" data-sid="${s.id}" aria-expanded="false"><span class="txt"><b>${e(j.nombre)}</b><span>${cat} · ${e(s.diagnostico || 'sin diagnóstico')}</span></span><em>${nEv} evento${nEv === 1 ? '' : 's'}</em><i class="seg-flecha">${K.uiIco('abajo', 18)}</i></button>`;
@@ -272,9 +272,9 @@
       <div class="seg-cab seg-cab-t" data-acc="segToggle" data-sid="${s.id}" role="button" tabindex="0" aria-expanded="true"><div class="txt"><b>${e(j.nombre)}</b><span>${cat} · ${e(s.diagnostico || 'sin diagnóstico')}</span></div>
         <button class="btn ghost chico" data-acc="segEditar" data-sid="${s.id}">${K.uiIco('editar', 16)} Datos</button><i class="seg-flecha">${K.uiIco('arriba', 18)}</i></div>
       <dl class="seg-datos"><div style="grid-column:1/-1"><dt>Diagnóstico</dt><dd>${e(s.diagnostico || '—')}</dd></div><div><dt>RUT</dt><dd>${e(fmtRut(s.rut) || '—')}</dd></div><div><dt>Nacimiento</dt><dd>${s.fechaNac ? e(fc(s.fechaNac)) : '—'}</dd></div><div><dt>Comuna</dt><dd>${e(s.comuna || '—')}</dd></div>
-        <div><dt>Activación</dt><dd>${s.activacion ? e(fc(s.activacion)) : '—'}</dd></div><div><dt>Clínica</dt><dd>${e(s.clinica || '—')}${s.nClinica ? ' · N.º ' + e(s.nClinica) : ''}</dd></div>${s.pais ? `<div><dt>País</dt><dd>${e(s.pais)}</dd></div>` : ''}${s.cobertura ? `<div><dt>Cobertura</dt><dd>${e(s.cobertura === 'Club' ? 'Seguro del club' : 'Seguro de viaje')}</dd></div>` : ''}${s.poliza ? `<div><dt>Póliza</dt><dd>${e(s.poliza)}</dd></div>` : ''}</dl>
+        <div><dt>Activación</dt><dd>${s.activacion ? e(fc(s.activacion)) : '—'}</dd></div><div><dt>Clínica</dt><dd>${e(s.clinica || '—')}${s.nClinica ? ' · N.º ' + e(s.nClinica) : ''}</dd></div>${s.pais ? `<div><dt>Ciudad o país</dt><dd>${e(s.pais)}</dd></div>` : ''}${s.cobertura ? `<div><dt>Cobertura</dt><dd>${e(s.cobertura === 'Club' ? 'Seguro del club' : 'Seguro de viaje')}</dd></div>` : ''}${s.poliza ? `<div><dt>Póliza</dt><dd>${e(s.poliza)}</dd></div>` : ''}</dl>
       <div class="fila sb" style="margin:8px 0 2px"><b style="font-size:13.5px">Eventos (${nEv})</b><button class="btn chico" data-acc="segEvento" data-sid="${s.id}">${K.uiIco('mas', 16)} Evento</button></div>
-      <div class="lista">${evs.map((x) => `<div class="item seg-ev" data-acc="segEvEditar" data-id="${x.id}" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL[x.tipo]}"></span><div class="txt"><b>${e(TIPO_TXT[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'examen' && x.resultado ? ' — ' + e(x.resultado) : ''}${x.tipo === 'kinesiologia' && (Number(x.cantidad) || 1) > 1 ? ' (' + x.cantidad + ' sesiones)' : ''}</b><span>${e(fc(x.fecha))}${x.hasta ? ' al ' + e(fc(x.hasta)) : ''}${x.centro || x.centroKine ? ' · ' + e(x.centro || x.centroKine) : ''}${x.medico ? ' · ' + e(x.medico) : ''} · ${x.nAsist ? 'N.º asistencia ' + e(x.nAsist) : 'sin N.º de asistencia'}</span></div></div>`).join('')}${urgFila(s)}</div>
+      <div class="lista">${evs.map((x) => `<div class="item seg-ev" data-acc="segEvEditar" data-id="${x.id}" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL[x.tipo]}"></span><div class="txt"><b>${e(TIPO_TXT[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'examen' && x.resultado ? ' — ' + e(x.resultado) : ''}${x.tipo === 'kinesiologia' && (Number(x.cantidad) || 1) > 1 ? ' (' + x.cantidad + ' sesiones)' : ''}</b><span>${e(fc(x.fecha))}${x.hasta ? ' al ' + e(fc(x.hasta)) : ''}${x.centro || x.centroKine ? ' · ' + e(x.centro || x.centroKine) : ''}${x.medico ? ' · ' + e(x.medico) : ''} · ${x.nAsist ? 'N.º asistencia ' + e(x.nAsist) : 'sin N.º de asistencia'}</span></div></div>`).join('')}${urgFila(s, exU)}</div>
     </div>`;
   }
 
@@ -287,8 +287,9 @@
     const sel = `<label class="campo" style="max-width:240px"><span>Período</span><select data-acc-change="segAnio"><option value="todo">Todo el historial</option>${anios.map((a) => `<option value="${a}"${s.segAnio === a ? ' selected' : ''}>Año ${a}</option>`).join('')}</select></label>`;
     if (!segs.length && !evs.length) return `<div class="card"><h2>Uso del seguro</h2><p class="vacio-msg">Cuando registres activaciones y eventos del seguro, aquí aparecerán las estadísticas.</p></div>`;
     const segsP = segs.filter((r) => s.segAnio === 'todo' || (r.x.activacion || '').slice(0, 4) === s.segAnio), ini = segsP.length; // urgencias (activaciones) del período
-    const pool = evs.concat(segsP.map((r) => ({ tipo: 'urgencia', jugadorId: r.x.jugadorId, fecha: r.x.activacion, nAsist: r.x.nClinica }))); // la urgencia también es un evento
-    const c = {}; evs.forEach((x) => sumar(c, x.tipo));
+    const evsE = evs.filter((x) => !(x.urg && x.tipo === 'examen')); // eventos propiamente tales (los exámenes de la urgencia van dentro de la urgencia)
+    const pool = evsE.concat(segsP.map((r) => ({ tipo: 'urgencia', jugadorId: r.x.jugadorId, fecha: r.x.activacion, nAsist: r.x.nClinica }))); // la urgencia también es un evento
+    const c = {}; evsE.forEach((x) => sumar(c, x.tipo)); const nExam = evs.filter((x) => x.tipo === 'examen').length;
     const ses = evs.filter((x) => x.tipo === 'kinesiologia').reduce((a, x) => a + (Number(x.cantidad) || 1), 0);
     const ex = {}; evs.filter((x) => x.tipo === 'examen').forEach((x) => sumar(ex, x.detalle || 'Sin nombre'));
     const pr = {}; evs.filter((x) => x.tipo === 'procedimiento').forEach((x) => sumar(pr, x.detalle || 'Sin nombre'));
@@ -300,7 +301,7 @@
     const kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
     const partes = [['Urgencia', ini, TIPO_COL.urgencia]].concat(TIPOS.map(([k, t]) => [t, c[k] || 0, TIPO_COL[k]]));
     return `<div class="card"><div class="fila sb wrap gap"><h2 style="margin:0">Uso del seguro</h2>${sel}</div>
-      <div class="bd-kpis">${kpi(ini, 'Urgencias (activaciones del seguro)')}${kpi(pool.length, 'Eventos en total (urgencias incluidas)')}${kpi(evs.length, 'eventos de continuidad')}${kpi(c.control || 0, 'controles')}${kpi(c.examen || 0, 'exámenes')}${kpi(c.procedimiento || 0, 'procedimientos')}${kpi(ses, 'sesiones de kinesiología')}${kpi(c.cirugia || 0, 'cirugías')}${kpi(c.hosp || 0, 'hospitalizaciones')}</div>
+      <div class="bd-kpis">${kpi(ini, 'Urgencias (activaciones del seguro)')}${kpi(pool.length, 'Eventos en total (urgencias incluidas)')}${kpi(evsE.length, 'eventos de continuidad')}${kpi(c.control || 0, 'controles')}${kpi(nExam, 'exámenes (con los de urgencias)')}${kpi(c.procedimiento || 0, 'procedimientos')}${kpi(ses, 'sesiones de kinesiología')}${kpi(c.cirugia || 0, 'cirugías')}${kpi(c.hosp || 0, 'hospitalizaciones')}</div>
       <div class="bd-g">
         ${panel('Eventos por mes', mensual(pool.map((x) => ({ f: x.fecha, cls: 'ev' }))), true)}
         ${panel('Tipo de evento', donut(partes))}
@@ -355,7 +356,7 @@
     inf.eventos.forEach((x) => { if (x.jugadorId === j.id && K.evRealizado(x)) { if (x.tipo === 'control') poner(x.fecha, 'control', 'Control: ' + (x.nombre || '')); if (x.tipo === 'examen') poner(x.fecha, 'examen', 'Examen: ' + (x.nombre || '')); if (x.tipo === 'cirugia') poner(x.fecha, 'cirugia', 'Cirugía: ' + (x.nombre || '')); } });
     (inf.seguros || []).forEach((s) => { if (s.jugadorId === j.id && s.activacion) poner(s.activacion, 'urg', 'Urgencia: activación del seguro' + (s.diagnostico ? ' · ' + s.diagnostico : '')); });
     (inf.segEventos || []).forEach((x) => {
-      if (x.jugadorId !== j.id) return;
+      if (x.jugadorId !== j.id || x.urg) return; // los exámenes de la urgencia ya van en el día de la urgencia
       const k = { control: 'control', examen: 'examen', procedimiento: 'proc', kinesiologia: 'kineext', cirugia: 'cirugia', hosp: 'hosp' }[x.tipo];
       const tx = (TIPO_TXT[x.tipo] || '') + (x.detalle ? ': ' + x.detalle : '') + ' (seguro)';
       if (x.tipo === 'hosp' && x.hasta && x.hasta > x.fecha) { for (let d = x.fecha, n = 0; d <= x.hasta && n < 120; d = suma(d, 1), n++) poner(d, k, tx); } else poner(x.fecha, k, tx);
@@ -413,20 +414,21 @@
     inf.casos.forEach((c) => {
       if (c.jugadorId !== j.id || !c.inicio) return;
       const tp = c.tipo === 'lesion' ? 'lesión' : 'molestia';
-      if (c.inicio === iso) L.push(['Inicio de ' + tp, c.titulo]);
-      else if (c.tipo === 'lesion' && c.inicio < iso && iso <= (c.alta || hoy)) L.push(['Lesionado', c.titulo]);
-      if (c.alta === iso) L.push(['Alta kinésica', c.titulo]);
-      if (c.altaMedica === iso && c.altaMedica !== c.alta) L.push(['Alta médica', c.titulo]);
-      if (c.tipo === 'lesion' && K.inicioReintegro && K.inicioReintegro(inf, c) === iso) L.push(['Inicio del reintegro deportivo', c.titulo]);
+      if (c.inicio === iso) L.push(['Inicio de ' + tp, c.titulo, ['caso', c]]);
+      else if (c.tipo === 'lesion' && c.inicio < iso && iso <= (c.alta || hoy)) L.push(['Lesionado', c.titulo, ['caso', c]]);
+      if (c.alta === iso) L.push(['Alta kinésica', c.titulo, ['caso', c]]);
+      if (c.altaMedica === iso && c.altaMedica !== c.alta) L.push(['Alta médica', c.titulo, ['caso', c]]);
+      if (c.tipo === 'lesion' && K.inicioReintegro && K.inicioReintegro(inf, c) === iso) L.push(['Inicio del reintegro deportivo', c.titulo, ['caso', c]]);
     });
     (inf.atenciones || []).forEach((a) => {
       if (a.jugadorId !== j.id || a.fecha !== iso) return;
       const tr = Object.keys(a.trat || {}).filter((id) => a.trat[id] > 0).map((id) => `${nom(id)} ×${a.trat[id]}`).join(', ');
       const ms = (a.motSeguro || []).map((k) => (K.MOTIVOS_SEGURO.find((m) => m[0] === k) || [0, k])[1]).join(', ');
-      L.push(['Atención kinésica', [K.nombreClase(a.clase), tr, ms ? 'seguro: ' + ms : ''].filter(Boolean).join(' · ') || 'sin intervenciones anotadas']);
+      L.push(['Atención kinésica', [K.nombreClase(a.clase), tr, ms ? 'seguro: ' + ms : ''].filter(Boolean).join(' · ') || 'sin intervenciones anotadas', ['atencion', a]]);
     });
-    inf.eventos.forEach((x) => { if (x.jugadorId === j.id && x.fecha === iso && K.evRealizado(x)) L.push([(K.EV[x.tipo] || { t: x.tipo }).t, (x.nombre || '') + (Number(x.cantidad) > 1 ? ' ×' + x.cantidad : '')]); });
-    (inf.segEventos || []).forEach((x) => { if (x.jugadorId === j.id && (x.fecha === iso || (x.tipo === 'hosp' && x.hasta && x.fecha < iso && iso <= x.hasta))) L.push(['Seguro · ' + (TIPO_TXT[x.tipo] || x.tipo), x.detalle || '']); });
+    inf.eventos.forEach((x) => { if (x.jugadorId === j.id && x.fecha === iso && K.evRealizado(x)) L.push([(K.EV[x.tipo] || { t: x.tipo }).t, (x.nombre || '') + (Number(x.cantidad) > 1 ? ' ×' + x.cantidad : ''), ['evento', x]]); });
+    (inf.seguros || []).forEach((s) => { if (s.jugadorId === j.id && s.activacion === iso) { const ex = (inf.segEventos || []).filter((x) => x.urg && x.seguroId === s.id && x.tipo === 'examen').map((x) => x.detalle + (x.resultado ? ' (' + x.resultado + ')' : '')); L.push(['Urgencia · activación del seguro', [s.diagnostico, ex.length ? 'exámenes: ' + ex.join(', ') : ''].filter(Boolean).join(' · '), ['seguro', s]]); } });
+    (inf.segEventos || []).forEach((x) => { if (x.jugadorId === j.id && !x.urg && (x.fecha === iso || (x.tipo === 'hosp' && x.hasta && x.fecha < iso && iso <= x.hasta))) L.push(['Seguro · ' + (TIPO_TXT[x.tipo] || x.tipo), x.detalle || '', ['segEv', x]]); });
     (inf.partidos || []).forEach((p) => { if (p.fecha === iso && (p.cat === undefined || p.cat === null || String(p.cat) === String(cat) || (p.minutos && p.minutos[j.id] !== undefined))) L.push(['Partido', 'vs ' + (p.rival || '') + (p.minutos && p.minutos[j.id] ? ` · ${p.minutos[j.id]} min` : '')]); });
     return L;
   }
@@ -434,12 +436,13 @@
     const r = K.kineJugadores().find((x) => x.j.id === jid); if (!r) return;
     const inf = r.inf, j = r.j;
     const a = (inf.asistencias || []).find((q) => q.jugadorId === jid && q.fecha === iso), val = asisValor(a);
-    const lista = queHizo(inf, j, iso, r.cat);
+    const lista = queHizo(inf, j, iso, r.cat), edita = K.puedeEditar();
     K.modal({
       titulo: 'Detalle del día ' + K.fechaCorta(iso),
       cuerpo: `<p style="margin:0 0 8px"><b>${e(j.nombre)}</b></p>
         <h3 style="margin:6px 0 4px;font-size:15px">Qué pasó este día</h3>
-        ${lista.length ? `<ul class="denso">${lista.map(([t, d]) => `<li><b>${e(t)}</b>${d ? ': ' + e(d) : ''}</li>`).join('')}</ul>` : '<p class="suave" style="margin:0 0 8px">Sin atenciones, controles ni eventos anotados ese día.</p>'}
+        ${lista.length ? `<ul class="denso dia-lista">${lista.map(([t, d, ed], i) => `<li><span><b>${e(t)}</b>${d ? ': ' + e(d) : ''}</span>${ed && edita ? `<button type="button" class="btn ghost chico" data-dia-edit="${i}" aria-label="Editar: ${e(t)}">Editar</button>` : ''}</li>`).join('')}</ul>` : '<p class="suave" style="margin:0 0 8px">Sin atenciones, controles ni eventos anotados ese día.</p>'}
+        ${edita ? `<div class="dia-agregar"><span class="suave" style="font-size:13px;display:block;margin:6px 0 4px">Anotar algo en este día</span><div class="fila gap wrap">${[['atencion', 'Atención'], ['control', 'Control'], ['examen', 'Examen'], ['procedimiento', 'Procedimiento'], ['medicamento', 'Medicamento'], ['cirugia', 'Cirugía']].map(([k, t]) => `<button type="button" class="btn sec chico" data-dia-nuevo="${k}">+ ${t}</button>`).join('')}</div></div>` : ''}
         <label class="campo" style="margin-top:10px"><span>Asistencia a kinesiología ese día</span><select name="asis">${K.opts(ASIS_OPC(), val)}</select></label>
         <div data-bloque-ck class="${/^no:kine(particular|seguro)$/.test(val) ? '' : 'oculto'}">${K.campoLista('centroKine', 'Centro kinésico donde fue', 'centroKine', a ? a.centroKine : '')}</div>
         <p class="suave" style="margin:0;font-size:13px">Por ejemplo, si figura «No asiste» pero tuvo kinesiología externa, elige «No asistió · Kinesiología externa…». Los cambios se calculan solos en el informe.</p>`,
@@ -460,7 +463,25 @@
           });
         } }
       ],
-      alMontar: (m, hoja) => { const s = hoja.querySelector('[name=asis]'), b = hoja.querySelector('[data-bloque-ck]'); s.addEventListener('change', () => b.classList.toggle('oculto', !/^no:kine(particular|seguro)$/.test(s.value))); }
+      alMontar: (m, hoja) => {
+        const s = hoja.querySelector('[name=asis]'), b = hoja.querySelector('[data-bloque-ck]'); s.addEventListener('change', () => b.classList.toggle('oculto', !/^no:kine(particular|seguro)$/.test(s.value)));
+        // v1.9.8: se puede editar lo que se hizo ese día y anotar cosas nuevas; al cerrar esa ventana se vuelve al detalle del día
+        const abrir = (fn) => { m.cerrar(); setTimeout(() => { K._trasInforme = () => formDia(jid, iso); K.enInforme(inf, j, fn); }, 240); };
+        hoja.addEventListener('click', (ev) => {
+          const be = ev.target.closest('[data-dia-edit]'), bn = ev.target.closest('[data-dia-nuevo]');
+          if (be) {
+            const [k, x] = lista[Number(be.dataset.diaEdit)][2];
+            if (k === 'seguro') { m.cerrar(); setTimeout(() => formIngreso(x.id), 240); }
+            else if (k === 'segEv') { m.cerrar(); setTimeout(() => { if (x.sinAct) formHosp(x.id); else formEvento(x.seguroId || ((inf.seguros || []).find((q) => q.jugadorId === jid) || {}).id, x); }, 240); }
+            else if (k === 'caso') abrir(() => K.formCaso({ rec: x }));
+            else if (k === 'atencion') abrir(() => K.formAtencion({ rec: x }));
+            else abrir(() => K.formEvento(x.tipo, { rec: x }));
+          } else if (bn) {
+            const k = bn.dataset.diaNuevo;
+            abrir(() => (k === 'atencion' ? K.formAtencion({ jugadorId: jid, fecha: iso }) : K.formEvento(k, { jugadorId: jid, fecha: iso })));
+          }
+        });
+      }
     });
   }
   K.diaAsistencia = formDia;

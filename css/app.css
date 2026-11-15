@@ -1397,3 +1397,31 @@ input.bl-sw[type=checkbox]:checked::after { transform: translateX(20px); }
 /* v1.9.7: ventana del informe del seguro */
 .sp-fs { border: 1px solid var(--linea); border-radius: 10px; padding: 8px 12px 10px; margin: 0 0 10px; }
 .sp-fs legend { padding: 0 6px; font-size: 13px; font-weight: 600; color: var(--verde-2); }
+
+/* v1.9.8: detalle del día con botones para editar y anotar */
+.dia-lista { list-style: none; padding-left: 0; margin: 0 0 6px; }
+.dia-lista li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--linea); font-size: 14px; }
+.dia-lista li > span { min-width: 0; overflow-wrap: anywhere; }
+.dia-lista li .btn { flex: none; }
+
+/* v1.9.8: calendario del mes y fechas de Kine más grandes y con texto más claro (más contraste) */
+#view .kc-tit { font-size: 17px; font-weight: 700; color: var(--texto); }
+#view .kc-mes { font-size: 18px; font-weight: 700; color: var(--texto); }
+#view .kc-modo { font-size: 15px; color: var(--texto); }
+#view .kc-grid { max-width: 680px; gap: 3px; }
+@media (min-width: 600px) { #view .kc-grid { gap: 5px; } }
+#view .kc-grid em { font-size: 15px; font-weight: 700; color: var(--texto); }
+#view .kc { font-size: 18px; font-weight: 700; color: #14301f; min-height: 54px; }
+#view .kc i { bottom: 5px; gap: 4px; }
+#view .kc u, #view .kc-ley u, #view .kc-pto { width: 10px; height: 10px; }
+#view .kc-L, #view .kc-R, #view .kc-A { width: 17px; height: 17px; line-height: 17px; font-size: 12px; top: 3px; right: 3px; }
+#view .kc-pto.L, #view .kc-pto.R, #view .kc-pto.A { width: 20px; height: 20px; font-size: 12px; }
+#view .kc-ley { font-size: 15px; color: var(--texto); gap: 10px 16px; }
+#view .kc-sub { font-size: 18px; margin: 18px 0 6px; }
+#view .kc-nota { font-size: 15px; color: var(--texto); }
+#view .kc-it { padding: 11px 2px; gap: 12px; }
+#view .kc-it .txt b { font-size: 17px; font-weight: 700; color: var(--texto); }
+#view .kc-it .txt b small { font-size: 14px; color: #3d4943; }
+#view .kc-it .txt span { font-size: 15px; color: #2e3833; }
+#view .kc-it.pend .txt span { color: #b3202a; font-weight: 600; }
+#view .kc-it.pasado .txt span { color: #4a5650; }

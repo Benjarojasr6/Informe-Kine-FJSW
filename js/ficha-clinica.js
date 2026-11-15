@@ -67,7 +67,7 @@
       const l = [];
       if (b.tipo === 'lesion' && b.inicio) {
         const sem = b.semanas === '' || b.semanas == null ? '' : Number(b.semanas);
-        const d = K.diasBajaCaso({ tipo: 'lesion', inicio: b.inicio, alta: b.alta || '', semanas: sem }, { desde: b.inicio, hasta: '2100-01-01' });
+        const d = K.diasBajaCaso({ tipo: 'lesion', inicio: b.inicio, alta: b.alta || '', semanas: sem, gravedad: b.gravedad, limitoDia: b.limitoDia }, { desde: b.inicio, hasta: '2100-01-01' });
         l.push(`<b>Días de baja:</b> ${d}${b.alta ? '' : sem !== '' && !isNaN(sem) ? ' (estimados por las semanas)' : ' (en curso, hasta hoy)'}`);
       }
       const ent = dif(b.inicio, v('retornoEntreno')), par = dif(b.inicio, v('retornoPartido'));
@@ -136,6 +136,8 @@
     const dias = K.kineFechas.dif(a.previsionRevisada, hoy);
     return dias > 60 ? { vencida: true, dias, txt: `Previsión de salud sin revisar hace más de 2 meses (${dias} días): los certificados de afiliación vencen` } : { vencida: false, dias, txt: `Previsión revisada el ${fc(a.previsionRevisada)}` };
   };
+  // v1.9.8: el aviso de previsión sale solo cuando el jugador está lesionado ahora (lesión sin alta); a los demás no se les avisa.
+  K.previsionAvisar = (a, jid) => { const p = K.previsionEstado(a); return !!(p && p.vencida && K.lesionesActivas(jid).length); };
   K.fichaClinica = {
     antecedentes(inf, j) {
       if (!K.verPrivado()) return '';
@@ -147,7 +149,7 @@
         cuerpo = `<dl class="ant-datos">
           ${dato('RUT', a.rut ? e(K.formatoRut ? K.formatoRut(a.rut) : a.rut) : '')}
           ${dato('Fecha de nacimiento', a.fechaNac ? e(fc(a.fechaNac)) : '')}
-          ${dato('Previsión de salud', a.prevision ? `<b>${e(K.previsionTxt(a))}</b>${(() => { const p = K.previsionEstado(a); return p ? `<br><small class="${p.vencida ? 'prev-aviso' : 'suave'}">${e(p.txt)}</small> <button type="button" class="btn ghost chico" data-acc="prevRevisada" data-id="${j.id}">Marcar como revisada hoy</button>` : ''; })()}` : '')}
+          ${dato('Previsión de salud', a.prevision ? `<b>${e(K.previsionTxt(a))}</b>${(() => { const p = K.previsionEstado(a), av = K.previsionAvisar(a, j.id); return p ? `<br><small class="${av ? 'prev-aviso' : 'suave'}">${e(av || !p.vencida ? p.txt : (p.dias == null ? 'Sin fecha de revisión de la previsión' : 'Previsión revisada el ' + fc(a.previsionRevisada)))}</small> <button type="button" class="btn ghost chico" data-acc="prevRevisada" data-id="${j.id}">Marcar como revisada hoy</button>` : ''; })()}` : '')}
           ${dato('Grupo sanguíneo', a.grupoSanguineo ? `<b>${e(a.grupoSanguineo)}</b>` : '')}
           ${dato('Alergias', String(a.alergias || '').trim() ? e(a.alergias).replace(/\n/g, '<br>') : '', 'ant-alerta')}
           ${CAMPOS_TXT.slice(1).map(([k, t]) => dato(t, String(a[k] || '').trim() ? e(a[k]).replace(/\n/g, '<br>') : '')).join('')}

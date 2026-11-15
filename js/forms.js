@@ -106,7 +106,7 @@
       cuerpo: `
         <div class="campo" data-bloque-j><span class="lbl-j">Jugador</span>${K.selJugador('jugadorId', { inf, sel: jid, nuevo: true, etiqueta: 'Elegir jugador' })}</div>
         <div class="grid2 fecha-varios">
-          <label class="campo"><span>Fecha</span><input type="date" name="fecha" value="${e(rec ? rec.fecha : K.hoy())}"></label>
+          <label class="campo"><span>Fecha</span><input type="date" name="fecha" value="${e(rec ? rec.fecha : o.fecha || K.hoy())}"></label>
           ${rec ? '<span></span>' : '<div class="campo"><span>&nbsp;</span><button type="button" class="btn sec" data-varios>Aplicar a varios jugadores</button></div>'}
         </div>
         ${K.catJuegoCampo()}
@@ -297,10 +297,10 @@
     const conv = !!(rec && rec.convertidaA); // molestia que ya pasó a lesión: esos datos viven en la lesión
     let grav = rec ? rec.gravedad || 'moderada' : 'pordefinir';
     K.modal({
-      titulo: rec ? 'Editar lesión / molestia' : 'Nueva lesión o molestia',
+      titulo: rec ? 'Editar lesión / molestia' : o.tipo === 'molestia' ? 'Nueva molestia' : o.tipo === 'lesion' ? 'Nueva lesión' : 'Nueva lesión o molestia',
       cuerpo: `
-        <div class="fila gap wrap" style="margin-bottom:10px"><span class="${rec ? 'oculto' : ''}">${K.seg('tipo', [['lesion', 'Lesión'], ['molestia', 'Molestia']], tipo)}</span>
-          ${rec ? `<b class="chip">${tipo === 'lesion' ? 'Lesión' : 'Molestia'}</b>` : ''}
+        <div class="fila gap wrap" style="margin-bottom:10px"><span class="${rec || o.tipo ? 'oculto' : ''}">${K.seg('tipo', [['lesion', 'Lesión'], ['molestia', 'Molestia']], tipo)}</span>
+          ${rec || o.tipo ? `<b class="chip">${tipo === 'lesion' ? 'Lesión' : 'Molestia'}</b>` : ''}
           ${rec && tipo === 'molestia' && !rec.convertidaA ? '<button type="button" class="btn sec chico" data-convertir>Convertir en lesión</button>' : ''}</div>
         ${rec && rec.convertidaA && K.origenCasoTxt(rec) ? `<p class="aviso" style="margin:0 0 10px">Esta molestia ${e(K.origenCasoTxt(rec))}. Se conserva en el registro y en el informe.</p>` : ''}
         ${rec && rec.origenId && K.origenCasoTxt(rec) ? `<p class="aviso" style="margin:0 0 10px">Esta lesión ${e(K.origenCasoTxt(rec))}.</p>` : ''}
@@ -308,6 +308,7 @@
         <label class="campo"><span>Qué es (ej. Desgarro psoas derecho)</span><input type="text" name="titulo" value="${e(rec ? rec.titulo : '')}" autocomplete="off"></label>
         <div class="campo ${conv ? 'oculto' : ''}"><span style="display:block;font-size:13px;font-weight:600;color:var(--suave);margin-bottom:4px">Gravedad (define el color en el mapa)</span>
           ${K.seg('gravedad', K.GRAV_ORDEN.map((g) => [g, K.GRAVEDADES[g]]), grav, 'g')}
+          <label class="check ${tipo === 'lesion' && grav === 'nolimitante' && !conv ? '' : 'oculto'}" data-bloque-limdia style="margin-top:8px"><input type="checkbox" name="limitoDia"${rec && rec.limitoDia ? ' checked' : ''}><span>Limitó el mismo día (tuvo que salir del entrenamiento o partido): cuenta 1 día de baja</span></label>
           <p class="suave" style="margin:6px 0 0;font-size:13px">No limitante: duele pero no limita entrenamiento ni partido (0 días fuera) · Mínima: 1-3 días fuera · Leve: 4-7 · Moderada: 8-28 · Grave: más de 28.<span data-grav-sug></span></p></div>
         <div class="campo"><span style="display:block;font-size:13px;font-weight:600;color:var(--suave);margin-bottom:4px">Zona del cuerpo (toca una o varias)</span>
           <div class="mapa-form" data-mapa>${K.mapaCorporal({ interactivo: true })}${K.leyendaGravedad()}</div>
@@ -366,6 +367,7 @@
             campos.limita = campos.tipo === 'molestia' ? (esMol ? 'si' : 'no') : '';
             campos.limitaDias = esMol ? (d.limitaDias === 'indef' ? 'indef' : Number(d.limitaDias) || 1) : '';
             campos.limitaParte = esMol ? d.limitaParte : '';
+            if (campos.tipo === 'lesion' && campos.gravedad === 'nolimitante' && hoja.querySelector('[name=limitoDia]').checked) campos.limitoDia = true; else delete campos.limitoDia;
             if (conv) Object.assign(campos, { gravedad: 'pordefinir', alta: '', semanas: '', limita: 'no', limitaDias: '', limitaParte: '' });
             let reg = rec;
             if (d.torneoId) campos.torneoId = d.torneoId;
@@ -415,6 +417,7 @@
         hoja.addEventListener('seg', (ev) => {
           if (ev.target.dataset.seg === 'tipo' && !rec) K.segSet(hoja, 'gravedad', 'pordefinir');
           refrescar(); pintar();
+          const ld = hoja.querySelector('[data-bloque-limdia]'); if (ld) ld.classList.toggle('oculto', conv || K.segValor(hoja, 'tipo') !== 'lesion' || K.segValor(hoja, 'gravedad') !== 'nolimitante'); K.clinico.recalcular(hoja);
         });
         hoja.querySelector('[name=mecanismo]').addEventListener('change', refrescar);
         fi.addEventListener('change', refrescar); fa.addEventListener('change', refrescar);
@@ -449,7 +452,7 @@
         mapa.addEventListener('click', () => setTimeout(llenarRel, 0));
         llenarRel();
         sugerirRec();
-        K.clinico.montar(hoja, () => ({ tipo: K.segValor(hoja, 'tipo') || 'lesion', inicio: fi.value, alta: fa.value, semanas: hoja.querySelector('[name=semanas]').value }));
+        K.clinico.montar(hoja, () => ({ tipo: K.segValor(hoja, 'tipo') || 'lesion', inicio: fi.value, alta: fa.value, semanas: hoja.querySelector('[name=semanas]').value, gravedad: K.segValor(hoja, 'gravedad'), limitoDia: !!hoja.querySelector('[name=limitoDia]').checked }));
         if (K.conmocion && hoja.querySelector('[data-cm-rtp]')) K.conmocion.rtpMontar(hoja);
         if (K.scat5 && rec && rec.conmocion) K.scat5.montarCaso(hoja, rec);
         hoja.addEventListener('seg', () => K.clinico.recalcular(hoja));
@@ -517,7 +520,7 @@
       titulo: (rec ? 'Editar ' : 'Nuevo registro: ') + def.t.toLowerCase(),
       cuerpo: `
         <div class="grid2">
-          <label class="campo"><span>Fecha</span><input type="date" name="fecha" value="${e(rec ? rec.fecha : K.hoy())}"></label>
+          <label class="campo"><span>Fecha</span><input type="date" name="fecha" value="${e(rec ? rec.fecha : o.fecha || K.hoy())}"></label>
           <div class="campo"><span class="lbl-j">Jugador</span>${K.selJugador('jugadorId', { inf, sel: jid, nuevo: true })}</div>
         </div>
         <label class="campo"><span>${tipo === 'control' ? 'Tipo de control (con quién)' : tipo === 'examen' ? 'Tipo de examen' : tipo === 'procedimiento' ? 'Procedimiento' : tipo === 'medicamento' ? 'Medicamento' : 'Cirugía'}</span>

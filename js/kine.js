@@ -69,7 +69,8 @@
   K.enInforme = function (inf, j, fn) {
     const prev = { activo: K.state.activo, cat: K.ui.cat, alc: K.ui.alcance };
     K.state.activo = inf.id; K.ui.cat = catDe(j, inf); K.ui.alcance = 'comb';
-    K._modalAlCerrar = () => { K.state.activo = prev.activo; K.ui.cat = prev.cat; K.ui.alcance = prev.alc; };
+    const despues = K._trasInforme; K._trasInforme = null; // acción opcional para después de cerrar la ventana (p. ej. volver al detalle de un día)
+    K._modalAlCerrar = () => { K.state.activo = prev.activo; K.ui.cat = prev.cat; K.ui.alcance = prev.alc; if (despues) setTimeout(despues, 260); };
     try { fn(); } finally {
       if (K._modalAlCerrar) { const r = K._modalAlCerrar; K._modalAlCerrar = null; r(); } // no se abrió ventana: restaurar de inmediato
     }
@@ -90,7 +91,7 @@
     return f || '';
   };
   K.kineItem = (casoId) => item(casoId);
-  const diasBaja = (c) => (c.inicio ? Math.max(1, dif(c.inicio, K.hoy())) : 0);
+  const diasBaja = (c) => (!c.inicio ? 0 : c.gravedad === 'nolimitante' ? (c.limitoDia ? 1 : 0) : Math.max(1, dif(c.inicio, K.hoy())));
   const semaforo = (p) => (p == null ? '' : p < 80 ? 'rojo' : p < 90 ? 'amarillo' : 'verde');
   K.kineSemaforo = semaforo;
   const avatar = (j) => `<span class="avatar">${j.foto ? `<img src="${j.foto}" alt="">` : e((j.nombre || '?').split(/\s+/).slice(0, 2).map((s) => s[0]).join('').toUpperCase())}</span>`;

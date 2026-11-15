@@ -37,7 +37,7 @@
         const r = get(inf, s.jugadorId);
         const fila = [];
         if (urgEn) fila.push({ k: 'urgencia', fecha: s.activacion || '', titulo: 'Urgencia · activación del seguro', detalle: '', centro: s.clinica || '', medico: '', nAsist: s.nClinica || '', cant: 1 });
-        mios.forEach((x) => fila.push({ k: x.tipo, fecha: x.fecha, hasta: x.hasta || '', titulo: (TIPO_TXT[x.tipo] || x.tipo) + (x.urg ? ' (urgencia)' : ''), detalle: x.detalle || '', resultado: x.tipo === 'examen' ? x.resultado || '' : '', centro: x.centro || x.centroKine || '', medico: x.medico || '', nAsist: x.nAsist || '', cant: x.tipo === 'kinesiologia' ? Number(x.cantidad) || 1 : 1, dias: x.tipo === 'hosp' ? dias(x.fecha, x.hasta || x.fecha) : 1 }));
+        mios.forEach((x) => fila.push({ k: x.tipo, fecha: x.fecha, hasta: x.hasta || '', titulo: (TIPO_TXT[x.tipo] || x.tipo) + (x.urg ? ' (urgencia)' : ''), detalle: x.detalle || '', resultado: x.tipo === 'examen' ? x.resultado || '' : '', centro: x.centro || x.centroKine || '', medico: x.medico || '', nAsist: x.nAsist || '', enUrg: !!(x.urg && x.tipo === 'examen'), cant: x.tipo === 'kinesiologia' ? Number(x.cantidad) || 1 : 1, dias: x.tipo === 'hosp' ? dias(x.fecha, x.hasta || x.fecha) : 1 }));
         fila.forEach((f) => { f.valor = valor(f); });
         fila.sort((a, b) => (a.k === 'urgencia' ? -1 : b.k === 'urgencia' ? 1 : 0) || (a.fecha || '').localeCompare(b.fecha || ''));
         r.acts.push({ s, filas: fila });
@@ -49,13 +49,14 @@
     });
     const jugadores = Array.from(porJ.values()).sort((a, b) => b.cat - a.cat || (a.j.nombre || '').localeCompare(b.j.nombre || '', 'es'));
     const todas = []; jugadores.forEach((r) => { r.acts.forEach((a) => a.filas.forEach((f) => todas.push(Object.assign({ jid: r.j.id, cat: r.cat }, f)))); r.solas.forEach((f) => todas.push(Object.assign({ jid: r.j.id, cat: r.cat }, f))); });
-    const c = {}; todas.forEach((f) => { c[f.k] = (c[f.k] || 0) + 1; });
+    const c = {}; todas.filter((f) => !f.enUrg).forEach((f) => { c[f.k] = (c[f.k] || 0) + 1; }); // eventos: los exámenes de la urgencia no son eventos nuevos
+    const nExam = todas.filter((f) => f.k === 'examen').length; // pero sí cuentan como exámenes
     const sesiones = todas.filter((f) => f.k === 'kinesiologia').reduce((a, f) => a + f.cant, 0);
     const diasHosp = todas.filter((f) => f.k === 'hosp').reduce((a, f) => a + f.dias, 0);
     const porTipo = {}; // dinero por tipo
     todas.forEach((f) => { porTipo[f.k] = (porTipo[f.k] || 0) + f.valor; });
     const total = Object.keys(porTipo).reduce((a, k) => a + porTipo[k], 0);
-    return { anio: anio || 'todo', jugadores, todas, c, sesiones, diasHosp, porTipo, total, activaciones: c.urgencia || 0 };
+    return { anio: anio || 'todo', jugadores, todas, eventos: todas.filter((f) => !f.enUrg), nExam, c, sesiones, diasHosp, porTipo, total, activaciones: c.urgencia || 0 };
   };
 
   const hbarM = (filas, color) => {
@@ -70,7 +71,7 @@
     const kpi = (n, t) => `<div class="bd-k"><b>${n}</b><span>${t}</span></div>`;
     const c = d.c, tp = [['Urgencia', c.urgencia || 0, TIPO_COL.urgencia]].concat(Object.keys(TIPO_TXT).map((k) => [TIPO_TXT[k], c[k] || 0, TIPO_COL[k]]));
     const ex = {}, cen = {}, porJ = {}, cat = {};
-    d.todas.forEach((f) => { if (f.k === 'examen') sumar(ex, f.detalle || 'Sin nombre'); if (f.centro) sumar(cen, f.centro); const q = K.kineBuscarJ(f.jid); sumar(porJ, q ? q.j.nombre : '—'); sumar(cat, 'Sub ' + f.cat); });
+    d.todas.forEach((f) => { if (f.k === 'examen') sumar(ex, f.detalle || 'Sin nombre'); if (f.enUrg) return; if (f.centro) sumar(cen, f.centro); const q = K.kineBuscarJ(f.jid); sumar(porJ, q ? q.j.nombre : '—'); sumar(cat, 'Sub ' + f.cat); });
     const periodo = d.anio === 'todo' ? 'Todo el historial' : 'Año ' + d.anio;
     const priv = (r) => {
       if (!(o.rut || o.fechaNac || o.prevision)) return '';
@@ -81,20 +82,20 @@
       if (o.prevision) { const v = K.previsionTxt ? K.previsionTxt(a.prevision ? a : sg) : ''; if (v) p.push('Previsión ' + e(v)); }
       return p.length ? `<p class="sp-priv">${p.join(' · ')}</p>` : '';
     };
-    const tabla = (filas) => `<table class="kn-t sp-t"><thead><tr><th>Fecha</th><th>Evento</th><th>Detalle</th><th>Centro · médico</th><th>N.º asistencia</th>${conValor ? '<th class="der">Valor</th>' : ''}</tr></thead><tbody>${filas.map((f) => `<tr><td>${f.fecha ? e(fc(f.fecha)) : '—'}${f.hasta && f.hasta !== f.fecha ? `<small>al ${e(fc(f.hasta))}</small>` : ''}</td><td><i class="sp-pto" style="background:${TIPO_COL[f.k]}"></i>${e(f.titulo)}${f.k === 'kinesiologia' && f.cant > 1 ? ` <small>${f.cant} sesiones</small>` : ''}</td><td>${e(f.detalle || '—')}${f.resultado ? `<small>Resultado: ${e(f.resultado)}</small>` : ''}</td><td>${e([f.centro, f.medico].filter(Boolean).join(' · ') || '—')}</td><td>${f.nAsist ? e(f.nAsist) : '—'}</td>${conValor ? `<td class="der">${f.valor ? e(clp(f.valor)) : '—'}</td>` : ''}</tr>`).join('')}</tbody></table>`;
+    const tabla = (filas) => { const ev = filas.filter((f) => !f.enUrg), exU = filas.filter((f) => f.enUrg); return `<table class="kn-t sp-t"><thead><tr><th>Fecha</th><th>Evento</th><th>Detalle</th><th>Centro · médico</th><th>N.º asistencia</th>${conValor ? '<th class="der">Valor</th>' : ''}</tr></thead><tbody>${ev.map((f) => `<tr><td>${f.fecha ? e(fc(f.fecha)) : '—'}${f.hasta && f.hasta !== f.fecha ? `<small>al ${e(fc(f.hasta))}</small>` : ''}</td><td><i class="sp-pto" style="background:${TIPO_COL[f.k]}"></i>${e(f.titulo)}${f.k === 'kinesiologia' && f.cant > 1 ? ` <small>${f.cant} sesiones</small>` : ''}</td><td>${e(f.detalle || '—')}${f.resultado ? `<small>Resultado: ${e(f.resultado)}</small>` : ''}${f.k === 'urgencia' && exU.length ? `<small>Exámenes: ${exU.map((x) => e(x.detalle) + (x.resultado ? ' (' + e(x.resultado) + ')' : '')).join(' · ')}</small>` : ''}</td><td>${e([f.centro, f.medico].filter(Boolean).join(' · ') || '—')}</td><td>${f.nAsist ? e(f.nAsist) : '—'}</td>${conValor ? `<td class="der">${f.valor ? e(clp(f.valor)) : '—'}</td>` : ''}</tr>`).join('')}</tbody></table>`; };
     const bloquesJ = d.jugadores.map((r) => `<section class="sp-j"><h3>${e(r.j.nombre)} <small>Sub ${r.cat}</small></h3>${priv(r)}
       ${r.acts.map((a) => `<div class="sp-a"><p class="sp-ad"><b>${e(a.s.diagnostico || 'Sin diagnóstico')}</b>${a.s.activacion ? ` · activado el ${e(fc(a.s.activacion))}` : ''}${a.s.clinica ? ' · ' + e(a.s.clinica) : ''}${a.s.nClinica ? ' · N.º ' + e(a.s.nClinica) : ''}${a.s.pais ? ' · ' + e(a.s.pais) : ''}</p>${tabla(a.filas)}</div>`).join('')}
       ${r.solas.length ? `<div class="sp-a"><p class="sp-ad"><b>Hospitalizaciones sin activación</b></p>${tabla(r.solas)}</div>` : ''}</section>`).join('');
     const ahorro = conValor ? `<h2 class="bit-h2">Dinero ahorrado (estimado)</h2>
       <p class="sp-nota">Estimación con los valores que ingresó el kinesiólogo; no es un cobro real ni un dato del seguro.</p>
       <table class="kn-t sp-t"><thead><tr><th>Concepto</th><th class="der">Cantidad</th><th class="der">Valor unitario</th><th class="der">Subtotal</th></tr></thead><tbody>
-      ${VAL_TIPOS.map(([k, t]) => { const n = k === 'urgencia' ? c.urgencia || 0 : k === 'kinesiologia' ? d.sesiones : k === 'hosp' ? d.diasHosp : c[k] || 0; if (!n && !d.porTipo[k]) return ''; const v = (o.vals || {})[k]; return `<tr><td>${e(t)}</td><td class="der">${n}</td><td class="der">${v ? e(clp(v)) : '—'}</td><td class="der">${e(clp(d.porTipo[k] || 0))}</td></tr>`; }).join('')}
+      ${VAL_TIPOS.map(([k, t]) => { const n = k === 'urgencia' ? c.urgencia || 0 : k === 'examen' ? d.nExam : k === 'kinesiologia' ? d.sesiones : k === 'hosp' ? d.diasHosp : c[k] || 0; if (!n && !d.porTipo[k]) return ''; const v = (o.vals || {})[k]; return `<tr><td>${e(t)}</td><td class="der">${n}</td><td class="der">${v ? e(clp(v)) : '—'}</td><td class="der">${e(clp(d.porTipo[k] || 0))}</td></tr>`; }).join('')}
       <tr class="sp-tot"><td colspan="3"><b>Total estimado</b></td><td class="der"><b>${e(clp(d.total))}</b></td></tr></tbody></table>` : '';
     return `<div class="bit-print seg-print"><header><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><div><h1>Informe del seguro</h1><p>Santiago Wanderers · Fútbol Joven · ${e(periodo)} · generado el ${e(fc(K.hoy()))}</p></div></header>
-      <div class="bd-kpis">${kpi(d.activaciones, 'activaciones (urgencias)')}${kpi(d.todas.length, 'eventos en total')}${kpi(c.control || 0, 'controles')}${kpi(c.examen || 0, 'exámenes')}${kpi(d.sesiones, 'sesiones de kine externa')}${kpi(c.hosp || 0, 'hospitalizaciones')}${kpi(c.procedimiento || 0, 'procedimientos')}${kpi(c.cirugia || 0, 'cirugías')}${conValor ? kpi(clp(d.total), 'ahorro estimado') : ''}</div>
+      <div class="bd-kpis">${kpi(d.activaciones, 'activaciones (urgencias)')}${kpi(d.eventos.length, 'eventos en total')}${kpi(c.control || 0, 'controles')}${kpi(d.nExam, 'exámenes (con los de urgencias)')}${kpi(d.sesiones, 'sesiones de kine externa')}${kpi(c.hosp || 0, 'hospitalizaciones')}${kpi(c.procedimiento || 0, 'procedimientos')}${kpi(c.cirugia || 0, 'cirugías')}${conValor ? kpi(clp(d.total), 'ahorro estimado') : ''}</div>
       <h2 class="bit-h2">Estadísticas</h2>
       <div class="bd-g">
-        ${panel('Eventos por mes', mensual(d.todas.map((f) => ({ f: f.fecha, cls: 'ev' }))).replace(/<div class="bd-leyenda">.*?<\/div>/s, ''), true)}
+        ${panel('Eventos por mes', mensual(d.eventos.map((f) => ({ f: f.fecha, cls: 'ev' }))).replace(/<div class="bd-leyenda">.*?<\/div>/s, ''), true)}
         ${panel('Tipo de evento', donut(tp))}
         ${panel('Por categoría', hbar(top(cat, 6), '#3b5bb5'))}
         ${panel('Exámenes más frecuentes', hbar(top(ex, 6), '#f08a24'))}

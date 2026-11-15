@@ -153,6 +153,7 @@
       <div class="tiles tiles-reg">
         <button class="tile prin" data-acc="nuevaAtencion"><span class="mini-ico">${K.ico('svg:atenciones')}</span>Registrar atención</button>
         <button class="tile" data-acc="hoyRepetir"><span class="mini-ico">${K.uiIco('copiar', 32)}</span>Repetir última atención</button>
+        <button class="tile" data-acc="nuevaMolestia"><span class="mini-ico">${K.uiIco('alerta', 32)}</span>Registrar molestia</button>
         <button class="tile" data-acc="nuevoCaso"><span class="mini-ico">${K.ico('svg:lesion')}</span>Registrar lesión</button>
         <button class="tile" data-acc="nuevoControl"><span class="mini-ico">${K.ico('svg:control')}</span>Control</button>
         <button class="tile" data-acc="nuevoExamen"><span class="mini-ico">${K.ico('svg:examen')}</span>Examen</button>
@@ -169,7 +170,7 @@
         <div id="reg-lista">${K.listaRegistros(regs, filtrando ? 300 : 30)}</div></div>`;
   }
   Object.assign(K.acciones, {
-    nuevaAtencion() { K.formAtencion({ abrirSel: true }); }, nuevoCaso() { K.formCaso(); },
+    nuevaAtencion() { K.formAtencion({ abrirSel: true }); }, nuevoCaso() { K.formCaso({ tipo: 'lesion' }); }, nuevaMolestia() { K.formCaso({ tipo: 'molestia' }); },
     nuevoControl() { K.formEvento('control'); }, nuevoExamen() { K.formEvento('examen'); },
     nuevoMedicamento() { K.formEvento('medicamento'); }, nuevoProcedimiento() { K.formEvento('procedimiento'); }, nuevaCirugia() { K.formEvento('cirugia'); },
     regFiltro(el) { K.ui.regF[el.dataset.k] = el.value; K.render(); },
@@ -486,11 +487,12 @@
       <div class="titulo-vista"><div class="fila gap"><button class="btn sec chico" data-acc="volverJugadores">${K.uiIco('atras', 16)} ${arch ? 'Archivo' : 'Jugadores'}</button></div><div class="fila gap wrap"><button class="btn sec chico" data-acc="editarJugador">${K.uiIco('editar', 16)} Datos y foto</button></div></div>
       ${K.cintilloArchivado(j0)}
       <div class="fila gap" style="margin-bottom:12px">${avatar(j, 'grande')}<div><h1 style="font-family:Caladea,serif;font-size:23px;color:var(--verde-2)">${e(j.nombre)} ${K.etiquetasJugador(j)}</h1><div class="suave">${e([j.posicion, K.nacTxt(j)].filter(Boolean).join(' · '))}</div>${K.pertenenciaHTML(j)}${(() => { const cj = K.catsJugadas(j, per), ck = Object.keys(cj).sort((a, b) => b - a); return ck.length ? `<div class="suave">Categorías en que ha jugado: ${ck.map((c) => `Sub ${c} (${cj[c]} partido${cj[c] === 1 ? '' : 's'})`).join(', ')}</div>` : ''; })()}</div></div>
-      ${(() => { const p = K.verPrivado && K.verPrivado() && !arch ? K.previsionEstado(K.antecedentesDe(inf, j0.id)) : null; return p && p.vencida ? `<p class="prev-aviso" role="status">${K.uiIco('alerta', 14)} ${e(p.txt)}. <button type="button" class="btn ghost chico" data-acc="prevRevisada" data-id="${j0.id}">Marcar como revisada hoy</button></p>` : ''; })()}
+      ${(() => { const aj = K.verPrivado && K.verPrivado() && !arch ? K.antecedentesDe(inf, j0.id) : null, p = aj && K.previsionAvisar(aj, j0.id) ? K.previsionEstado(aj) : null; return p && p.vencida ? `<p class="prev-aviso" role="status">${K.uiIco('alerta', 14)} ${e(p.txt)}. <button type="button" class="btn ghost chico" data-acc="prevRevisada" data-id="${j0.id}">Marcar como revisada hoy</button></p>` : ''; })()}
       ${K.fichaResumen ? K.fichaResumen(inf, j0) : ''}
       ${arch ? '' : `<div class="tiles compactos">
         <button class="tile prin" data-acc="jAtencion"><span class="mini-ico">${K.ico('img:atenciones')}</span>Atención</button>
-        <button class="tile" data-acc="jCaso"><span class="mini-ico">${K.ico('svg:lesion')}</span>Lesión / molestia</button>
+        <button class="tile" data-acc="jMolestia"><span class="mini-ico">${K.uiIco('alerta', 32)}</span>Molestia</button>
+        <button class="tile" data-acc="jCaso"><span class="mini-ico">${K.ico('svg:lesion')}</span>Lesión</button>
         <button class="tile" data-acc="jControl"><span class="mini-ico">${K.ico('svg:control')}</span>Control</button>
         <button class="tile" data-acc="jExamen"><span class="mini-ico">${K.ico('svg:examen')}</span>Examen</button>
         <button class="tile" data-acc="jProc"><span class="mini-ico">${K.ico('svg:jeringa')}</span>Procedimiento</button>
@@ -514,7 +516,7 @@
   }
   const cj = () => K.ui.jugadorId;
   Object.assign(K.acciones, {
-    jAtencion() { K.formAtencion({ jugadorId: cj() }); }, jRepetir() { K.formAtencion({ jugadorId: cj(), repetir: true }); }, jCaso() { K.formCaso({ jugadorId: cj() }); },
+    jAtencion() { K.formAtencion({ jugadorId: cj() }); }, jRepetir() { K.formAtencion({ jugadorId: cj(), repetir: true }); }, jCaso() { K.formCaso({ jugadorId: cj(), tipo: 'lesion' }); }, jMolestia() { K.formCaso({ jugadorId: cj(), tipo: 'molestia' }); },
     jControl() { K.formEvento('control', { jugadorId: cj() }); }, jExamen() { K.formEvento('examen', { jugadorId: cj() }); },
     jProc() { K.formEvento('procedimiento', { jugadorId: cj() }); }, jMed() { K.formEvento('medicamento', { jugadorId: cj() }); }, jCiru() { K.formEvento('cirugia', { jugadorId: cj() }); },
     editCaso(el) { K.formCaso({ rec: K.inf().casos.find((c) => c.id === el.dataset.id) }); }

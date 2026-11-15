@@ -243,6 +243,8 @@
   // Días de baja de una lesión dentro del período (alta real; si no, semanas estimadas; si no, hasta hoy).
   K.diasBajaCaso = (c, per) => {
     if (c.tipo !== 'lesion' || !c.inicio) return 0;
+    // v1.9.8: una lesión «No limitante» no hace perder días (0), salvo que haya limitado el mismo día (entonces es 1). Igual queda abierta para darle el alta.
+    if (c.gravedad === 'nolimitante') return c.limitoDia && c.inicio >= per.desde && c.inicio <= K.hastaPer(per) ? 1 : 0;
     let fin = c.alta || null;
     if (!fin && c.semanas !== '' && c.semanas != null && !isNaN(Number(c.semanas))) fin = sumaDias(c.inicio, Math.round(Number(c.semanas) * 7));
     if (!fin) fin = K.hoy();
