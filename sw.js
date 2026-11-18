@@ -1,6 +1,6 @@
 /* Service worker: la app funciona sin conexión.
    Al subir una versión nueva a GitHub, cambia VERSION para forzar la actualización. */
-const VERSION = '1.9.13';
+const VERSION = '1.9.14';
 const CACHE = 'kine-sw-' + VERSION;
 
 const ARCHIVOS = [
