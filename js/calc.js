@@ -61,6 +61,13 @@
 
   /* ---------- Totales ---------- */
   // Devuelve { porFuente: {fuente: n}, trat: {id: n} } filtrando por período y, si se pide, por jugador.
+  // v1.9.11: exámenes que solo están en el seguro (p. ej. el de la urgencia): también son exámenes del jugador y cuentan una vez.
+  // Los que están vinculados a un registro de Kine (evId) ya se cuentan allí. Solo con acceso a datos privados del seguro.
+  // Un registro del seguro cuenta solo si no hay en Kine el mismo (mismo jugador, tipo, fecha y nombre): así lo que está en los dos lados cuenta 1.
+  const normN = (v) => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  K.soloSeguro = (inf, per, jugadorId, tipo) => (!K.verPrivado || !K.verPrivado() ? [] : (inf.segEventos || []).filter((x) => x.tipo === tipo && !x.evId && (!jugadorId || x.jugadorId === jugadorId) && K.enPeriodo(x.fecha, per) && (!x.fecha || x.fecha <= K.hoy())
+    && !(inf.eventos || []).some((e) => e.tipo === tipo && e.jugadorId === x.jugadorId && e.fecha === x.fecha && normN(e.nombre) === normN(x.detalle))));
+  K.examenesSoloSeguro = (inf, per, jugadorId) => K.soloSeguro(inf, per, jugadorId, 'examen');
   K.contar = function (inf, per, jugadorId) {
     const okJ = (x) => !jugadorId || x.jugadorId === jugadorId;
     const de = (arr) => (jugadorId ? K.porJugador(arr, jugadorId) : arr); // con jugador: solo sus registros (mismo orden)
@@ -90,6 +97,7 @@
       else if (e.tipo === 'medicamento') r.medicamentos += n;
       else if (e.tipo === 'cirugia') r.cirugias += n;
     });
+    [['control', 'controles'], ['examen', 'examenes'], ['procedimiento', 'procedimientos'], ['cirugia', 'cirugias']].forEach(([t, k]) => { r[k] += K.soloSeguro(inf, per, jugadorId, t).length; });
     return { porFuente: r, trat };
   };
 
@@ -145,7 +153,7 @@
       const s = Math.round(dias / 7);
       return `${s} semanas${sinLimitar}`;
     }
-    if (c.inicio && !c.alta && c.tipo === 'lesion') return 'en curso';
+    if (c.inicio && K.casoAbierto(c)) return 'en curso';
     return '';
   };
 
@@ -241,6 +249,8 @@
   K.hastaPer = (per) => { const h = K.hoy(); return per.hasta < h ? per.hasta : h; };
   K.diasPeriodo = (per) => Math.max(1, dif(per.desde, K.hastaPer(per)) + 1);
   // Días de baja de una lesión dentro del período (alta real; si no, semanas estimadas; si no, hasta hoy).
+  // v1.9.12: una lesión «No limitante» no deja al jugador fuera (0 días) y no lleva fechas de alta: nunca cuenta como «lesionado actual»
+  K.casoAbierto = (c) => !!c && c.tipo === 'lesion' && !c.alta && c.gravedad !== 'nolimitante';
   K.diasBajaCaso = (c, per) => {
     if (c.tipo !== 'lesion' || !c.inicio) return 0;
     // v1.9.8: una lesión «No limitante» no hace perder días (0), salvo que haya limitado el mismo día (entonces es 1). Igual queda abierta para darle el alta.

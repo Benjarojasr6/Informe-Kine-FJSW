@@ -90,7 +90,7 @@
   /* ======================= SELECTOR DE JUGADOR CON BUSCADOR ======================= */
   const lesSet = () => {
     const s = new Set();
-    K.state.informes.forEach((inf) => (inf.casos || []).forEach((c) => { if (c.tipo === 'lesion' && !c.alta) s.add(c.jugadorId); }));
+    K.state.informes.forEach((inf) => (inf.casos || []).forEach((c) => { if (K.casoAbierto(c)) s.add(c.jugadorId); }));
     return s;
   };
   // Convierte jugadores en filas del selector. arr = [jugador] o [{ j, value, sub }].
@@ -218,7 +218,7 @@
   K.casoActivo = function (jid) {
     let mejor = null;
     K.state.informes.forEach((inf) => (inf.casos || []).forEach((c) => {
-      if (c.jugadorId !== jid || c.alta || c.convertidaA) return;
+      if (c.jugadorId !== jid || c.alta || c.convertidaA || (c.tipo === 'lesion' && c.gravedad === 'nolimitante')) return;
       const p = (c.tipo === 'lesion' ? 'b' : 'a') + (c.inicio || '');
       if (!mejor || p > mejor.p) mejor = { p, c };
     }));

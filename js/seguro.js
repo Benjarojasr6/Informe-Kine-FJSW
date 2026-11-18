@@ -17,7 +17,7 @@
   // Un jugador puede tener varias activaciones del seguro (cada una con su diagnóstico, clínica y N.º de asistencia).
   const activacionesDe = (inf, jid) => (inf.seguros || []).filter((x) => x.jugadorId === jid);
   // v1.9.10: registros de Kine (control, examen, procedimiento) que se pueden vincular a una activación del seguro: los del jugador que no están vinculados a otra activación
-  const TIPO_VINC = { control: 'Control', examen: 'Examen', procedimiento: 'Procedimiento' };
+  const TIPO_VINC = { control: 'Control', examen: 'Examen', procedimiento: 'Procedimiento', cirugia: 'Cirugía' };
   const candidatosVinc = (inf, jid, sid) => (inf.eventos || []).filter((x) => x.jugadorId === jid && TIPO_VINC[x.tipo] && !(inf.segEventos || []).some((q) => q.evId === x.id && q.seguroId !== sid)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   K.vincularSeguro = (inf, act, evId, enUrg) => { // crea (o actualiza) el evento del seguro que representa a ese registro de Kine
     const ev = (inf.eventos || []).find((x) => x.id === evId); if (!ev || !act) return null;
@@ -27,6 +27,48 @@
     Object.assign(reg, { jugadorId: act.jugadorId, tipo: ev.tipo }); delete reg.urg; delete reg.deUrg;
     if (enUrg) { if (ev.tipo === 'examen') reg.urg = true; else reg.deUrg = true; }
     K.sincSegEv(inf); return reg;
+  };
+  /* v1.9.11 · Repetidos: lo que está en Kine y también en el seguro (mismo jugador, tipo y fecha) es el mismo hecho y debe contar 1.
+     K.repetidosSeguroKine(inf) lo detecta; K.unirRepetido(inf, par) los une (el registro de Kine manda y se completan sus datos vacíos con los del seguro). */
+  const nrm = (v) => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  K.repetidosSeguroKine = (inf) => {
+    const pares = [], usados = new Set(), ligados = new Set((inf.segEventos || []).filter((q) => q.evId).map((q) => q.evId));
+    const segs = (inf.segEventos || []).filter((x) => TIPO_VINC[x.tipo]);
+    // 1) dentro del seguro: uno suelto y otro vinculado a Kine, mismo jugador, tipo, fecha y nombre
+    segs.filter((x) => !x.evId).forEach((x) => { const y = segs.find((q) => q.evId && q.jugadorId === x.jugadorId && q.tipo === x.tipo && q.fecha === x.fecha && nrm(q.detalle) === nrm(x.detalle) && !usados.has(q)); if (y) { usados.add(x); pares.push({ k: 'seg', x, y }); } });
+    // 2) seguro suelto ↔ registro de Kine (mismo nombre = seguro; otro nombre el mismo día = posible)
+    segs.filter((x) => !x.evId && !usados.has(x)).forEach((x) => {
+      const mios = (inf.eventos || []).filter((e) => e.tipo === x.tipo && e.jugadorId === x.jugadorId && e.fecha === x.fecha && !ligados.has(e.id));
+      const e = mios.find((q) => nrm(q.nombre) === nrm(x.detalle)) || (mios.length === 1 && !segs.some((q) => q !== x && !q.evId && q.tipo === x.tipo && q.jugadorId === x.jugadorId && q.fecha === x.fecha) ? mios[0] : null);
+      if (e) { ligados.add(e.id); usados.add(x); pares.push({ k: 'kine', x, e, exacto: nrm(e.nombre) === nrm(x.detalle) }); }
+    });
+    return pares;
+  };
+  K.unirRepetido = (inf, par) => {
+    const rellenar = (e, x) => { ['resultado', 'centro', 'medico'].forEach((k) => { if (!e[k] && x[k]) e[k] = x[k]; }); if (!e.notas && x.notas) e.notas = x.notas; };
+    if (par.k === 'seg') { const e = (inf.eventos || []).find((q) => q.id === par.y.evId); if (e) rellenar(e, par.x); if (par.x.urg) par.y.urg = true; if (par.x.deUrg) par.y.deUrg = true; inf.segEventos = inf.segEventos.filter((q) => q !== par.x); }
+    else { rellenar(par.e, par.x); par.x.evId = par.e.id; delete par.e.porSeguro; }
+    K.sincSegEv(inf);
+  };
+  K.textoRepetido = (inf, par) => { const x = par.x, j = K.jugador(inf, x.jugadorId); return `${j ? j.nombre : ''} · ${TIPO_VINC[x.tipo]} · ${fc(x.fecha)} · ${x.detalle || ''}${x.urg ? ' (urgencia)' : ''}`; };
+  // Sugerencia al guardar un registro de Kine: ¿es el mismo que uno del seguro del mismo día? (pregunta cada vez; no une solo)
+  K.sugerirUnion = (inf, ev) => {
+    const par = K.repetidosSeguroKine(inf).find((q) => q.k === 'kine' && q.e === ev); if (!par) return;
+    const x = par.x, ya = (inf.seguros || []).find((s) => s.id === x.seguroId);
+    K.modal({
+      titulo: '¿Es el mismo que el del seguro?',
+      cuerpo: `<p>En el seguro ya hay registrado <b>${e(x.detalle || TIPO_VINC[x.tipo])}</b> el ${e(fc(x.fecha))}${ya ? ' (activación «' + e(ya.diagnostico || '') + '»)' : ''}${x.urg ? ', dentro de la urgencia' : ''}.</p>
+        <p>Si es el mismo, se unen y <b>cuentan como 1</b> en el informe. Si son dos distintos, mantenlos separados.</p>`,
+      botones: [{ txt: 'Son distintos', cls: 'sec' }, { txt: 'Sí, unirlos (cuenta 1)', fn: () => { K.unirRepetido(inf, par); K.guardar(); K.aviso('Unidos: cuenta 1'); K.render(); } }]
+    });
+  };
+  K.tarjetaRepetidos = () => {
+    if (!K.verPrivado || !K.verPrivado() || !K.puedeEditar()) return '';
+    const filas = []; (K.state.informes || []).forEach((inf) => K.repetidosSeguroKine(inf).forEach((par, i) => filas.push({ inf, par, i })));
+    if (!filas.length) return `<div class="card"><h2>Repetidos entre Kine y el seguro</h2><p class="suave" style="margin:0">No hay registros repetidos: lo que está en Kine y en el seguro ya cuenta una sola vez.</p></div>`;
+    return `<div class="card"><h2>Repetidos entre Kine y el seguro</h2><p class="sub">Estos registros están en los dos lados el mismo día. Si son el mismo, únelos: cuentan 1 y se completan los datos que falten.</p>
+      <div class="lista lista-edit">${filas.map(({ inf, par, i }) => `<div class="item"><div class="txt"><b>${e(K.textoRepetido(inf, par))}</b><span>${par.k === 'seg' ? 'Repetido dentro del seguro (uno ya está vinculado a Kine)' : par.exacto ? 'En Kine y en el seguro con el mismo nombre' : 'En Kine figura como «' + e(par.e.nombre || '') + '»'}</span></div><button type="button" class="btn sec chico" data-acc="unirRepetido" data-rinf="${e(inf.id)}" data-i="${i}">Unir (cuenta 1)</button></div>`).join('')}</div>
+      ${filas.filter((f) => f.par.k === 'seg' || f.par.exacto).length > 1 ? `<button type="button" class="btn chico" data-acc="unirRepetidosTodos" style="margin-top:8px">Unir todos los idénticos (${filas.filter((f) => f.par.k === 'seg' || f.par.exacto).length})</button><p class="suave" style="margin:6px 0 0">«Idénticos» = mismo nombre, tipo y fecha. Los que tienen otro nombre se unen uno por uno.</p>` : ''}</div>`;
   };
   K.desvincularSeguro = (inf, evId) => { inf.segEventos = (inf.segEventos || []).filter((x) => x.evId !== evId); };
   K.activacionesJugador = (inf, jid) => activacionesDe(inf, jid).slice().sort((a, b) => (b.activacion || '').localeCompare(a.activacion || ''));
@@ -148,8 +190,8 @@
           const nomUex = (fl) => { const v = fl.querySelector('[data-uex-sel]').value; return (v === '__otro' ? fl.querySelector('[data-uex-otro]').value : v).trim().toLowerCase(); };
           const uexFilas = Array.from(hoja.querySelectorAll('[data-uex-fila]'));
           blq.classList.toggle('oculto', !lista.length);
-          caja.innerHTML = lista.map((x) => { const lig = ya ? (inf.segEventos || []).find((q) => q.evId === x.id && q.seguroId === s.id) : null, p = previo.get(x.id), ck = p ? p[0] : !!lig, ur = p ? p[1] : !!(lig && (lig.urg || lig.deUrg));
-            return `<div class="vinc-fila" data-vinc-fila data-ev="${e(x.id)}"><label class="check"><input type="checkbox" data-vinc-ck${ck ? ' checked' : ''}><span><b>${e(x.nombre || TIPO_VINC[x.tipo])}</b> · ${e(TIPO_VINC[x.tipo])} · ${e(fc(x.fecha))}${x.fecha === fa ? ' <em>(el mismo día de la activación)</em>' : ''}${x.centro ? ' · ' + e(x.centro) : ''}${x.resultado ? '<small>Resultado: ' + e(x.resultado) + '</small>' : ''}</span></label><label class="check chico-ck${x.tipo === 'control' ? ' oculto' : ''}"><input type="checkbox" data-vinc-urg${ur ? ' checked' : ''}><span>Fue en la urgencia</span></label>${(() => { const i = x.tipo === 'examen' && x.nombre ? uexFilas.findIndex((fl) => nomUex(fl) === x.nombre.trim().toLowerCase()) : -1; return i >= 0 ? `<button type="button" class="btn sec chico" data-vinc-comb="${i}">Es el mismo que «${e(x.nombre)}» de la urgencia: combinarlos</button>` : ''; })()}</div>`; }).join('');
+          caja.innerHTML = lista.map((x) => { const lig = ya ? (inf.segEventos || []).find((q) => q.evId === x.id && q.seguroId === s.id) : null, p = previo.get(x.id), ck = p ? p[0] : !!lig || !!x.porSeguro, ur = p ? p[1] : !!(lig && (lig.urg || lig.deUrg));
+            return `<div class="vinc-fila" data-vinc-fila data-ev="${e(x.id)}"><label class="check"><input type="checkbox" data-vinc-ck${ck ? ' checked' : ''}><span><b>${e(x.nombre || TIPO_VINC[x.tipo])}</b> · ${e(TIPO_VINC[x.tipo])} · ${e(fc(x.fecha))}${x.fecha === fa ? ' <em>(el mismo día de la activación)</em>' : ''}${x.porSeguro ? ' <em>(marcado como del seguro)</em>' : ''}${x.centro ? ' · ' + e(x.centro) : ''}${x.resultado ? '<small>Resultado: ' + e(x.resultado) + '</small>' : ''}</span></label><label class="check chico-ck${x.tipo === 'control' ? ' oculto' : ''}"><input type="checkbox" data-vinc-urg${ur ? ' checked' : ''}><span>Fue en la urgencia</span></label>${(() => { const i = x.tipo === 'examen' && x.nombre ? uexFilas.findIndex((fl) => nomUex(fl) === x.nombre.trim().toLowerCase()) : -1; return i >= 0 ? `<button type="button" class="btn sec chico" data-vinc-comb="${i}">Es el mismo que «${e(x.nombre)}» de la urgencia: combinarlos</button>` : ''; })()}</div>`; }).join('');
         };
         hoja.addEventListener('click', (ev) => {
           const bt = ev.target.closest && ev.target.closest('[data-vinc-comb]'); if (!bt) return;
@@ -406,7 +448,7 @@
     const poner = (iso, k, tx) => { if (!en(iso)) return; const d = mk(iso); d.k.add(k); if (tx) d.tx.push(tx); };
     inf.casos.forEach((c) => {
       if (c.jugadorId !== j.id || c.tipo !== 'lesion' || !c.inicio) return;
-      const fin = c.alta || hoy;
+      const fin = c.gravedad === 'nolimitante' ? c.inicio : c.alta || hoy; // «No limitante»: solo el día en que ocurrió
       for (let d = c.inicio, n = 0; d <= fin && n < 800; d = suma(d, 1), n++) if (en(d)) { const x = mk(d); x.les = true; if (d === c.inicio) { x.L = true; x.tx.push('Lesión: ' + c.titulo); } }
       // Inicio del reintegro deportivo (R) y alta (A) de la lesión
       const rd = K.inicioReintegro(inf, c);
@@ -481,7 +523,7 @@
       if (c.jugadorId !== j.id || !c.inicio) return;
       const tp = c.tipo === 'lesion' ? 'lesión' : 'molestia';
       if (c.inicio === iso) L.push(['Inicio de ' + tp, c.titulo, ['caso', c]]);
-      else if (c.tipo === 'lesion' && c.inicio < iso && iso <= (c.alta || hoy)) L.push(['Lesionado', c.titulo, ['caso', c]]);
+      else if (c.tipo === 'lesion' && c.gravedad !== 'nolimitante' && c.inicio < iso && iso <= (c.alta || hoy)) L.push(['Lesionado', c.titulo, ['caso', c]]);
       if (c.alta === iso) L.push(['Alta kinésica', c.titulo, ['caso', c]]);
       if (c.altaMedica === iso && c.altaMedica !== c.alta) L.push(['Alta médica', c.titulo, ['caso', c]]);
       if (c.tipo === 'lesion' && K.inicioReintegro && K.inicioReintegro(inf, c) === iso) L.push(['Inicio del reintegro deportivo', c.titulo, ['caso', c]]);
@@ -555,6 +597,11 @@
   document.addEventListener('click', (ev) => { const c = ev.target.closest && ev.target.closest('[data-adia]'); if (c) formDia(c.dataset.j, c.dataset.f); });
 
   Object.assign(K.acciones, {
+    unirRepetido(el) { const inf = K.state.informes.find((i) => i.id === el.dataset.rinf), par = inf && K.repetidosSeguroKine(inf)[Number(el.dataset.i)]; if (!par) return; K.unirRepetido(inf, par); K.guardar(); K.aviso('Unidos: cuenta 1'); K.render(); },
+    unirRepetidosTodos() {
+      let n = 0; K.state.informes.forEach((inf) => { for (let g = 0; g < 500; g++) { const par = K.repetidosSeguroKine(inf).find((q) => q.k === 'seg' || q.exacto); if (!par) break; K.unirRepetido(inf, par); n++; } });
+      K.guardar(); K.aviso(n + (n === 1 ? ' registro unido' : ' registros unidos') + ' (cuentan 1)'); K.render();
+    },
     anualDiaSel(el) { if (el.value) { formDia(el.dataset.j, el.value); el.value = ''; } },
     segNuevo() { formIngreso(''); },
     hospNueva() { formHosp(''); },

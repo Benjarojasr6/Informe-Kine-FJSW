@@ -52,7 +52,7 @@
   K.kineLesionados = (fecha) => {
     const out = [];
     K.kineInfs().forEach((inf) => inf.casos.forEach((c) => {
-      if (c.tipo !== 'lesion') return;
+      if (c.tipo !== 'lesion' || c.gravedad === 'nolimitante') return;
       if (fecha ? ((c.inicio || '') > fecha || (c.alta && c.alta < fecha)) : c.alta) return;
       const j = K.jugador(inf, c.jugadorId); if (!j || j.activo === false || !K.inscrito(j)) return;
       out.push({ inf, c, j, cat: catDe(j, inf) });
@@ -97,7 +97,7 @@
   const avatar = (j) => `<span class="avatar">${j.foto ? `<img src="${j.foto}" alt="">` : e((j.nombre || '?').split(/\s+/).slice(0, 2).map((s) => s[0]).join('').toUpperCase())}</span>`;
 
   // Estado actual de un jugador (para su ficha real).
-  K.kineEstadoJugador = (inf, j) => inf.casos.filter((c) => c.jugadorId === j.id && c.tipo === 'lesion' && !c.alta)
+  K.kineEstadoJugador = (inf, j) => inf.casos.filter((c) => c.jugadorId === j.id && K.casoAbierto(c))
     .map((c) => ({ titulo: c.titulo, estado: estadoTxt(c), nota: c.estadoNota || '', desde: c.inicio }));
   K.kineEstadoHTML = (inf, j) => {
     const l = K.kineEstadoJugador(inf, j); if (!l.length) return '';

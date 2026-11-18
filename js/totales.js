@@ -40,6 +40,7 @@
         const c = casoDe(v.casoId);
         out.push({ f: v.fecha, jid: v.jugadorId, cant: Number(v.cantidad) || 1, donde: '', zonas: c ? (c.zonas || []).slice() : [], txt: v.nombre || '' });
       });
+      if (src !== 'medicamentos') K.soloSeguro(inf, per, '', EV[src]).forEach((x) => out.push({ f: x.fecha, jid: x.jugadorId, cant: 1, donde: '', zonas: [], txt: (x.detalle || '') + ' (por el seguro)' }));
     }
     return out;
   };

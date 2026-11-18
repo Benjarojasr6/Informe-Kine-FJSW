@@ -41,14 +41,14 @@
         </div>
         <div class="campo" data-tejidos><span class="lbl">Tejido afectado <span class="suave" style="font-weight:400">(puedes marcar más de uno)</span></span>
           <div class="fila wrap gap" style="gap:4px 14px">${K.TEJIDOS.map(([k, t]) => `<label class="check" style="padding:2px 0"><input type="checkbox" data-tejido="${k}"${K.tejidosDe(c).includes(k) ? ' checked' : ''}><span>${e(t)}</span></label>`).join('')}</div></div>
-        ${o.sinFechas ? '' : `
+        ${o.sinFechas ? '' : `<div data-clin-fechas class="${o.sinAltas ? 'oculto' : ''}">
         <h3 class="clin-h">Altas y retornos</h3>
         <div class="grid2">
           <label class="campo"><span>Alta médica</span><input type="date" name="altaMedica" value="${e(c.altaMedica || '')}"></label>
           <label class="campo"><span>Retorno a entrenar con el grupo</span><input type="date" name="retornoEntreno" value="${e(c.retornoEntreno || '')}"></label>
         </div>
         <label class="campo"><span>Retorno a partido</span><input type="date" name="retornoPartido" value="${e(c.retornoPartido || '')}"></label>
-        <p class="calc-clin" data-calc-clin></p>`}
+        <p class="calc-clin" data-calc-clin></p></div>`}
       </div></details>`;
     },
     // Conecta el bloque: base() devuelve { tipo, inicio, alta, semanas } con lo que hay en el formulario en ese momento.
@@ -82,7 +82,8 @@
       const v = (n) => { const el = hoja.querySelector(`[name=${n}]`); return el ? el.value : ''; };
       const d = { tejido: Array.from(hoja.querySelectorAll('[data-tejido]:checked')).map((x) => x.dataset.tejido).join(','), contacto: v('contacto'), eva: v('eva'), fechas: !!hoja.querySelector('[name=altaMedica]') };
       if (d.fechas) {
-        d.altaMedica = v('altaMedica'); d.retornoEntreno = v('retornoEntreno'); d.retornoPartido = v('retornoPartido');
+        const sinAltas = K.segValor && K.segValor(hoja, 'gravedad') === 'nolimitante'; // «No limitante»: no se guardan fechas de alta ni de retorno
+        d.altaMedica = sinAltas ? '' : v('altaMedica'); if (sinAltas) { d.retornoEntreno = ''; d.retornoPartido = ''; } else { d.retornoEntreno = v('retornoEntreno'); d.retornoPartido = v('retornoPartido'); }
       }
       return d;
     },

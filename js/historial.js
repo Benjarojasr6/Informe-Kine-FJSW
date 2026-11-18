@@ -31,14 +31,14 @@
   K.estadoJugadores = () => {
     const les = new Map(), ult = new Map();
     K.state.informes.forEach((inf) => {
-      (inf.casos || []).forEach((c) => { if (c.tipo === 'lesion' && !c.alta) { const l = les.get(c.jugadorId); if (l) l.push(c); else les.set(c.jugadorId, [c]); } });
+      (inf.casos || []).forEach((c) => { if (K.casoAbierto(c)) { const l = les.get(c.jugadorId); if (l) l.push(c); else les.set(c.jugadorId, [c]); } });
       (inf.atenciones || []).forEach((a) => { if (a.fecha && a.fecha > (ult.get(a.jugadorId) || '')) ult.set(a.jugadorId, a.fecha); });
     });
     return { les, ult };
   };
   // Mismo criterio que la pestaña Kine: lesión sin alta de un jugador inscrito y activo.
   K.esLesionado = (est, j) => !!j && est.les.has(j.id) && K.inscrito(j) && j.activo !== false;
-  K.lesionesActivas = (jid) => { const g = K.jugadorGlobal(jid); if (!g || !K.inscrito(g.j) || g.j.activo === false) return []; return (g.inf.casos || []).filter((c) => c.jugadorId === jid && c.tipo === 'lesion' && !c.alta); };
+  K.lesionesActivas = (jid) => { const g = K.jugadorGlobal(jid); if (!g || !K.inscrito(g.j) || g.j.activo === false) return []; return (g.inf.casos || []).filter((c) => c.jugadorId === jid && K.casoAbierto(c)); };
   const diaLes = (c) => (c.inicio && FECHA.test(c.inicio) ? Math.max(1, dif(c.inicio, K.hoy())) : 0);
 
   const zn = (ids) => (ids || []).map((z) => K.nombreZona(z));
@@ -83,7 +83,7 @@
     (inf.eventos || []).forEach((x) => {
       if (x.jugadorId !== jid || !K.evRealizado(x)) return;
       const en = K.bit.entEvento(inf, x), c = x.casoId ? porId.get(x.casoId) : null;
-      const sub = [x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : '', priv && (inf.segEventos || []).some((q) => q.evId === x.id) ? 'por el seguro' : ''].filter(Boolean).join(' · ');
+      const sub = [x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : '', priv && ((inf.segEventos || []).some((q) => q.evId === x.id) || x.porSeguro) ? 'por el seguro' : ''].filter(Boolean).join(' · ');
       items.push(nuevo({ id: 'e' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: x.tipo, tag: en.tag, cls: 'ev', titulo: en.titulo, sub, det: en.det, notas: en.notas, raw: x, edit: 'evento' }, c ? { casoId: c.id, zonas: (c.zonas || []).slice() } : null));
     });
     // ---- seguro (solo si puede ver datos privados)

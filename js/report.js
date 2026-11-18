@@ -203,7 +203,7 @@
     const molestias = pf.mol.map((x) => (x.mas ? `<li class="mas">${e(x.t)}</li>` : li(x.t, x.g)));
     const lesiones = pf.les.map((x) => (x.mas ? `<li class="mas">${e(x.t)}</li>` : li(x.t, x.g)));
     const nEv = (tipo) => K.porJugador(inf.eventos, j.id).filter((x) => x.tipo === tipo && K.enPeriodo(x.fecha, per) && K.evRealizado(x)).reduce((a, x) => a + (Number(x.cantidad) || 1), 0);
-    const nCtrl = nEv('control'), nExa = nEv('examen');
+    const nCtrl = nEv('control') + K.soloSeguro(inf, per, j.id, 'control').length, nExa = nEv('examen') + K.soloSeguro(inf, per, j.id, 'examen').length;
     const iv = K.intervencionesJugador(inf, per, j);
     const foto = j.foto ? `<img src="${e(j.foto)}" alt="">` : `<span>${e((j.nombre || '?').split(/\s+/).slice(0, 2).map((s) => s[0]).join('').toUpperCase())}</span>`;
     const edad = K.edadAnios(j.nacimiento, K.anioDePeriodo(per)); // la edad que tenía en el año del informe
@@ -492,7 +492,7 @@
       const meses = K.mesesPeriodo(per);
       const porMes = meses.map((m) => asis.filter((a) => a.v === 'si' && a.fecha.slice(0, 7) === m.clave).length);
       const altas = lesiones.filter((c) => c.alta && K.enPeriodo(c.alta, per)).length;
-      const actuales = lesiones.filter((c) => !c.alta), curso = actuales.length; // v1.6.11: lesionados actuales = los del período que aún no tienen alta
+      const actuales = lesiones.filter((c) => !c.alta && c.gravedad !== 'nolimitante'), curso = actuales.length; // v1.6.11: lesionados actuales = los del período que aún no tienen alta
       if (K.bloqueOn(inf, 'kine')) out.push(pagina('p-resumen p-equipo', `<h2>Seguimiento kinésico</h2>${sub}
         <div class="eq-kpis">${kpi(lesiones.length, 'lesionados del período')}${kpi(curso, 'lesionados actuales (sin alta)')}${kpi(altas, 'altas en el período')}${kpi(pct == null ? '--' : pct + '%', 'asistencia a kinesiología')}</div>
         <div class="eq-kpis eq-kpis-2">${kpi(si, 'sesiones realizadas')}${kpi(esp, 'sesiones esperadas')}</div>

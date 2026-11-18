@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.9.10';
+  K.version = '1.9.12';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -265,7 +265,7 @@
     inf.segEventos.forEach((x) => {
       if (!x.evId) return;
       const e = evs.get(x.evId), s = segs.get(x.seguroId);
-      if (!e || !s || e.jugadorId !== s.jugadorId || !['control', 'examen', 'procedimiento'].includes(e.tipo)) { delete x.evId; return; }
+      if (!e || !s || e.jugadorId !== s.jugadorId || !['control', 'examen', 'procedimiento', 'cirugia'].includes(e.tipo)) { delete x.evId; return; }
       x.jugadorId = e.jugadorId; x.tipo = e.tipo; x.fecha = e.fecha; x.detalle = e.nombre || ''; x.cantidad = 1; x.casoId = e.casoId || ''; x.notas = e.notas || '';
       ['resultado', 'centro', 'medico'].forEach((k) => { if (e[k]) x[k] = e[k]; else delete x[k]; });
       if (e.tipo !== 'examen') delete x.urg; // solo un examen puede ir «dentro de la urgencia»
@@ -506,6 +506,8 @@
     (inf.casos || []).forEach((c) => { if (c.zonas !== undefined) c.zonas = arrObj(c.zonas).filter((x) => typeof x === 'string'); });
     (inf.staff || []).forEach((st) => { st.personas = arrObj(st.personas).filter((x) => x && typeof x === 'object').map((x) => Object.assign(x, { nombre: typeof x.nombre === 'string' ? x.nombre : '' })); });
     (inf.casos || []).forEach((c) => { if (c.gravedad && !K.GRAVEDADES[c.gravedad]) c.gravedad = 'pordefinir'; });
+    // v1.9.12: una lesión «No limitante» no deja al jugador lesionado: su alta es el mismo día del inicio.
+    (inf.casos || []).forEach((c) => { if (c.tipo === 'lesion' && c.gravedad === 'nolimitante' && !c.alta && /^\d{4}-\d{2}-\d{2}$/.test(c.inicio || '')) c.alta = c.inicio; });
     (inf.jugadores || []).forEach((j) => { if (j.foto && !IMG_OK(j.foto)) j.foto = ''; });
     (inf.partidos || []).forEach((p) => {
       if (p.logo && !(IMG_OK(p.logo) || /^[\w-]+$/.test(p.logo))) p.logo = '';

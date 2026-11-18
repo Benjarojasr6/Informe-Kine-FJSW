@@ -732,6 +732,7 @@
         <p class="sub">Lo que aparece al registrar una atención. Cada uno genera su propio total.</p>
         <div class="lista">${inf.tratamientos.map((t) => `<div class="item" data-acc="editTrat" data-id="${t.id}"><span class="mini-ico">${K.ico(t.icono)}</span><div class="txt"><b>${e(t.nombre)}</b><span>${t.intervencion ? 'Cuenta como intervención' : 'No suma a intervenciones'}</span></div></div>`).join('')}</div></div>
       ${K.tarjetaListas ? K.tarjetaListas() : ''}
+      ${K.tarjetaRepetidos ? K.tarjetaRepetidos() : ''}
       <div class="card"><h2>Tipografía</h2>
         <p class="sub">Cambia la letra de toda la app y del informe en PDF. Se guarda para los dos kinesiólogos.</p>
         ${K.selectorFuentes()}</div>

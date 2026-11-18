@@ -52,7 +52,7 @@
     if (K.origenCasoTxt(c)) det.push([K.origenRotulo(c), K.origenCasoTxt(c)]);
     det.push(['Inicio', fc(c.inicio)]);
     const clin = K.clinico ? K.clinico.detalle(c) : [];
-    det.push([c.altaMedica || c.retornoEntreno || c.retornoPartido ? 'Alta kinésica' : 'Alta', c.alta ? fc(c.alta) : les ? 'En curso' : '—']);
+    det.push([c.altaMedica || c.retornoEntreno || c.retornoPartido ? 'Alta kinésica' : 'Alta', c.alta ? fc(c.alta) : les && c.gravedad !== 'nolimitante' ? 'En curso' : '—']);
     const dur = K.duracionCaso(c); if (dur && dur !== 'en curso') det.push(['Duración', dur]);
     if (les && c.inicio) det.push(['Días de baja', K.diasBajaCaso(c, { desde: c.inicio, hasta: '2100-01-01' }) + '']);
     if (K.limitaTxt(c)) det.push(['Limita entrenamiento', K.limitaTxt(c)]);

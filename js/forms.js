@@ -156,8 +156,9 @@
           <button type="button" class="btn sec chico" data-nuevo-caso style="margin:-4px 0 10px">${K.uiIco('mas', 16)} Registrar una lesión o molestia nueva</button>
         </div>
         ${rec ? '' : `<div class="oculto" data-bloque-med><h3 style="margin:6px 0 4px;font-size:15px">Medicamentos entregados</h3>
-            <p class="suave" style="margin:0 0 6px;font-size:13px">Sale una fila por cada unidad de Farmacología (1, 2 o 3). La lista se arma con los medicamentos que ya has anotado; si es uno nuevo, elige «Otro».</p>
-            <div data-med-filas></div></div>`}
+            <p class="suave" style="margin:0 0 6px;font-size:13px">Cada medicamento distinto es una fila y cuenta como 1 Farmacología. Si entregaste otro más, toca «Agregar otro medicamento». La lista se arma con los medicamentos que ya has anotado; si es uno nuevo, elige «Otro».</p>
+            <div data-med-filas></div>
+            <div class="fila gap wrap" style="margin:4px 0 10px"><button type="button" class="btn sec chico" data-med-mas>${K.uiIco('mas', 16)} Agregar otro medicamento</button><button type="button" class="btn ghost chico oculto" data-med-menos>Quitar el último</button></div></div>`}
         <div class="oculto" data-bloque-seg><h3 style="margin:6px 0 4px;font-size:15px">Derivaciones al seguro</h3>
           <p class="suave" style="margin:0 0 6px;font-size:13px">Una fila por cada derivación: elige el motivo (urgencia, control de continuidad, examen…).</p>
           <div data-seg-filas></div></div>
@@ -207,12 +208,15 @@
           const med = hoja.querySelector('[data-bloque-med]');
           if (med) {
             const f = hoja.querySelector('.contador[data-cont="farmaco"] [data-n]'), n = Math.min(10, Math.max(0, Number(f && f.value) || 0)), cont = med.querySelector('[data-med-filas]');
-            med.classList.toggle('oculto', n <= 0);
+            med.classList.toggle('oculto', n <= 0); { const mm = med.querySelector('[data-med-menos]'); if (mm) mm.classList.toggle('oculto', n <= 1); }
             while (cont.children.length > n) cont.lastElementChild.remove();
             while (cont.children.length < n) cont.insertAdjacentHTML('beforeend', filaMed(cont.children.length + 1));
             cont.querySelectorAll('[data-med-fila]').forEach((fl) => fl.querySelector('[data-med-otro]').classList.toggle('oculto', fl.querySelector('[data-med-sel]').value !== '__otro'));
           }
         };
+        { const paso = (d) => { const b = hoja.querySelector('.contador[data-cont="farmaco"] [data-paso="' + d + '"]'); if (b) b.click(); };
+          const mas = hoja.querySelector('[data-med-mas]'), menos = hoja.querySelector('[data-med-menos]');
+          if (mas) { mas.addEventListener('click', () => paso(1)); menos.addEventListener('click', () => paso(-1)); } }
         selClase.addEventListener('change', sync);
         hoja.addEventListener('click', () => setTimeout(sync, 0)); hoja.addEventListener('input', sync); hoja.addEventListener('change', sync);
         // --- contadores, repetir última y plantillas
@@ -354,7 +358,7 @@
         <details class="mas-clin mas-det" data-mas${rec || K.ui.casoMas ? ' open' : ''}><summary>Más detalles <small class="suave">(contexto, alta, mecanismo, recidiva, notas y datos clínicos)</small></summary><div class="mas-cuerpo">
         <label class="campo"><span>Contexto (opcional, ej. post partido, golpe de balón)</span><input type="text" name="contexto" value="${e(rec ? rec.contexto || '' : '')}"></label>
         <div class="grid2">
-          <label class="campo ${conv ? 'oculto' : ''}"><span>Alta kinésica (si ya volvió)</span><input type="date" name="alta" value="${e(rec ? rec.alta || '' : '')}"></label>
+          <label class="campo ${conv || grav === 'nolimitante' ? 'oculto' : ''}" data-campo-alta><span>Alta kinésica (si ya volvió)</span><input type="date" name="alta" value="${e(rec ? rec.alta || '' : '')}"></label>
           <label class="campo ${conv ? 'oculto' : ''}"><span>Semanas de baja (opcional)</span><input type="number" inputmode="decimal" min="0" step="0.5" name="semanas" value="${e(rec && rec.semanas !== '' && rec.semanas != null ? rec.semanas : '')}" placeholder="auto"></label>
         </div>
         <label class="campo"><span>Ocurrió en</span><select name="mecanismo">${K.opts([['', '—']].concat(K.MECANISMOS), rec ? rec.mecanismo || '' : '')}</select></label>
@@ -381,7 +385,7 @@
         ${K.selTorneoHTML(inf, rec ? rec.torneoId || '' : o.torneoId || '', 'Torneo en que ocurrió (opcional)')}
         <label class="campo"><span>Terreno de juego</span><select name="terreno"><option value="">— elegir —</option>${K.opts(K.TERRENOS.map((x) => [x, x]), rec ? rec.terreno || '' : '')}</select></label>
         <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>
-        ${K.clinico.html(rec || {}, { sinFechas: conv })}
+        ${K.clinico.html(rec || {}, { sinFechas: conv, sinAltas: grav === 'nolimitante' })}
         </div></details>`,
       botones: [
         rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.conDeshacer('Registro eliminado (las atenciones asociadas se conservan)', () => { quitar(inf.casos, rec.id); K.state.informes.forEach((i) => i.casos.forEach((c) => { if (c.convertidaA === rec.id) delete c.convertidaA; })); inf.atenciones.forEach((a) => { if (a.casoId === rec.id) a.casoId = ''; }); }); } } : { txt: 'Cancelar', cls: 'sec' },
@@ -401,6 +405,7 @@
             campos.limita = campos.tipo === 'molestia' ? (esMol ? 'si' : 'no') : '';
             campos.limitaDias = esMol ? (d.limitaDias === 'indef' ? 'indef' : Number(d.limitaDias) || 1) : '';
             campos.limitaParte = esMol ? d.limitaParte : '';
+            if (campos.gravedad === 'nolimitante') campos.alta = campos.tipo === 'lesion' && campos.inicio ? campos.inicio : ''; // no limita: la lesión queda con alta el mismo día (no figura como lesionado); sin campos de fechas
             if (campos.tipo === 'lesion' && campos.gravedad === 'nolimitante' && hoja.querySelector('[name=limitoDia]').checked) campos.limitoDia = true; else delete campos.limitoDia;
             if (conv) Object.assign(campos, { gravedad: 'pordefinir', alta: '', semanas: '', limita: 'no', limitaDias: '', limitaParte: '' });
             let reg = rec;
@@ -451,6 +456,7 @@
         hoja.addEventListener('seg', (ev) => {
           if (ev.target.dataset.seg === 'tipo' && !rec) K.segSet(hoja, 'gravedad', 'pordefinir');
           refrescar(); pintar();
+          { const nl = K.segValor(hoja, 'gravedad') === 'nolimitante'; hoja.querySelectorAll('[data-campo-alta], [data-clin-fechas]').forEach((x) => x.classList.toggle('oculto', nl || (x.matches('[data-campo-alta]') && conv))); }
           const ld = hoja.querySelector('[data-bloque-limdia]'); if (ld) ld.classList.toggle('oculto', conv || K.segValor(hoja, 'tipo') !== 'lesion' || K.segValor(hoja, 'gravedad') !== 'nolimitante'); K.clinico.recalcular(hoja);
         });
         hoja.querySelector('[name=mecanismo]').addEventListener('change', refrescar);
@@ -544,13 +550,19 @@
     if (/^kinesi[oó]logo[s]? externo[s]?$/i.test(n)) return 'Kinesiología externa';
     return n.charAt(0).toUpperCase() + n.slice(1);
   };
+  // v1.9.11: lo que ya anotaste en ese tipo (más usado primero) y después las sugerencias de siempre
+  const sugerenciasEv = (tipo, def) => {
+    const m = {}; (K.state.informes || []).forEach((inf) => (inf.eventos || []).forEach((x) => { if (x.tipo !== tipo) return; const v = String(x.nombre || '').trim().replace(/\s+/g, ' '); if (!v) return; const k = v.toLowerCase(); m[k] = m[k] || { v, n: 0 }; m[k].n++; }));
+    const usados = Object.keys(m).map((k) => m[k]).sort((a, b) => b.n - a.n || a.v.localeCompare(b.v, 'es')).map((x) => x.v);
+    return usados.concat(def.sug.filter((s) => !m[s.toLowerCase()]));
+  };
   K.formEvento = function (tipo, o) {
     o = o || {};
     const inf = K.inf(); const rec = o.rec; tipo = rec ? rec.tipo : tipo;
     if (!K.vivos(inf).length) return sinJugadores();
     const def = EV[tipo];
     const jid = rec ? rec.jugadorId : o.jugadorId || '';
-    const segOk = ['control', 'examen', 'procedimiento'].includes(tipo) && !!K.verPrivado && K.verPrivado() && !!K.activacionesJugador; // v1.9.10: ¿se hizo por el seguro?
+    const segOk = ['control', 'examen', 'procedimiento', 'cirugia'].includes(tipo) && !!K.verPrivado && K.verPrivado() && !!K.activacionesJugador; // v1.9.10: ¿se hizo por el seguro?
     K.modal({
       titulo: (rec ? 'Editar ' : 'Nuevo registro: ') + def.t.toLowerCase(),
       cuerpo: `
@@ -560,12 +572,12 @@
         </div>
         <label class="campo"><span>${tipo === 'control' ? 'Tipo de control (con quién)' : tipo === 'examen' ? 'Tipo de examen' : tipo === 'procedimiento' ? 'Procedimiento' : tipo === 'medicamento' ? 'Medicamento' : 'Cirugía'}</span>
           <input type="text" name="nombre" list="dl-ev" value="${e(rec ? rec.nombre || '' : '')}" placeholder="${def.ph}" autocomplete="off">
-          <datalist id="dl-ev">${def.sug.map((s) => `<option value="${e(s)}">`).join('')}</datalist></label>
+          <datalist id="dl-ev">${sugerenciasEv(tipo, def).map((s) => `<option value="${e(s)}">`).join('')}</datalist></label>
         ${tipo === 'examen' ? `<label class="campo"><span>Resultado (opcional)</span><input type="text" name="resultado" maxlength="160" value="${e(rec ? rec.resultado || '' : '')}" placeholder="Ej. Rotura parcial de fibras, grado II" autocomplete="off"></label>` : ''}
         ${tipo === 'control' || tipo === 'examen' ? K.campoLista('centro', 'Centro médico donde fue', 'centro', rec ? rec.centro : '') + K.campoLista('medico', tipo === 'control' ? 'Médico con quien se vio' : 'Médico que lo vio o lo pidió', 'medico', rec ? rec.medico : '') : ''}
         ${tipo === 'cirugia' ? '' : `<label class="campo"><span>${tipo === 'medicamento' ? 'Unidades / dosis entregadas' : tipo === 'procedimiento' ? 'Sesiones' : 'Cantidad'}</span><input type="number" inputmode="numeric" min="1" name="cantidad" value="${e(rec ? rec.cantidad || 1 : 1)}"></label>`}
         <label class="campo"><span>Lesión o molestia asociada (opcional)</span><select name="casoId">${casosOpts(inf, jid, rec ? rec.casoId : o.casoId || ((K.casoActivo(jid) || {}).id || ''))}</select></label>
-        ${segOk ? `<div class="oculto" data-seg-bloque><label class="campo"><span>¿Se hizo por el seguro?</span><select name="segId"></select></label><label class="check oculto" data-seg-urg><input type="checkbox" name="segUrg"><span>Fue en la urgencia de esa activación</span></label></div>` : ''}
+        ${segOk ? `<div data-seg-bloque><label class="campo"><span>¿Se hizo por el seguro o es particular?</span><select name="segId"></select></label><label class="check oculto" data-seg-urg><input type="checkbox" name="segUrg"><span>Fue en la urgencia de esa activación</span></label></div>` : ''}
         ${tipo === 'medicamento' && !rec ? '<p class="suave" style="font-size:13px;margin:0 0 8px">Al guardar, cuenta también como 1 atención con Farmacología (1 intervención).</p>' : ''}
         <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>`,
       botones: [
@@ -591,11 +603,14 @@
             if (centro) reg.centro = centro; else delete reg.centro;
             if (medico) reg.medico = medico; else delete reg.medico;
             if (segOk) { // vínculo con una activación del seguro (el registro de Kine manda; el seguro lo muestra combinado)
-              const act = d.segId ? (inf.seguros || []).find((x) => x.id === d.segId && x.jugadorId === reg.jugadorId) : null;
+              const act = d.segId && d.segId !== '__seg' ? (inf.seguros || []).find((x) => x.id === d.segId && x.jugadorId === reg.jugadorId) : null;
               (inf.segEventos || []).filter((x) => x.evId === reg.id && (!act || x.seguroId !== act.id)).forEach((x) => { inf.segEventos = inf.segEventos.filter((q) => q !== x); });
-              if (act) K.vincularSeguro(inf, act, reg.id, !!(hoja.querySelector('[name=segUrg]') || {}).checked);
+              if (act) { K.vincularSeguro(inf, act, reg.id, !!(hoja.querySelector('[name=segUrg]') || {}).checked); delete reg.porSeguro; }
+              else if (d.segId === '__seg') reg.porSeguro = true; // del seguro, pero aún sin activación: queda marcado para cuando se cree
+              else delete reg.porSeguro;
             }
             hecho('Guardado');
+            if (segOk && K.sugerirUnion && !(inf.segEventos || []).some((x) => x.evId === reg.id)) setTimeout(() => K.sugerirUnion(inf, reg), 380); // ¿es el mismo que uno del seguro del mismo día?
           }
         }
       ],
@@ -606,11 +621,11 @@
         function pintarSeg() {
           if (!bl) return;
           const acts = K.activacionesJugador(inf, selJ.value), lig = rec ? (inf.segEventos || []).find((x) => x.evId === rec.id) : null, ya = segS.value || (lig && selJ.value === rec.jugadorId ? lig.seguroId : '');
-          bl.classList.toggle('oculto', !acts.length);
-          segS.innerHTML = '<option value="">No</option>' + acts.map((a) => `<option value="${e(a.id)}">Sí · ${e(a.diagnostico || 'Activación')}${a.activacion ? ' · ' + e(K.fechaCorta(a.activacion)) : ''}</option>`).join('');
-          segS.value = acts.some((a) => a.id === ya) ? ya : '';
+          const ya2 = ya || (rec && rec.porSeguro && selJ.value === rec.jugadorId ? '__seg' : '');
+          segS.innerHTML = '<option value="">Particular (no es del seguro)</option><option value="__seg">Por el seguro' + (acts.length ? ' (sin elegir activación)' : ' (aún sin activación)') + '</option>' + acts.map((a) => `<option value="${e(a.id)}">Por el seguro · ${e(a.diagnostico || 'Activación')}${a.activacion ? ' · ' + e(K.fechaCorta(a.activacion)) : ''}</option>`).join('');
+          segS.value = acts.some((a) => a.id === ya2) || ya2 === '__seg' ? ya2 : '';
           if (lig && !segU.dataset.listo) { segU.querySelector('input').checked = !!(lig.urg || lig.deUrg); segU.dataset.listo = '1'; }
-          segU.classList.toggle('oculto', !segS.value || tipo === 'control');
+          segU.classList.toggle('oculto', !segS.value || segS.value === '__seg' || !['examen', 'procedimiento'].includes(tipo));
         }
         if (bl) { segS.addEventListener('change', pintarSeg); pintarSeg(); }
       }

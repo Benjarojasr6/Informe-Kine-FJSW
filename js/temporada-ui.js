@@ -146,7 +146,7 @@
   /* ======================= DAR DE BAJA ======================= */
   K.formBaja = function (j) {
     const gl = K.jugadorGlobal(j.id), inf = gl ? gl.inf : K.inf();
-    const abierta = inf.casos.some((c) => c.jugadorId === j.id && c.tipo === 'lesion' && !c.alta);
+    const abierta = inf.casos.some((c) => c.jugadorId === j.id && K.casoAbierto(c));
     K.modal({
       titulo: 'Dar de baja',
       cuerpo: `<p class="suave" style="margin:0 0 10px"><b>${e(j.nombre)}</b> pasará al <b>Archivo</b>. No se borra nada: su ficha y sus registros se conservan y siguen saliendo en los informes de los años en que estuvo inscrito.</p>
