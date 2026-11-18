@@ -1443,3 +1443,11 @@ input.bl-sw[type=checkbox]:checked::after { transform: translateX(20px); }
 .lista-edit .item .txt { flex: 1 1 140px; min-width: 0; }
 .lista-edit .item .btn { flex: none; }
 .fe-marco ~ .campo input[type=range], [data-fe-sens] input[type=range] { width: 100%; min-height: 44px; }
+
+/* v1.9.13 · Seguro: sala de urgencia / continuidad, cápsulas por categoría, N.º de asistencia pendiente */
+.seg-sec { margin: 10px 0 4px; }
+.seg-sec > .fila > b { font-size: 14px; color: var(--verde-2); }
+.seg-sec + .seg-sec { margin-top: 14px; padding-top: 8px; border-top: 1px dashed var(--linea); }
+.seg-falta { font-style: normal; font-weight: 600; color: #b3202a; }
+.seg-cats { margin: 10px -2px 6px; }
+.seg-cats button { min-height: 44px; font-size: 14px; }

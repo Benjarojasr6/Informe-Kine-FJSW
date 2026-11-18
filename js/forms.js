@@ -577,7 +577,7 @@
         ${tipo === 'control' || tipo === 'examen' ? K.campoLista('centro', 'Centro médico donde fue', 'centro', rec ? rec.centro : '') + K.campoLista('medico', tipo === 'control' ? 'Médico con quien se vio' : 'Médico que lo vio o lo pidió', 'medico', rec ? rec.medico : '') : ''}
         ${tipo === 'cirugia' ? '' : `<label class="campo"><span>${tipo === 'medicamento' ? 'Unidades / dosis entregadas' : tipo === 'procedimiento' ? 'Sesiones' : 'Cantidad'}</span><input type="number" inputmode="numeric" min="1" name="cantidad" value="${e(rec ? rec.cantidad || 1 : 1)}"></label>`}
         <label class="campo"><span>Lesión o molestia asociada (opcional)</span><select name="casoId">${casosOpts(inf, jid, rec ? rec.casoId : o.casoId || ((K.casoActivo(jid) || {}).id || ''))}</select></label>
-        ${segOk ? `<div data-seg-bloque><label class="campo"><span>¿Se hizo por el seguro o es particular?</span><select name="segId"></select></label><label class="check oculto" data-seg-urg><input type="checkbox" name="segUrg"><span>Fue en la urgencia de esa activación</span></label></div>` : ''}
+        ${segOk ? `<div data-seg-bloque><label class="campo"><span>¿Se hizo por el seguro o es particular?</span><select name="segId"></select></label><label class="check oculto" data-seg-urg><input type="checkbox" name="segUrg"><span>Fue en la sala de urgencia de esa activación</span></label><label class="campo oculto" data-seg-asist><span>N.º de asistencia del seguro (opcional)</span><input type="text" name="segAsist" maxlength="40" value="${e(rec ? ((inf.segEventos || []).find((x) => x.evId === rec.id) || {}).nAsist || rec.nAsist || '' : '')}" autocomplete="off" placeholder="El que te dio el seguro para este registro"></label></div>` : ''}
         ${tipo === 'medicamento' && !rec ? '<p class="suave" style="font-size:13px;margin:0 0 8px">Al guardar, cuenta también como 1 atención con Farmacología (1 intervención).</p>' : ''}
         <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>`,
       botones: [
@@ -605,9 +605,10 @@
             if (segOk) { // vínculo con una activación del seguro (el registro de Kine manda; el seguro lo muestra combinado)
               const act = d.segId && d.segId !== '__seg' ? (inf.seguros || []).find((x) => x.id === d.segId && x.jugadorId === reg.jugadorId) : null;
               (inf.segEventos || []).filter((x) => x.evId === reg.id && (!act || x.seguroId !== act.id)).forEach((x) => { inf.segEventos = inf.segEventos.filter((q) => q !== x); });
-              if (act) { K.vincularSeguro(inf, act, reg.id, !!(hoja.querySelector('[name=segUrg]') || {}).checked); delete reg.porSeguro; }
-              else if (d.segId === '__seg') reg.porSeguro = true; // del seguro, pero aún sin activación: queda marcado para cuando se cree
-              else delete reg.porSeguro;
+              const nA = ((hoja.querySelector('[name=segAsist]') || {}).value || '').trim().slice(0, 40);
+              if (act) { const sr = K.vincularSeguro(inf, act, reg.id, !!(hoja.querySelector('[name=segUrg]') || {}).checked); delete reg.porSeguro; if (nA) reg.nAsist = nA; else delete reg.nAsist; if (sr) sr.nAsist = nA; }
+              else if (d.segId === '__seg') { reg.porSeguro = true; if (nA) reg.nAsist = nA; else delete reg.nAsist; } // del seguro, pero aún sin activación: queda marcado para cuando se cree
+              else { delete reg.porSeguro; delete reg.nAsist; }
             }
             hecho('Guardado');
             if (segOk && K.sugerirUnion && !(inf.segEventos || []).some((x) => x.evId === reg.id)) setTimeout(() => K.sugerirUnion(inf, reg), 380); // ¿es el mismo que uno del seguro del mismo día?
@@ -626,6 +627,7 @@
           segS.value = acts.some((a) => a.id === ya2) || ya2 === '__seg' ? ya2 : '';
           if (lig && !segU.dataset.listo) { segU.querySelector('input').checked = !!(lig.urg || lig.deUrg); segU.dataset.listo = '1'; }
           segU.classList.toggle('oculto', !segS.value || segS.value === '__seg' || !['examen', 'procedimiento'].includes(tipo));
+          const sa = hoja.querySelector('[data-seg-asist]'); if (sa) sa.classList.toggle('oculto', !segS.value);
         }
         if (bl) { segS.addEventListener('change', pintarSeg); pintarSeg(); }
       }

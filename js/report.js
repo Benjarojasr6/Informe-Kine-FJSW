@@ -542,13 +542,14 @@
     const dm = K.derivMotivos(inf, per, ids); // derivaciones al seguro anotadas en las atenciones, por motivo (solo si se eligió motivo)
     if (K.bloqueOn(inf, 'seguro') && (sev.length || sini || dm.conMotivo)) {
       const c = {}, ex = {}, pr = {};
-      sev.forEach((x) => { c[x.tipo] = (c[x.tipo] || 0) + 1; if (x.tipo === 'examen') ex[x.detalle || 'Sin nombre'] = (ex[x.detalle || 'Sin nombre'] || 0) + 1; if (x.tipo === 'procedimiento') pr[x.detalle || 'Sin nombre'] = (pr[x.detalle || 'Sin nombre'] || 0) + 1; });
+      let nExUrg = 0; // v1.9.13: los exámenes hechos dentro de la sala de urgencia son parte de la urgencia (no eventos de continuidad), igual que en la pestaña Seguro
+      sev.forEach((x) => { if (x.urg && x.tipo === 'examen') nExUrg++; else c[x.tipo] = (c[x.tipo] || 0) + 1; if (x.tipo === 'examen') ex[x.detalle || 'Sin nombre'] = (ex[x.detalle || 'Sin nombre'] || 0) + 1; if (x.tipo === 'procedimiento') pr[x.detalle || 'Sin nombre'] = (pr[x.detalle || 'Sin nombre'] || 0) + 1; });
       const ses = sev.filter((x) => x.tipo === 'kinesiologia').reduce((a, x) => a + (Number(x.cantidad) || 1), 0);
       const top = (o) => Object.keys(o).map((k) => [k, o[k]]).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'es')).slice(0, 6);
       const lista = (arr, col) => (arr.length ? barrasH(arr, 0, col) : '<p class="vacio-eq">Sin registros.</p>');
-      const tp = [['Control médico', c.control || 0, '#7b4fb8'], ['Examen', c.examen || 0, '#f08a24'], ['Procedimiento', c.procedimiento || 0, '#c2479b'], ['Kinesiología', c.kinesiologia || 0, '#14a3a3'], ['Cirugía', c.cirugia || 0, '#1f2937'], ['Hospitalización', c.hosp || 0, '#b3202a']];
+      const tp = [['Urgencia', sini, '#e0245e'], ['Control médico', c.control || 0, '#7b4fb8'], ['Examen', c.examen || 0, '#f08a24'], ['Procedimiento', c.procedimiento || 0, '#c2479b'], ['Kinesiología', c.kinesiologia || 0, '#14a3a3'], ['Cirugía', c.cirugia || 0, '#1f2937'], ['Hospitalización', c.hosp || 0, '#b3202a']];
       out.push(pagina('p-resumen p-equipo', `<h2>Uso del seguro</h2>${sub}
-        <div class="eq-kpis">${kpi(sini, 'activaciones iniciales (urgencias)')}${kpi(sini + sev.length, 'activaciones + continuidad')}${kpi(c.examen || 0, 'exámenes')}${kpi(ses, 'sesiones de kinesiología')}</div>
+        <div class="eq-kpis">${kpi(sini, 'activaciones iniciales (urgencias)')}${kpi(sini + sev.length - nExUrg, 'activaciones + continuidad')}${kpi((c.examen || 0) + nExUrg, 'exámenes (con los de urgencias)')}${kpi(ses, 'sesiones de kinesiología')}</div>
         ${panelEq('Eventos por tipo', barrasH(tp, 0))}${dm.conMotivo ? panelEq('Derivaciones al seguro por motivo', barrasH(K.MOTIVOS_SEGURO.map(([k, t]) => [t, dm.mot[k] || 0]).concat(dm.sin ? [['Sin especificar', dm.sin]] : []).filter((x) => x[1]), 0, '#0e7c7c') + `<p class="nota-grav">${dm.total} derivaciones al seguro anotadas en las atenciones del período.</p>`) : ''}
         <div class="eq-2">${panelEq('Exámenes más frecuentes', lista(top(ex), '#f08a24'))}${panelEq('Procedimientos más frecuentes', lista(top(pr), '#c2479b'))}</div>`));
     }

@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.9.12';
+  K.version = '1.9.13';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -269,6 +269,7 @@
       x.jugadorId = e.jugadorId; x.tipo = e.tipo; x.fecha = e.fecha; x.detalle = e.nombre || ''; x.cantidad = 1; x.casoId = e.casoId || ''; x.notas = e.notas || '';
       ['resultado', 'centro', 'medico'].forEach((k) => { if (e[k]) x[k] = e[k]; else delete x[k]; });
       if (e.tipo !== 'examen') delete x.urg; // solo un examen puede ir «dentro de la urgencia»
+      if (e.nAsist) x.nAsist = e.nAsist; else if (x.nAsist) e.nAsist = x.nAsist; // v1.9.13: el N.º de asistencia del seguro se edita desde Kine o desde el seguro y queda igual en los dos
     });
   };
   K.guardar = function () {

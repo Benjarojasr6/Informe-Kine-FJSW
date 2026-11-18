@@ -495,7 +495,8 @@
   K.pKine = function () {
     const s = ks();
     const cuerpo = s.sec === 'sem' ? pSemanal() : s.sec === 'seguro' ? (K.kineSeguroHTML ? K.kineSeguroHTML() : '') : s.sec === 'anual' ? (K.kineAnualHTML ? K.kineAnualHTML() : '') : pSeguimiento();
-    return `<div class="titulo-vista"><h1>Kine</h1><button class="btn" data-acc="kineAgregar">${K.uiIco('mas', 18)} Agregar</button></div>
+    const btnAdd = s.sec === 'seguro' && K.verPrivado && K.verPrivado() && K.puedeEditar() ? `<button class="btn" data-acc="segNuevo">${K.uiIco('mas', 18)} Nueva activación</button>` : `<button class="btn" data-acc="kineAgregar">${K.uiIco('mas', 18)} Agregar</button>`; // v1.9.13: en Seguro el botón de arriba crea una activación
+    return `<div class="titulo-vista"><h1>Kine</h1>${btnAdd}</div>
       <div class="tabs kine-secs">${SECS.map(([id, t]) => `<button class="${s.sec === id ? 'act' : ''}" data-acc="kineSec" data-sec="${id}">${t}</button>`).join('')}</div>
       ${cuerpo}`;
   };

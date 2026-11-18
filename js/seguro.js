@@ -45,7 +45,7 @@
     return pares;
   };
   K.unirRepetido = (inf, par) => {
-    const rellenar = (e, x) => { ['resultado', 'centro', 'medico'].forEach((k) => { if (!e[k] && x[k]) e[k] = x[k]; }); if (!e.notas && x.notas) e.notas = x.notas; };
+    const rellenar = (e, x) => { ['resultado', 'centro', 'medico'].forEach((k) => { if (!e[k] && x[k]) e[k] = x[k]; }); if (!e.notas && x.notas) e.notas = x.notas; if (!e.nAsist && x.nAsist) e.nAsist = x.nAsist; };
     if (par.k === 'seg') { const e = (inf.eventos || []).find((q) => q.id === par.y.evId); if (e) rellenar(e, par.x); if (par.x.urg) par.y.urg = true; if (par.x.deUrg) par.y.deUrg = true; inf.segEventos = inf.segEventos.filter((q) => q !== par.x); }
     else { rellenar(par.e, par.x); par.x.evId = par.e.id; delete par.e.porSeguro; }
     K.sincSegEv(inf);
@@ -70,7 +70,7 @@
       <div class="lista lista-edit">${filas.map(({ inf, par, i }) => `<div class="item"><div class="txt"><b>${e(K.textoRepetido(inf, par))}</b><span>${par.k === 'seg' ? 'Repetido dentro del seguro (uno ya está vinculado a Kine)' : par.exacto ? 'En Kine y en el seguro con el mismo nombre' : 'En Kine figura como «' + e(par.e.nombre || '') + '»'}</span></div><button type="button" class="btn sec chico" data-acc="unirRepetido" data-rinf="${e(inf.id)}" data-i="${i}">Unir (cuenta 1)</button></div>`).join('')}</div>
       ${filas.filter((f) => f.par.k === 'seg' || f.par.exacto).length > 1 ? `<button type="button" class="btn chico" data-acc="unirRepetidosTodos" style="margin-top:8px">Unir todos los idénticos (${filas.filter((f) => f.par.k === 'seg' || f.par.exacto).length})</button><p class="suave" style="margin:6px 0 0">«Idénticos» = mismo nombre, tipo y fecha. Los que tienen otro nombre se unen uno por uno.</p>` : ''}</div>`;
   };
-  K.desvincularSeguro = (inf, evId) => { inf.segEventos = (inf.segEventos || []).filter((x) => x.evId !== evId); };
+  K.desvincularSeguro = (inf, evId) => { inf.segEventos = (inf.segEventos || []).filter((x) => x.evId !== evId); const ev = (inf.eventos || []).find((x) => x.id === evId); if (ev) delete ev.nAsist; };
   K.activacionesJugador = (inf, jid) => activacionesDe(inf, jid).slice().sort((a, b) => (b.activacion || '').localeCompare(a.activacion || ''));
   const evsDe = (inf, s) => { const primera = activacionesDe(inf, s.jugadorId)[0]; return (inf.segEventos || []).filter((x) => x.jugadorId === s.jugadorId && !x.sinAct && (x.seguroId ? x.seguroId === s.id : primera && primera.id === s.id)); };
   const uniq = (arr) => Array.from(new Set(arr.filter(Boolean)));
@@ -83,7 +83,10 @@
     return t.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + t.slice(-1);
   };
   K.formatoRut = fmtRut;
-  const ss = () => { const s = K.kineEstado(); if (s.segAnio === undefined) s.segAnio = 'todo'; return s; };
+  const ss = () => { const s = K.kineEstado(); if (s.segAnio === undefined) s.segAnio = 'todo'; if (s.segCat === undefined) s.segCat = ''; return s; };
+  // v1.9.13: filtro por categoría de la pestaña Seguro ('' = todas). La categoría es la del jugador (Sub 15, 16, 18, 20).
+  const catJ = (jid) => String((K.kineBuscarJ(jid) || { cat: 0 }).cat || '');
+  const catOk = (jid) => { const c = ss().segCat; return !c || catJ(jid) === c; };
 
   /* ---------- Ingreso al seguro ---------- */
   function formIngreso(sid, pre) {
@@ -224,24 +227,31 @@
   /* ---------- Eventos del seguro ---------- */
   // Evento del seguro vinculado a un registro de Kine: se edita en Kine; aquí solo se marca si fue en la urgencia o se quita del seguro.
   function formVinculado(r, x) {
-    const inf = r.inf, ev = inf.eventos.find((q) => q.id === x.evId), j = K.jugador(inf, x.jugadorId);
+    const inf = r.inf, ev = inf.eventos.find((q) => q.id === x.evId), j = K.jugador(inf, x.jugadorId), act = r.s;
     K.modal({
       titulo: 'Combinado con Kine · ' + (TIPO_VINC[ev.tipo] || ''),
       cuerpo: `<p><b>${e(ev.nombre || TIPO_VINC[ev.tipo])}</b> · ${e(fc(ev.fecha))}${ev.centro ? ' · ' + e(ev.centro) : ''}${ev.medico ? ' · ' + e(ev.medico) : ''}${ev.tipo === 'examen' && ev.resultado ? '<br>Resultado: ' + e(ev.resultado) : ''}</p>
-        <p class="suave">Este registro está hecho por el seguro y ya está en Kine: se cuenta una sola vez. Para cambiar sus datos, edítalo en Kine.</p>
-        ${ev.tipo === 'examen' || ev.tipo === 'procedimiento' ? `<label class="check"><input type="checkbox" name="urgChk"${x.urg || x.deUrg ? ' checked' : ''}><span>Fue en la urgencia de esta activación</span></label>` : ''}`,
+        <label class="campo"><span>N.º de asistencia del seguro para este ${e((TIPO_VINC[ev.tipo] || 'registro').toLowerCase())}</span><input type="text" name="nAsist" value="${e(x.nAsist || ev.nAsist || '')}" autocomplete="off" placeholder="El número que te dio el seguro"></label>
+        <p class="suave" style="margin:0 0 8px">Este registro está en Kine y en el seguro a la vez: se cuenta <b>una sola vez</b>. El N.º de asistencia se escribe aquí (o al editarlo en Kine) y queda igual en los dos lados. Los demás datos (fecha, centro, médico, resultado) se cambian con «Editar en Kine».</p>
+        ${ev.tipo === 'examen' || ev.tipo === 'procedimiento' ? `<label class="check"><input type="checkbox" name="urgChk"${x.urg || x.deUrg ? ' checked' : ''}><span>Fue en la sala de urgencia de esta activación${act && act.activacion ? ' (' + e(fc(act.activacion)) + ')' : ''}</span></label>` : ''}`,
       botones: [
         { txt: 'Quitar del seguro', cls: 'peligro', fn: () => { K.confirmar('¿Quitar este registro del seguro? El registro de Kine se mantiene.', 'Quitar', () => { K.desvincularSeguro(inf, ev.id); K.guardar(); K.aviso('Quitado del seguro'); K.render(); }); return true; } },
         { txt: 'Editar en Kine', cls: 'sec', fn: () => { setTimeout(() => K.enInforme(inf, j, () => K.formEvento(ev.tipo, { rec: ev })), 240); } },
-        { txt: 'Guardar', fn: (m, hoja) => { const c = hoja.querySelector('[name=urgChk]'); if (c) { delete x.urg; delete x.deUrg; if (c.checked) { if (ev.tipo === 'examen') x.urg = true; else x.deUrg = true; } } K.guardar(); K.aviso('Guardado'); K.render(); } }
+        { txt: 'Guardar', fn: (m, hoja) => {
+          const c = hoja.querySelector('[name=urgChk]'), n = (hoja.querySelector('[name=nAsist]').value || '').trim().slice(0, 40);
+          if (c) { delete x.urg; delete x.deUrg; if (c.checked) { if (ev.tipo === 'examen') x.urg = true; else x.deUrg = true; } }
+          x.nAsist = n; if (n) ev.nAsist = n; else delete ev.nAsist;
+          K.guardar(); K.aviso('Guardado'); K.render();
+        } }
       ]
     });
   }
-  function formEvento(sid, rec) {
+  function formEvento(sid, rec, opt) {
+    opt = opt || {};
     const r = segPorId(sid); if (!r) return;
     const inf = r.inf, jid = r.s.jugadorId, j = K.jugador(inf, jid);
     if (rec && rec.evId && (inf.eventos || []).some((x) => x.id === rec.evId)) return formVinculado(r, rec);
-    const tipo0 = rec ? rec.tipo : 'control';
+    const tipo0 = rec ? rec.tipo : opt.urg ? 'examen' : 'control';
     const cand = rec ? [] : candidatosVinc(inf, jid, sid);
     const exSug = K.EV.examen.sug, exEsta = rec && rec.tipo === 'examen' && exSug.includes(rec.detalle);
     const casos = inf.casos.filter((c) => c.jugadorId === jid).sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''));
@@ -261,24 +271,23 @@
         <div data-blq="centro" class="${tipo0 === 'control' || tipo0 === 'examen' ? '' : 'oculto'}">${K.campoLista('centro', 'Centro médico donde fue', 'centro', rec ? rec.centro : '')}${K.campoLista('medico', 'Médico con quien se vio', 'medico', rec ? rec.medico : '')}</div>
         <div data-blq="centroKine" class="${tipo0 === 'kinesiologia' ? '' : 'oculto'}">${K.campoLista('centroKine', 'Centro kinésico', 'centroKine', rec ? rec.centroKine : '')}</div>
         <label class="campo" data-blq="detalle"><span data-lbl>Detalle</span><input type="text" name="detalle" list="dl-segdet" value="${e(rec && !(rec.tipo === 'examen' && exEsta) ? rec.detalle || '' : '')}" autocomplete="off"><datalist id="dl-segdet"></datalist></label>
-        <div class="grid2">
-          <label class="campo"><span>N.º de asistencia del seguro</span><input type="text" name="nAsist" value="${e(rec ? rec.nAsist || '' : '')}" autocomplete="off"></label>
-          <label class="campo" data-blq="cantidad"><span>Cantidad de sesiones</span><input type="number" inputmode="numeric" min="1" name="cantidad" value="${e(rec ? rec.cantidad || 1 : 1)}"></label>
-        </div>
+        <label class="campo" data-blq="cantidad"><span>Cantidad de sesiones</span><input type="number" inputmode="numeric" min="1" name="cantidad" value="${e(rec ? rec.cantidad || 1 : 1)}"></label>
         <label class="campo oculto" data-blq="hasta"><span>Hasta (si fueron varios días)</span><input type="date" name="hasta" value="${rec ? e(rec.hasta || '') : ''}"></label>
         <label class="campo"><span>Lesión asociada (opcional)</span><select name="casoId"><option value="">—</option>${casos.map((c) => `<option value="${c.id}"${rec && rec.casoId === c.id ? ' selected' : ''}>${e(c.titulo)}${c.inicio ? ' · ' + e(fc(c.inicio)) : ''}</option>`).join('')}</select></label>
         <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>
         </div>
-        <label class="check oculto" data-blq="urg"><input type="checkbox" name="urgChk"${rec && (rec.urg || rec.deUrg) ? ' checked' : ''}><span>Fue en la urgencia de esta activación (${e(fc(r.s.activacion || ''))})</span></label>`,
+        <label class="campo"><span>N.º de asistencia del seguro</span><input type="text" name="nAsist" value="${e(rec ? rec.nAsist || '' : '')}" autocomplete="off" placeholder="El número que te dio el seguro"></label>
+        <p class="suave" style="margin:-4px 0 8px;font-size:13px">Si es por <b>continuidad de tratamiento</b>, el seguro te da un N.º de asistencia nuevo para este control, examen o procedimiento: anótalo aquí. Si aún no lo tienes, déjalo vacío y lo completas después.</p>
+        <label class="check oculto" data-blq="urg"><input type="checkbox" name="urgChk"${rec && (rec.urg || rec.deUrg) || (!rec && opt.urg) ? ' checked' : ''}><span>Fue dentro de la sala de urgencia de esta activación (${e(fc(r.s.activacion || ''))}), sin N.º de asistencia propio</span></label>`,
       botones: [
         rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.confirmar('¿Eliminar este evento?', 'Eliminar', () => { inf.segEventos = inf.segEventos.filter((x) => x.id !== rec.id); K.guardar(); K.aviso('Eliminado'); K.render(); }); return true; } } : { txt: 'Cancelar', cls: 'sec' },
         {
           txt: 'Guardar',
           fn: (m, hoja) => {
             const d = K.datos(hoja), tipo = d.tipo, enUrg = !!(hoja.querySelector('[name=urgChk]') || {}).checked;
-            if (!rec && d.evId) { K.vincularSeguro(inf, r.s, d.evId, enUrg); K.guardar(); K.aviso('Combinado con el registro de Kine'); K.render(); return; }
+            if (!rec && d.evId) { const rg = K.vincularSeguro(inf, r.s, d.evId, enUrg), nA = (d.nAsist || '').trim().slice(0, 40), evK = inf.eventos.find((q) => q.id === d.evId); if (rg && nA) { rg.nAsist = nA; if (evK) evK.nAsist = nA; } K.guardar(); K.aviso('Combinado con el registro de Kine'); K.render(); return; }
             const detalle = tipo === 'examen' && d.exSel !== '__otro' ? d.exSel : (d.detalle || '').trim();
-            const campos = { jugadorId: jid, seguroId: sid, tipo, fecha: d.fecha, detalle, nAsist: (d.nAsist || '').trim(), cantidad: tipo === 'kinesiologia' ? Math.max(1, Number(d.cantidad) || 1) : 1, hasta: tipo === 'hosp' ? d.hasta || '' : '', casoId: d.casoId || '', notas: d.notas };
+            const campos = { jugadorId: jid, seguroId: sid, tipo, fecha: d.fecha, detalle, nAsist: (d.nAsist || '').trim().slice(0, 40), cantidad: tipo === 'kinesiologia' ? Math.max(1, Number(d.cantidad) || 1) : 1, hasta: tipo === 'hosp' ? d.hasta || '' : '', casoId: d.casoId || '', notas: d.notas };
             if (!campos.fecha) { K.aviso('Pon la fecha', true); return false; }
             inf.segEventos = inf.segEventos || [];
             const resultado = tipo === 'examen' ? (d.resultado || '').trim() : '';
@@ -315,7 +324,7 @@
   }
 
   /* ---------- Hospitalización sin activación del seguro (v1.9.7) ---------- */
-  const hospSolas = () => todos('segEventos').filter((r) => r.x.sinAct && r.x.tipo === 'hosp');
+  const hospSolas = () => todos('segEventos').filter((r) => r.x.sinAct && r.x.tipo === 'hosp' && catOk(r.x.jugadorId));
   function formHosp(id) {
     const ya = id ? hospSolas().find((r) => r.x.id === id) : null, rec = ya ? ya.x : null;
     const js = K.kineJugadores(!!ya);
@@ -367,10 +376,13 @@
 
   /* ---------- Pantalla Seguro ---------- */
   // La urgencia (la activación misma) es el primer evento de cada activación.
-  const urgFila = (s, exU) => `<div class="item seg-ev" data-acc="segEditar" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL.urgencia}"></span><div class="txt"><b>Urgencia · activación del seguro${s.clinica ? ' · ' + e(s.clinica) : ''}</b><span>${s.activacion ? e(fc(s.activacion)) : 'sin fecha'} · ${s.nClinica ? 'N.º asistencia ' + e(s.nClinica) : 'sin N.º de asistencia'}</span>${exU && exU.length ? `<span>Exámenes de la urgencia: ${exU.map((x) => e(x.detalle) + (x.resultado ? ' (' + e(x.resultado) + ')' : '')).join(' · ')}</span>` : ''}</div></div>`;
+  const asistTxt = (n) => (n ? 'N.º asistencia ' + e(n) : '<em class="seg-falta">sin N.º de asistencia</em>');
+  const urgFila = (s) => `<div class="item seg-ev" data-acc="segEditar" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL.urgencia}"></span><div class="txt"><b>Urgencia · activación del seguro${s.clinica ? ' · ' + e(s.clinica) : ''}</b><span>${s.activacion ? e(fc(s.activacion)) : 'sin fecha'} · ${asistTxt(s.nClinica)}</span></div></div>`;
+  const evFila = (x, sid) => `<div class="item seg-ev" data-acc="segEvEditar" data-id="${x.id}" data-sid="${sid}"><span class="kc-pto" style="background:${TIPO_COL[x.tipo]}"></span><div class="txt"><b>${e(TIPO_TXT[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'examen' && x.resultado ? ' — ' + e(x.resultado) : ''}${x.tipo === 'kinesiologia' && (Number(x.cantidad) || 1) > 1 ? ' (' + x.cantidad + ' sesiones)' : ''}</b><span>${x.urg || x.deUrg ? 'De la urgencia · ' : ''}${x.evId ? 'Combinado con Kine · ' : ''}${e(fc(x.fecha))}${x.hasta ? ' al ' + e(fc(x.hasta)) : ''}${x.centro || x.centroKine ? ' · ' + e(x.centro || x.centroKine) : ''}${x.medico ? ' · ' + e(x.medico) : ''} · ${asistTxt(x.nAsist)}</span></div></div>`;
   function tarjetaSeg(inf, s) {
     const j = K.jugador(inf, s.jugadorId); if (!j) return '';
     const evsT = evsDe(inf, s).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')), exU = evsT.filter((x) => x.urg && x.tipo === 'examen'), evs = evsT.filter((x) => !(x.urg && x.tipo === 'examen')); // los exámenes de la urgencia son parte de la urgencia, no eventos nuevos
+    const enUrg = evsT.filter((x) => x.urg || x.deUrg), cont = evsT.filter((x) => !(x.urg || x.deUrg)); // v1.9.13: sala de urgencia (la activación y lo que se hizo ahí) y continuidad de tratamiento (cada uno con su N.º de asistencia)
     const abierto = !!(ss().segAbierto || {})[s.id], cat = e(j.categoria || 'Sub ' + K.kineCatDe(j, inf));
     const nEv = evs.length + 1; // la urgencia (la activación) también es un evento
     if (!abierto) return `<button type="button" class="seg-mini" data-acc="segToggle" data-sid="${s.id}" aria-expanded="false"><span class="txt"><b>${e(j.nombre)}</b><span>${cat} · ${e(s.diagnostico || 'sin diagnóstico')}</span></span><em>${nEv} evento${nEv === 1 ? '' : 's'}</em><i class="seg-flecha">${K.uiIco('abajo', 18)}</i></button>`;
@@ -379,8 +391,10 @@
         <button class="btn ghost chico" data-acc="segEditar" data-sid="${s.id}">${K.uiIco('editar', 16)} Datos</button><i class="seg-flecha">${K.uiIco('arriba', 18)}</i></div>
       <dl class="seg-datos"><div style="grid-column:1/-1"><dt>Diagnóstico</dt><dd>${e(s.diagnostico || '—')}</dd></div><div><dt>RUT</dt><dd>${e(fmtRut(s.rut) || '—')}</dd></div><div><dt>Nacimiento</dt><dd>${s.fechaNac ? e(fc(s.fechaNac)) : '—'}</dd></div><div><dt>Comuna</dt><dd>${e(s.comuna || '—')}</dd></div>
         <div><dt>Activación</dt><dd>${s.activacion ? e(fc(s.activacion)) : '—'}</dd></div><div><dt>Clínica</dt><dd>${e(s.clinica || '—')}${s.nClinica ? ' · N.º ' + e(s.nClinica) : ''}</dd></div>${s.pais ? `<div><dt>Ciudad o país</dt><dd>${e(s.pais)}</dd></div>` : ''}${s.cobertura ? `<div><dt>Cobertura</dt><dd>${e(s.cobertura === 'Club' ? 'Seguro del club' : 'Seguro de viaje')}</dd></div>` : ''}${s.poliza ? `<div><dt>Póliza</dt><dd>${e(s.poliza)}</dd></div>` : ''}</dl>
-      <div class="fila sb" style="margin:8px 0 2px"><b style="font-size:13.5px">Eventos (${nEv})</b><button class="btn chico" data-acc="segEvento" data-sid="${s.id}">${K.uiIco('mas', 16)} Evento</button></div>
-      <div class="lista">${evs.map((x) => `<div class="item seg-ev" data-acc="segEvEditar" data-id="${x.id}" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL[x.tipo]}"></span><div class="txt"><b>${e(TIPO_TXT[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'examen' && x.resultado ? ' — ' + e(x.resultado) : ''}${x.tipo === 'kinesiologia' && (Number(x.cantidad) || 1) > 1 ? ' (' + x.cantidad + ' sesiones)' : ''}</b><span>${x.deUrg ? 'De la urgencia · ' : ''}${x.evId ? 'Combinado con Kine · ' : ''}${e(fc(x.fecha))}${x.hasta ? ' al ' + e(fc(x.hasta)) : ''}${x.centro || x.centroKine ? ' · ' + e(x.centro || x.centroKine) : ''}${x.medico ? ' · ' + e(x.medico) : ''} · ${x.nAsist ? 'N.º asistencia ' + e(x.nAsist) : 'sin N.º de asistencia'}</span></div></div>`).join('')}${urgFila(s, exU)}</div>
+      <div class="seg-sec"><div class="fila sb wrap gap"><b>Sala de urgencia</b><button class="btn sec chico" data-acc="segEventoUrg" data-sid="${s.id}">${K.uiIco('mas', 16)} Agregar a la urgencia</button></div>
+        <div class="lista">${urgFila(s)}${enUrg.map((x) => evFila(x, s.id)).join('')}</div></div>
+      <div class="seg-sec"><div class="fila sb wrap gap"><b>Continuidad de tratamiento (${cont.length})</b><button class="btn chico" data-acc="segEvento" data-sid="${s.id}">${K.uiIco('mas', 16)} Evento</button></div>
+        ${cont.length ? `<div class="lista">${cont.map((x) => evFila(x, s.id)).join('')}</div>` : '<p class="vacio-msg" style="margin:6px 0 0">Aún no hay controles, exámenes ni procedimientos de continuidad. Cuando coordines uno con el seguro, agrégalo aquí con su N.º de asistencia.</p>'}</div>
     </div>`;
   }
 
@@ -388,8 +402,8 @@
     const { hbar, donut, panel, top, sumar, mensual } = K.bd;
     const s = ss(), anios = uniq(todos('segEventos').map((r) => (r.x.fecha || '').slice(0, 4))).sort();
     const f = (x) => s.segAnio === 'todo' || (x.fecha || '').slice(0, 4) === s.segAnio;
-    const evs = todos('segEventos').filter((r) => f(r.x)).map((r) => r.x);
-    const segs = todos('seguros'), nombre = (jid) => (K.kineBuscarJ(jid) || { j: { nombre: '—' } }).j.nombre;
+    const evs = todos('segEventos').filter((r) => f(r.x) && catOk(r.x.jugadorId)).map((r) => r.x);
+    const segs = todos('seguros').filter((r) => catOk(r.x.jugadorId)), nombre = (jid) => (K.kineBuscarJ(jid) || { j: { nombre: '—' } }).j.nombre;
     const sel = `<label class="campo" style="max-width:240px"><span>Período</span><select data-acc-change="segAnio"><option value="todo">Todo el historial</option>${anios.map((a) => `<option value="${a}"${s.segAnio === a ? ' selected' : ''}>Año ${a}</option>`).join('')}</select></label>`;
     if (!segs.length && !evs.length) return `<div class="card"><h2>Uso del seguro</h2><p class="vacio-msg">Cuando registres activaciones y eventos del seguro, aquí aparecerán las estadísticas.</p></div>`;
     const segsP = segs.filter((r) => s.segAnio === 'todo' || (r.x.activacion || '').slice(0, 4) === s.segAnio), ini = segsP.length; // urgencias (activaciones) del período
@@ -425,15 +439,20 @@
   K.seguroEditar = (sid) => formIngreso(sid);
   K.seguroNuevo = (pre) => formIngreso('', pre); // desde la ficha de un torneo: país, cobertura y fecha ya puestos
   K.kineSeguroHTML = function () {
-    const lista = todos('seguros').map((r) => ({ inf: r.inf, s: r.x, cat: (K.kineBuscarJ(r.x.jugadorId) || { cat: 0 }).cat }))
+    const todas = todos('seguros').map((r) => ({ inf: r.inf, s: r.x, cat: (K.kineBuscarJ(r.x.jugadorId) || { cat: 0 }).cat }));
+    const st = ss(), cuenta = {}; todas.forEach((x) => { cuenta[String(x.cat)] = (cuenta[String(x.cat)] || 0) + 1; });
+    const cats = ['15', '16', '18', '20'].concat(Object.keys(cuenta).filter((c) => c && c !== '0' && !['15', '16', '18', '20'].includes(c)).sort());
+    if (st.segCat && !cats.includes(st.segCat)) st.segCat = '';
+    const lista = todas.filter((x) => !st.segCat || String(x.cat) === st.segCat)
       .sort((a, b) => b.cat - a.cat || ((K.jugador(a.inf, a.s.jugadorId) || { nombre: '' }).nombre).localeCompare((K.jugador(b.inf, b.s.jugadorId) || { nombre: '' }).nombre, 'es') || (a.s.activacion || '').localeCompare(b.s.activacion || ''));
-    return `<div class="card"><div class="fila sb wrap gap"><h2 style="margin:0">Activaciones del seguro <span class="suave" style="font-weight:400">(${lista.length})</span></h2><div class="fila gap wrap"><button class="btn sec chico" data-acc="segInforme">${K.uiIco('pdf', 16)} Informe del seguro (PDF)</button><button class="btn chico" data-acc="segNuevo">${K.uiIco('mas', 16)} Nueva activación</button></div></div>
-      <p class="sub" style="margin-top:6px">Cada vez que se activa el seguro de un jugador es una <b>activación</b> (con su diagnóstico, clínica y N.º de asistencia); un mismo jugador puede tener varias. Aquí van los datos que pide el seguro y los eventos (controles, exámenes, procedimientos, sesiones de kinesiología…) con su N.º de asistencia. Son privados: solo los administradores los ven.</p>
-      ${lista.length ? lista.map((x) => tarjetaSeg(x.inf, x.s)).join('') : '<p class="vacio-msg">Aún no hay activaciones del seguro.</p>'}</div>
+    const capsulas = `<div class="tabs seg-cats" role="group" aria-label="Filtrar por categoría"><button type="button" class="${st.segCat ? '' : 'act'}" data-acc="segCat" data-scat="" aria-pressed="${!st.segCat}">Todas · ${todas.length}</button>${cats.map((c) => `<button type="button" class="${st.segCat === c ? 'act' : ''}" data-acc="segCat" data-scat="${c}" aria-pressed="${st.segCat === c}">Sub ${c} · ${cuenta[c] || 0}</button>`).join('')}</div>`;
+    return `<div class="card"><div class="fila sb wrap gap"><h2 style="margin:0">Activaciones del seguro <span class="suave" style="font-weight:400">(${lista.length}${st.segCat ? ' de ' + todas.length : ''})</span></h2><div class="fila gap wrap"><button class="btn sec chico" data-acc="segInforme">${K.uiIco('pdf', 16)} Informe del seguro (PDF)</button></div></div>
+      <p class="sub" style="margin-top:6px">Cada vez que se activa el seguro de un jugador es una <b>activación</b> (con su diagnóstico, clínica y N.º de asistencia); un mismo jugador puede tener varias. Dentro de cada una van la <b>sala de urgencia</b> y la <b>continuidad de tratamiento</b> (controles, exámenes, procedimientos, sesiones de kinesiología…), cada uno con su N.º de asistencia. Para crear una activación nueva usa el botón verde de arriba a la derecha. Son privados: solo los administradores los ven.</p>
+      ${capsulas}
+      ${lista.length ? lista.map((x) => tarjetaSeg(x.inf, x.s)).join('') : `<p class="vacio-msg">${st.segCat ? 'No hay activaciones de Sub ' + e(st.segCat) + '.' : 'Aún no hay activaciones del seguro.'}</p>`}</div>
       ${tarjetaHosp()}
       ${estadisticas()}`;
   };
-
   /* ---------- Calendario anual de asistencia ---------- */
   const AC = {
     cirugia: ['Cirugía', '#1f2937'], hosp: ['Hospitalización', '#b3202a'], urg: ['Urgencia (seguro)', '#e0245e'], examen: ['Examen', '#f08a24'], control: ['Control', '#7b4fb8'], proc: ['Otro procedimiento', '#c2479b'],
@@ -609,8 +628,10 @@
     segToggle(el, ev) { if (ev && ev.target.closest('[data-acc=segEditar]')) return; const st = ss(); st.segAbierto = st.segAbierto || {}; st.segAbierto[el.dataset.sid] = !st.segAbierto[el.dataset.sid]; K.render(); },
     segEditar(el, ev) { if (ev) ev.stopPropagation(); formIngreso(el.dataset.sid); },
     segEvento(el) { formEvento(el.dataset.sid); },
+    segEventoUrg(el) { formEvento(el.dataset.sid, null, { urg: true }); },
     segEvEditar(el) { const r = todos('segEventos').find((q) => q.x.id === el.dataset.id); if (r) formEvento(el.dataset.sid, r.x); },
     segAnio(el) { ss().segAnio = el.value; K.render(); },
+    segCat(el) { ss().segCat = el.dataset.scat || ''; K.render(); },
     anualJ(el) { K.kineEstado().anualJ = el.value; K.render(); },
     anualAnio(el) { K.kineEstado().anualAnio = el.value; K.render(); }
   });
