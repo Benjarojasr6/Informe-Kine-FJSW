@@ -143,6 +143,9 @@
       <li><b>Seguro en el exterior:</b> al registrar una activación del seguro puedes anotar la ciudad o país, la cobertura (seguro del club o de viaje) y la póliza. En la pestaña Viaje del torneo se ven las activaciones de los inscritos durante el torneo.</li>
       <li><b>Renombrar o eliminar:</b> si cambias el nombre del torneo se actualiza en todos sus partidos. Al eliminarlo, los partidos <b>no se borran</b>: quedan sin torneo (hay un aviso para <b>Deshacer</b>).</li>
       <li><b>Lo que ya tenías:</b> los partidos que antes tenían un torneo escrito se ordenaron solos en fichas de torneo; los informes salen igual que antes.</li></ul>`],
+    ['Novedades de la versión 1.9.15', `<ul>
+      <li><b>«Interno (médico del club)»:</b> al registrar un control, examen, procedimiento o cirugía, la pregunta «¿Se hizo por el seguro o es particular?» ahora también tiene la opción <b>Interno (médico del club)</b>. Queda anotado en el historial y no se ofrece unirlo con el seguro.</li>
+    </ul>`],
     ['Novedades de la versión 1.9.14', `<ul>
       <li><b>Lo que se hace dentro de la sala de urgencia ya no pide N.º de asistencia:</b> un examen o procedimiento de la urgencia usa el N.º de la urgencia, así que en la tarjeta dice «mismo N.º de la urgencia» (en vez de «sin N.º de asistencia» en rojo).</li>
     </ul>`],

@@ -83,7 +83,7 @@
     (inf.eventos || []).forEach((x) => {
       if (x.jugadorId !== jid || !K.evRealizado(x)) return;
       const en = K.bit.entEvento(inf, x), c = x.casoId ? porId.get(x.casoId) : null;
-      const sub = [x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : '', priv && ((inf.segEventos || []).some((q) => q.evId === x.id) || x.porSeguro) ? 'por el seguro' : ''].filter(Boolean).join(' · ');
+      const sub = [x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : '', priv && ((inf.segEventos || []).some((q) => q.evId === x.id) || x.porSeguro) ? 'por el seguro' : x.interno ? 'interno (médico del club)' : ''].filter(Boolean).join(' · ');
       items.push(nuevo({ id: 'e' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: x.tipo, tag: en.tag, cls: 'ev', titulo: en.titulo, sub, det: en.det, notas: en.notas, raw: x, edit: 'evento' }, c ? { casoId: c.id, zonas: (c.zonas || []).slice() } : null));
     });
     // ---- seguro (solo si puede ver datos privados)

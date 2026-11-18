@@ -606,6 +606,7 @@
               const act = d.segId && d.segId !== '__seg' ? (inf.seguros || []).find((x) => x.id === d.segId && x.jugadorId === reg.jugadorId) : null;
               (inf.segEventos || []).filter((x) => x.evId === reg.id && (!act || x.seguroId !== act.id)).forEach((x) => { inf.segEventos = inf.segEventos.filter((q) => q !== x); });
               const nA = ((hoja.querySelector('[name=segAsist]') || {}).value || '').trim().slice(0, 40);
+              if (d.segId === '__int') reg.interno = true; else delete reg.interno; // atendido por el médico del club (no es particular ni del seguro)
               if (act) { const sr = K.vincularSeguro(inf, act, reg.id, !!(hoja.querySelector('[name=segUrg]') || {}).checked); delete reg.porSeguro; if (nA) reg.nAsist = nA; else delete reg.nAsist; if (sr) sr.nAsist = nA; }
               else if (d.segId === '__seg') { reg.porSeguro = true; if (nA) reg.nAsist = nA; else delete reg.nAsist; } // del seguro, pero aún sin activación: queda marcado para cuando se cree
               else { delete reg.porSeguro; delete reg.nAsist; }
@@ -621,13 +622,14 @@
         const bl = hoja.querySelector('[data-seg-bloque]'), segS = hoja.querySelector('[name=segId]'), segU = hoja.querySelector('[data-seg-urg]');
         function pintarSeg() {
           if (!bl) return;
-          const acts = K.activacionesJugador(inf, selJ.value), lig = rec ? (inf.segEventos || []).find((x) => x.evId === rec.id) : null, ya = segS.value || (lig && selJ.value === rec.jugadorId ? lig.seguroId : '');
-          const ya2 = ya || (rec && rec.porSeguro && selJ.value === rec.jugadorId ? '__seg' : '');
-          segS.innerHTML = '<option value="">Particular (no es del seguro)</option><option value="__seg">Por el seguro' + (acts.length ? ' (sin elegir activación)' : ' (aún sin activación)') + '</option>' + acts.map((a) => `<option value="${e(a.id)}">Por el seguro · ${e(a.diagnostico || 'Activación')}${a.activacion ? ' · ' + e(K.fechaCorta(a.activacion)) : ''}</option>`).join('');
-          segS.value = acts.some((a) => a.id === ya2) || ya2 === '__seg' ? ya2 : '';
+          const inicial = !segS.dataset.pintado; segS.dataset.pintado = '1'; // los valores del registro solo se usan al abrir; si después eliges «Particular» se respeta
+          const acts = K.activacionesJugador(inf, selJ.value), lig = rec ? (inf.segEventos || []).find((x) => x.evId === rec.id) : null, ya = segS.value || (inicial && lig && selJ.value === rec.jugadorId ? lig.seguroId : '');
+          const ya2 = ya || (inicial && rec && rec.porSeguro && selJ.value === rec.jugadorId ? '__seg' : inicial && rec && rec.interno && selJ.value === rec.jugadorId ? '__int' : '');
+          segS.innerHTML = '<option value="">Particular (no es del seguro)</option><option value="__int">Interno (médico del club)</option><option value="__seg">Por el seguro' + (acts.length ? ' (sin elegir activación)' : ' (aún sin activación)') + '</option>' + acts.map((a) => `<option value="${e(a.id)}">Por el seguro · ${e(a.diagnostico || 'Activación')}${a.activacion ? ' · ' + e(K.fechaCorta(a.activacion)) : ''}</option>`).join('');
+          segS.value = acts.some((a) => a.id === ya2) || ya2 === '__seg' || ya2 === '__int' ? ya2 : '';
           if (lig && !segU.dataset.listo) { segU.querySelector('input').checked = !!(lig.urg || lig.deUrg); segU.dataset.listo = '1'; }
-          segU.classList.toggle('oculto', !segS.value || segS.value === '__seg' || !['examen', 'procedimiento'].includes(tipo));
-          const sa = hoja.querySelector('[data-seg-asist]'); if (sa) sa.classList.toggle('oculto', !segS.value);
+          segU.classList.toggle('oculto', !segS.value || segS.value === '__seg' || segS.value === '__int' || !['examen', 'procedimiento'].includes(tipo));
+          const sa = hoja.querySelector('[data-seg-asist]'); if (sa) sa.classList.toggle('oculto', !segS.value || segS.value === '__int');
         }
         if (bl) { segS.addEventListener('change', pintarSeg); pintarSeg(); }
       }

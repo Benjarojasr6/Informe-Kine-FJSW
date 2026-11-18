@@ -18,13 +18,13 @@
   const activacionesDe = (inf, jid) => (inf.seguros || []).filter((x) => x.jugadorId === jid);
   // v1.9.10: registros de Kine (control, examen, procedimiento) que se pueden vincular a una activación del seguro: los del jugador que no están vinculados a otra activación
   const TIPO_VINC = { control: 'Control', examen: 'Examen', procedimiento: 'Procedimiento', cirugia: 'Cirugía' };
-  const candidatosVinc = (inf, jid, sid) => (inf.eventos || []).filter((x) => x.jugadorId === jid && TIPO_VINC[x.tipo] && !(inf.segEventos || []).some((q) => q.evId === x.id && q.seguroId !== sid)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  const candidatosVinc = (inf, jid, sid) => (inf.eventos || []).filter((x) => x.jugadorId === jid && TIPO_VINC[x.tipo] && !x.interno && !(inf.segEventos || []).some((q) => q.evId === x.id && q.seguroId !== sid)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   K.vincularSeguro = (inf, act, evId, enUrg) => { // crea (o actualiza) el evento del seguro que representa a ese registro de Kine
     const ev = (inf.eventos || []).find((x) => x.id === evId); if (!ev || !act) return null;
     inf.segEventos = inf.segEventos || [];
     let reg = inf.segEventos.find((x) => x.evId === evId && x.seguroId === act.id);
     if (!reg) { reg = { id: K.uid(), nAsist: '', hasta: '', seguroId: act.id, evId }; inf.segEventos.push(reg); }
-    Object.assign(reg, { jugadorId: act.jugadorId, tipo: ev.tipo }); delete reg.urg; delete reg.deUrg;
+    Object.assign(reg, { jugadorId: act.jugadorId, tipo: ev.tipo }); delete reg.urg; delete reg.deUrg; delete ev.interno;
     if (enUrg) { if (ev.tipo === 'examen') reg.urg = true; else reg.deUrg = true; }
     K.sincSegEv(inf); return reg;
   };
@@ -38,7 +38,7 @@
     segs.filter((x) => !x.evId).forEach((x) => { const y = segs.find((q) => q.evId && q.jugadorId === x.jugadorId && q.tipo === x.tipo && q.fecha === x.fecha && nrm(q.detalle) === nrm(x.detalle) && !usados.has(q)); if (y) { usados.add(x); pares.push({ k: 'seg', x, y }); } });
     // 2) seguro suelto ↔ registro de Kine (mismo nombre = seguro; otro nombre el mismo día = posible)
     segs.filter((x) => !x.evId && !usados.has(x)).forEach((x) => {
-      const mios = (inf.eventos || []).filter((e) => e.tipo === x.tipo && e.jugadorId === x.jugadorId && e.fecha === x.fecha && !ligados.has(e.id));
+      const mios = (inf.eventos || []).filter((e) => e.tipo === x.tipo && e.jugadorId === x.jugadorId && e.fecha === x.fecha && !e.interno && !ligados.has(e.id));
       const e = mios.find((q) => nrm(q.nombre) === nrm(x.detalle)) || (mios.length === 1 && !segs.some((q) => q !== x && !q.evId && q.tipo === x.tipo && q.jugadorId === x.jugadorId && q.fecha === x.fecha) ? mios[0] : null);
       if (e) { ligados.add(e.id); usados.add(x); pares.push({ k: 'kine', x, e, exacto: nrm(e.nombre) === nrm(x.detalle) }); }
     });
