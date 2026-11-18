@@ -205,7 +205,7 @@
       cuerpo: `
         <div class="fila gap" style="margin-bottom:12px"><span class="avatar" style="width:64px;height:64px" data-prev>${foto ? `<img src="${foto}" alt="">` : e(iniciales(rec ? rec.nombre : '+'))}</span>
           <div><label class="btn sec chico" style="cursor:pointer">${K.uiIco('camara', 16)} Subir foto<input type="file" accept="image/*" hidden data-foto></label>
-          <button type="button" class="btn ghost chico" data-sinfoto>Quitar</button><div class="suave">${K.rol === 'admin' ? 'Se guarda en la nube y la ve el otro kinesiólogo.' : 'Se guarda solo en este dispositivo.'}</div></div></div>
+          <button type="button" class="btn sec chico${foto ? '' : ' oculto'}" data-editfoto>Editar foto</button> <button type="button" class="btn ghost chico" data-sinfoto>Quitar</button><div class="suave">${K.rol === 'admin' ? 'Se guarda en la nube y la ve el otro kinesiólogo.' : 'Se guarda solo en este dispositivo.'}</div></div></div>
         ${viejo ? '<div class="aviso">Este jugador se guardó con el nombre en un solo campo. Completa sus <b>apellidos</b> cuando puedas (por ahora no es obligatorio).</div>' : ''}
         <label class="campo"><span>Nombres</span><input type="text" name="nombres" value="${e(nombresVal)}" autocomplete="off" placeholder="Ej. Juan Carlos"></label>
         <div class="grid2">
@@ -286,9 +286,13 @@
         cbEx.addEventListener('change', () => { nEx.classList.toggle('oculto', !cbEx.checked); if (cbEx.checked) nEx.querySelector('input').focus(); });
         hoja.querySelector('[data-foto]').addEventListener('change', async (ev) => {
           const f = ev.target.files[0]; if (!f) return;
-          try { foto = await K.fotoADataURL(f, 420); prev.innerHTML = `<img src="${foto}" alt="">`; } catch (x) { K.aviso('No se pudo leer la imagen', true); }
+          ev.target.value = '';
+          try { const url = await K.fotoADataURL(f, 900); K.editarFoto(url, (nueva) => { foto = nueva; ponerFoto(); }); } catch (x) { K.aviso('No se pudo leer la imagen', true); }
         });
-        hoja.querySelector('[data-sinfoto]').addEventListener('click', () => { foto = ''; prev.textContent = iniciales(hoja.querySelector('[name=nombre]').value || '+'); });
+        const bEdit = hoja.querySelector('[data-editfoto]');
+        function ponerFoto() { prev.innerHTML = foto ? `<img src="${foto}" alt="">` : ''; if (!foto) prev.textContent = iniciales(hoja.querySelector('[name=nombre]').value || '+'); bEdit.classList.toggle('oculto', !foto); }
+        bEdit.addEventListener('click', () => { if (foto) K.editarFoto(foto, (nueva) => { foto = nueva; ponerFoto(); }); });
+        hoja.querySelector('[data-sinfoto]').addEventListener('click', () => { foto = ''; ponerFoto(); });
       }
     });
   };
@@ -727,6 +731,7 @@
       <div class="card"><div class="fila sb"><h2 style="margin:0">Tratamientos</h2><button class="btn sec chico" data-acc="nuevoTrat">${K.uiIco('mas', 16)} Nuevo</button></div>
         <p class="sub">Lo que aparece al registrar una atención. Cada uno genera su propio total.</p>
         <div class="lista">${inf.tratamientos.map((t) => `<div class="item" data-acc="editTrat" data-id="${t.id}"><span class="mini-ico">${K.ico(t.icono)}</span><div class="txt"><b>${e(t.nombre)}</b><span>${t.intervencion ? 'Cuenta como intervención' : 'No suma a intervenciones'}</span></div></div>`).join('')}</div></div>
+      ${K.tarjetaListas ? K.tarjetaListas() : ''}
       <div class="card"><h2>Tipografía</h2>
         <p class="sub">Cambia la letra de toda la app y del informe en PDF. Se guarda para los dos kinesiólogos.</p>
         ${K.selectorFuentes()}</div>
@@ -757,6 +762,7 @@
       ${K.versionHTML ? K.versionHTML() : ''}`;
   }
   Object.assign(K.acciones, {
+    listaCambiar(el) { K.formListaCambiar(el.dataset.campo, el.dataset.v); }, listaQuitar(el) { K.formListaQuitar(el.dataset.campo, el.dataset.v); },
     nuevoInd() { K.formIndicador(); }, editInd(el) { K.formIndicador(K.inf().indicadores.find((i) => i.id === el.dataset.id)); },
     ojoInd(el, ev) { ev.stopPropagation(); const i = K.inf().indicadores.find((x) => x.id === el.dataset.id); i.visible = i.visible === false; guardar(); },
     subirI(el, ev) { ev.stopPropagation(); mover(K.inf().indicadores, el.dataset.id, -1); guardar(); },

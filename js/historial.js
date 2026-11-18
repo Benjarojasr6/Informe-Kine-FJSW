@@ -83,7 +83,7 @@
     (inf.eventos || []).forEach((x) => {
       if (x.jugadorId !== jid || !K.evRealizado(x)) return;
       const en = K.bit.entEvento(inf, x), c = x.casoId ? porId.get(x.casoId) : null;
-      const sub = [x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : ''].filter(Boolean).join(' · ');
+      const sub = [x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : '', priv && (inf.segEventos || []).some((q) => q.evId === x.id) ? 'por el seguro' : ''].filter(Boolean).join(' · ');
       items.push(nuevo({ id: 'e' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: x.tipo, tag: en.tag, cls: 'ev', titulo: en.titulo, sub, det: en.det, notas: en.notas, raw: x, edit: 'evento' }, c ? { casoId: c.id, zonas: (c.zonas || []).slice() } : null));
     });
     // ---- seguro (solo si puede ver datos privados)
@@ -93,7 +93,7 @@
         items.push(nuevo({ id: 's' + s.id, f: FECHA.test(s.activacion || '') ? s.activacion : '', k: 'seguro', tag: 'Seguro · activación', cls: 'se', titulo: s.diagnostico || 'Activación del seguro', sub: [s.clinica, s.nClinica ? 'N.º ' + s.nClinica : ''].filter(Boolean).join(' · '), det: [['Clínica', s.clinica || '—'], ['N.º de asistencia', s.nClinica || '—']] }));
       });
       (inf.segEventos || []).forEach((x) => {
-        if (x.jugadorId !== jid) return;
+        if (x.jugadorId !== jid || x.evId) return; // los vinculados a Kine ya salen como su registro de Kine («por el seguro»)
         const t = SEG_TIPO[x.tipo] || x.tipo || 'Evento';
         items.push(nuevo({ id: 'v' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: 'seguro', tag: 'Seguro · ' + t, cls: 'se', titulo: x.detalle || t, sub: [x.tipo === 'examen' && x.resultado ? 'Resultado: ' + x.resultado : '', x.centro || x.centroKine || '', x.medico || '', x.nAsist ? 'N.º ' + x.nAsist : ''].filter(Boolean).join(' · '), det: [['Tipo', t], ['Detalle', x.detalle || '—']].concat(x.resultado ? [['Resultado', x.resultado]] : []) }));
       });

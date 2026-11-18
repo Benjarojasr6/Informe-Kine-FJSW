@@ -37,7 +37,7 @@
         const r = get(inf, s.jugadorId);
         const fila = [];
         if (urgEn) fila.push({ k: 'urgencia', fecha: s.activacion || '', titulo: 'Urgencia · activación del seguro', detalle: '', centro: s.clinica || '', medico: '', nAsist: s.nClinica || '', cant: 1 });
-        mios.forEach((x) => fila.push({ k: x.tipo, fecha: x.fecha, hasta: x.hasta || '', titulo: (TIPO_TXT[x.tipo] || x.tipo) + (x.urg ? ' (urgencia)' : ''), detalle: x.detalle || '', resultado: x.tipo === 'examen' ? x.resultado || '' : '', centro: x.centro || x.centroKine || '', medico: x.medico || '', nAsist: x.nAsist || '', enUrg: !!(x.urg && x.tipo === 'examen'), cant: x.tipo === 'kinesiologia' ? Number(x.cantidad) || 1 : 1, dias: x.tipo === 'hosp' ? dias(x.fecha, x.hasta || x.fecha) : 1 }));
+        mios.forEach((x) => fila.push({ k: x.tipo, fecha: x.fecha, hasta: x.hasta || '', titulo: (TIPO_TXT[x.tipo] || x.tipo) + (x.urg || x.deUrg ? ' (urgencia)' : ''), detalle: x.detalle || '', resultado: x.tipo === 'examen' ? x.resultado || '' : '', centro: x.centro || x.centroKine || '', medico: x.medico || '', nAsist: x.nAsist || '', enUrg: !!(x.urg && x.tipo === 'examen'), cant: x.tipo === 'kinesiologia' ? Number(x.cantidad) || 1 : 1, dias: x.tipo === 'hosp' ? dias(x.fecha, x.hasta || x.fecha) : 1 }));
         fila.forEach((f) => { f.valor = valor(f); });
         fila.sort((a, b) => (a.k === 'urgencia' ? -1 : b.k === 'urgencia' ? 1 : 0) || (a.fecha || '').localeCompare(b.fecha || ''));
         r.acts.push({ s, filas: fila });

@@ -16,6 +16,20 @@
   const segPorId = (sid) => { for (const inf of K.kineInfs()) { const s = (inf.seguros || []).find((x) => x.id === sid); if (s) return { inf, s }; } return null; };
   // Un jugador puede tener varias activaciones del seguro (cada una con su diagnóstico, clínica y N.º de asistencia).
   const activacionesDe = (inf, jid) => (inf.seguros || []).filter((x) => x.jugadorId === jid);
+  // v1.9.10: registros de Kine (control, examen, procedimiento) que se pueden vincular a una activación del seguro: los del jugador que no están vinculados a otra activación
+  const TIPO_VINC = { control: 'Control', examen: 'Examen', procedimiento: 'Procedimiento' };
+  const candidatosVinc = (inf, jid, sid) => (inf.eventos || []).filter((x) => x.jugadorId === jid && TIPO_VINC[x.tipo] && !(inf.segEventos || []).some((q) => q.evId === x.id && q.seguroId !== sid)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  K.vincularSeguro = (inf, act, evId, enUrg) => { // crea (o actualiza) el evento del seguro que representa a ese registro de Kine
+    const ev = (inf.eventos || []).find((x) => x.id === evId); if (!ev || !act) return null;
+    inf.segEventos = inf.segEventos || [];
+    let reg = inf.segEventos.find((x) => x.evId === evId && x.seguroId === act.id);
+    if (!reg) { reg = { id: K.uid(), nAsist: '', hasta: '', seguroId: act.id, evId }; inf.segEventos.push(reg); }
+    Object.assign(reg, { jugadorId: act.jugadorId, tipo: ev.tipo }); delete reg.urg; delete reg.deUrg;
+    if (enUrg) { if (ev.tipo === 'examen') reg.urg = true; else reg.deUrg = true; }
+    K.sincSegEv(inf); return reg;
+  };
+  K.desvincularSeguro = (inf, evId) => { inf.segEventos = (inf.segEventos || []).filter((x) => x.evId !== evId); };
+  K.activacionesJugador = (inf, jid) => activacionesDe(inf, jid).slice().sort((a, b) => (b.activacion || '').localeCompare(a.activacion || ''));
   const evsDe = (inf, s) => { const primera = activacionesDe(inf, s.jugadorId)[0]; return (inf.segEventos || []).filter((x) => x.jugadorId === s.jugadorId && !x.sinAct && (x.seguroId ? x.seguroId === s.id : primera && primera.id === s.id)); };
   const uniq = (arr) => Array.from(new Set(arr.filter(Boolean)));
   const frec = (arr) => { const m = {}; arr.filter(Boolean).forEach((v) => { m[v] = (m[v] || 0) + 1; }); return Object.keys(m).sort((a, b) => m[b] - m[a] || a.localeCompare(b, 'es')); };
@@ -35,7 +49,7 @@
     const ya = sid ? segPorId(sid) : null, js = K.kineJugadores(!!ya); // al editar una activación vale también un jugador archivado
     if (!js.length) { K.aviso('Primero agrega jugadores en la pestaña Jugadores', true); return; }
     const s = ya ? ya.s : {}, jid = ya ? s.jugadorId : '';
-    const exUrg = ya ? (ya.inf.segEventos || []).filter((x) => x.urg && x.seguroId === s.id && x.tipo === 'examen').sort((a, b) => (a.detalle || '').localeCompare(b.detalle || '', 'es')) : [];
+    const exUrg = ya ? (ya.inf.segEventos || []).filter((x) => x.urg && !x.evId && x.seguroId === s.id && x.tipo === 'examen').sort((a, b) => (a.detalle || '').localeCompare(b.detalle || '', 'es')) : [];
     const exSug = K.EV.examen.sug;
     const filaUex = (x) => { x = x || {}; const esta = !x.detalle || exSug.includes(x.detalle);
       return `<div class="grid2 uex-fila" data-uex-fila data-id="${e(x.id || '')}" style="align-items:start"><div><label class="campo"><span>Examen</span><select data-uex-sel><option value="">Elige un examen…</option>${exSug.map((n) => `<option value="${e(n)}"${x.detalle === n ? ' selected' : ''}>${e(n)}</option>`).join('')}<option value="__otro"${x.detalle && !esta ? ' selected' : ''}>Otro (escribir)…</option></select></label>
@@ -74,6 +88,8 @@
           <div data-uex-filas>${exUrg.map((x) => filaUex(x)).join('')}</div>
           <button type="button" class="btn sec chico" data-uex-mas>${K.uiIco('mas', 16)} Agregar examen</button>
           <p class="suave" style="margin:4px 0 0">Cada examen queda como un evento de examen en la fecha de la activación y se cuenta en las estadísticas.</p></div>
+        <div class="campo" data-vinc><span>Ya registrados en Kine que se hicieron por el seguro</span><div data-vinc-lista class="vinc-lista"></div>
+          <p class="suave" style="margin:4px 0 0">Marca los que se hicieron por esta activación. Quedan combinados con el seguro y se cuentan una sola vez; sigues editándolos en Kine.</p></div>
         <p class="suave">Estos datos son privados: solo los ven los administradores y no salen en el informe.</p>`,
       botones: [
         ya ? { txt: 'Quitar', cls: 'peligro', fn: () => { K.confirmar('¿Quitar esta activación del seguro? También se borran sus eventos.', 'Quitar', () => { const evs = evsDe(ya.inf, s).map((x) => x.id); ya.inf.seguros = ya.inf.seguros.filter((x) => x.id !== s.id); ya.inf.segEventos = (ya.inf.segEventos || []).filter((x) => !evs.includes(x.id)); K.guardar(); K.aviso('Quitado'); K.render(); }); return true; } } : { txt: 'Cancelar', cls: 'sec' },
@@ -96,13 +112,18 @@
               infA.segEventos = infA.segEventos || [];
               const filas = Array.from(hoja.querySelectorAll('[data-uex-fila]')).map((fl) => { const v = fl.querySelector('[data-uex-sel]').value; return { id: fl.dataset.id, detalle: (v === '__otro' ? fl.querySelector('[data-uex-otro]').value : v).trim().slice(0, 80), resultado: fl.querySelector('[data-uex-res]').value.trim().slice(0, 160) }; }).filter((x) => x.detalle);
               const conservar = new Set(filas.map((x) => x.id).filter(Boolean));
-              infA.segEventos = infA.segEventos.filter((x) => !(x.urg && x.seguroId === act.id && x.tipo === 'examen' && !conservar.has(x.id)));
+              infA.segEventos = infA.segEventos.filter((x) => !(x.urg && !x.evId && x.seguroId === act.id && x.tipo === 'examen' && !conservar.has(x.id)));
               filas.forEach((x) => {
                 const reg = x.id ? infA.segEventos.find((q) => q.id === x.id) : null;
                 const base = { jugadorId: act.jugadorId, seguroId: act.id, tipo: 'examen', fecha: fechaU, detalle: x.detalle, urg: true };
                 if (reg) { Object.assign(reg, base); } else infA.segEventos.push(Object.assign({ id: K.uid(), nAsist: '', cantidad: 1, hasta: '', casoId: '', notas: '' }, base, {}));
                 const r2 = reg || infA.segEventos[infA.segEventos.length - 1]; if (x.resultado) r2.resultado = x.resultado; else delete r2.resultado;
               }); }
+            // registros de Kine vinculados a esta activación (los desmarcados se desvinculan; el registro de Kine no se borra)
+            { const infA = ya ? ya.inf : K.state.informes.find((i) => i.id === d.jid.split('|')[0]);
+              const marc = new Map(Array.from(hoja.querySelectorAll('[data-vinc-fila]')).filter((f) => f.querySelector('[data-vinc-ck]').checked).map((f) => [f.dataset.ev, f.querySelector('[data-vinc-urg]').checked]));
+              infA.segEventos = (infA.segEventos || []).filter((x) => !(x.evId && x.seguroId === act.id && !marc.has(x.evId)));
+              marc.forEach((urg, evId) => K.vincularSeguro(infA, act, evId, urg)); }
             // si la ficha del jugador no tiene estos datos, quedan guardados ahí (se escriben una sola vez)
             { const jid2 = ya ? s.jugadorId : d.jid.split('|')[1], inf2 = ya ? ya.inf : K.state.informes.find((i) => i.id === d.jid.split('|')[0]);
               if (inf2 && (campos.rut || campos.fechaNac || campos.prevision)) {
@@ -119,6 +140,24 @@
       alMontar: (m, hoja) => {
         const r = hoja.querySelector('[name=rut]'); r.addEventListener('input', () => { r.value = fmtRut(r.value); });
         const sel = hoja.querySelector('[name=jid]'), dl = hoja.querySelector('#dl-segdx'), prev = hoja.querySelector('[data-prev]');
+        const pintarVinc = () => {
+          const caja = hoja.querySelector('[data-vinc-lista]'), blq = hoja.querySelector('[data-vinc]'), [iid, id] = (sel.value || '').split('|'), inf = K.state.informes.find((i) => i.id === iid);
+          const previo = new Map(Array.from(caja.querySelectorAll('[data-vinc-fila]')).map((f) => [f.dataset.ev, [f.querySelector('[data-vinc-ck]').checked, f.querySelector('[data-vinc-urg]').checked]]));
+          const fa = (hoja.querySelector('[name=activacion]') || {}).value || '';
+          const lista = inf && id ? candidatosVinc(inf, id, ya ? s.id : '') : [];
+          const nomUex = (fl) => { const v = fl.querySelector('[data-uex-sel]').value; return (v === '__otro' ? fl.querySelector('[data-uex-otro]').value : v).trim().toLowerCase(); };
+          const uexFilas = Array.from(hoja.querySelectorAll('[data-uex-fila]'));
+          blq.classList.toggle('oculto', !lista.length);
+          caja.innerHTML = lista.map((x) => { const lig = ya ? (inf.segEventos || []).find((q) => q.evId === x.id && q.seguroId === s.id) : null, p = previo.get(x.id), ck = p ? p[0] : !!lig, ur = p ? p[1] : !!(lig && (lig.urg || lig.deUrg));
+            return `<div class="vinc-fila" data-vinc-fila data-ev="${e(x.id)}"><label class="check"><input type="checkbox" data-vinc-ck${ck ? ' checked' : ''}><span><b>${e(x.nombre || TIPO_VINC[x.tipo])}</b> · ${e(TIPO_VINC[x.tipo])} · ${e(fc(x.fecha))}${x.fecha === fa ? ' <em>(el mismo día de la activación)</em>' : ''}${x.centro ? ' · ' + e(x.centro) : ''}${x.resultado ? '<small>Resultado: ' + e(x.resultado) + '</small>' : ''}</span></label><label class="check chico-ck${x.tipo === 'control' ? ' oculto' : ''}"><input type="checkbox" data-vinc-urg${ur ? ' checked' : ''}><span>Fue en la urgencia</span></label>${(() => { const i = x.tipo === 'examen' && x.nombre ? uexFilas.findIndex((fl) => nomUex(fl) === x.nombre.trim().toLowerCase()) : -1; return i >= 0 ? `<button type="button" class="btn sec chico" data-vinc-comb="${i}">Es el mismo que «${e(x.nombre)}» de la urgencia: combinarlos</button>` : ''; })()}</div>`; }).join('');
+        };
+        hoja.addEventListener('click', (ev) => {
+          const bt = ev.target.closest && ev.target.closest('[data-vinc-comb]'); if (!bt) return;
+          const fila = bt.closest('[data-vinc-fila]'), fl = hoja.querySelectorAll('[data-uex-fila]')[Number(bt.dataset.vincComb)];
+          fila.querySelector('[data-vinc-ck]').checked = true; fila.querySelector('[data-vinc-urg]').checked = true;
+          if (fl) fl.remove(); pintarVinc(); K.aviso('Combinados: el examen de la urgencia se quitó de la lista y quedó el de Kine');
+        });
+        sel.addEventListener('change', pintarVinc); const fAct = hoja.querySelector('[name=activacion]'); if (fAct) fAct.addEventListener('change', pintarVinc); pintarVinc();
         const alElegir = () => {
           const [iid, id] = (sel.value || '').split('|'), inf = K.state.informes.find((i) => i.id === iid); if (!inf || !id) { prev.textContent = ''; return; }
           dl.innerHTML = inf.casos.filter((c) => c.jugadorId === id && c.tipo === 'lesion').map((c) => `<option value="${e(c.titulo)}">`).join('');
@@ -141,10 +180,27 @@
   }
 
   /* ---------- Eventos del seguro ---------- */
+  // Evento del seguro vinculado a un registro de Kine: se edita en Kine; aquí solo se marca si fue en la urgencia o se quita del seguro.
+  function formVinculado(r, x) {
+    const inf = r.inf, ev = inf.eventos.find((q) => q.id === x.evId), j = K.jugador(inf, x.jugadorId);
+    K.modal({
+      titulo: 'Combinado con Kine · ' + (TIPO_VINC[ev.tipo] || ''),
+      cuerpo: `<p><b>${e(ev.nombre || TIPO_VINC[ev.tipo])}</b> · ${e(fc(ev.fecha))}${ev.centro ? ' · ' + e(ev.centro) : ''}${ev.medico ? ' · ' + e(ev.medico) : ''}${ev.tipo === 'examen' && ev.resultado ? '<br>Resultado: ' + e(ev.resultado) : ''}</p>
+        <p class="suave">Este registro está hecho por el seguro y ya está en Kine: se cuenta una sola vez. Para cambiar sus datos, edítalo en Kine.</p>
+        ${ev.tipo === 'examen' || ev.tipo === 'procedimiento' ? `<label class="check"><input type="checkbox" name="urgChk"${x.urg || x.deUrg ? ' checked' : ''}><span>Fue en la urgencia de esta activación</span></label>` : ''}`,
+      botones: [
+        { txt: 'Quitar del seguro', cls: 'peligro', fn: () => { K.confirmar('¿Quitar este registro del seguro? El registro de Kine se mantiene.', 'Quitar', () => { K.desvincularSeguro(inf, ev.id); K.guardar(); K.aviso('Quitado del seguro'); K.render(); }); return true; } },
+        { txt: 'Editar en Kine', cls: 'sec', fn: () => { setTimeout(() => K.enInforme(inf, j, () => K.formEvento(ev.tipo, { rec: ev })), 240); } },
+        { txt: 'Guardar', fn: (m, hoja) => { const c = hoja.querySelector('[name=urgChk]'); if (c) { delete x.urg; delete x.deUrg; if (c.checked) { if (ev.tipo === 'examen') x.urg = true; else x.deUrg = true; } } K.guardar(); K.aviso('Guardado'); K.render(); } }
+      ]
+    });
+  }
   function formEvento(sid, rec) {
     const r = segPorId(sid); if (!r) return;
     const inf = r.inf, jid = r.s.jugadorId, j = K.jugador(inf, jid);
+    if (rec && rec.evId && (inf.eventos || []).some((x) => x.id === rec.evId)) return formVinculado(r, rec);
     const tipo0 = rec ? rec.tipo : 'control';
+    const cand = rec ? [] : candidatosVinc(inf, jid, sid);
     const exSug = K.EV.examen.sug, exEsta = rec && rec.tipo === 'examen' && exSug.includes(rec.detalle);
     const casos = inf.casos.filter((c) => c.jugadorId === jid).sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''));
     K.modal({
@@ -154,6 +210,8 @@
           <label class="campo"><span>Tipo de evento</span><select name="tipo">${K.opts(TIPOS, tipo0)}</select></label>
           <label class="campo"><span>Fecha</span><input type="date" name="fecha" value="${rec ? e(rec.fecha) : K.hoy()}"></label>
         </div>
+        ${cand.length ? `<label class="campo oculto" data-blq="vinc"><span>¿Es uno que ya registraste en Kine?</span><select name="evId"></select></label>` : ''}
+        <div data-nuevo>
         <div data-blq="examen" class="${tipo0 === 'examen' ? '' : 'oculto'}">
           <label class="campo"><span>Examen</span><select name="exSel">${K.opts(exSug.map((x) => [x, x]).concat([['__otro', 'Otro (escribir)…']]), rec && rec.tipo === 'examen' ? (exEsta ? rec.detalle : '__otro') : exSug[0])}</select></label>
           <label class="campo"><span>Resultado (opcional)</span><input type="text" name="resultado" maxlength="160" value="${e(rec ? rec.resultado || '' : '')}" placeholder="Ej. Rotura parcial de fibras, grado II" autocomplete="off"></label>
@@ -167,13 +225,16 @@
         </div>
         <label class="campo oculto" data-blq="hasta"><span>Hasta (si fueron varios días)</span><input type="date" name="hasta" value="${rec ? e(rec.hasta || '') : ''}"></label>
         <label class="campo"><span>Lesión asociada (opcional)</span><select name="casoId"><option value="">—</option>${casos.map((c) => `<option value="${c.id}"${rec && rec.casoId === c.id ? ' selected' : ''}>${e(c.titulo)}${c.inicio ? ' · ' + e(fc(c.inicio)) : ''}</option>`).join('')}</select></label>
-        <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>`,
+        <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>
+        </div>
+        <label class="check oculto" data-blq="urg"><input type="checkbox" name="urgChk"${rec && (rec.urg || rec.deUrg) ? ' checked' : ''}><span>Fue en la urgencia de esta activación (${e(fc(r.s.activacion || ''))})</span></label>`,
       botones: [
         rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.confirmar('¿Eliminar este evento?', 'Eliminar', () => { inf.segEventos = inf.segEventos.filter((x) => x.id !== rec.id); K.guardar(); K.aviso('Eliminado'); K.render(); }); return true; } } : { txt: 'Cancelar', cls: 'sec' },
         {
           txt: 'Guardar',
           fn: (m, hoja) => {
-            const d = K.datos(hoja), tipo = d.tipo;
+            const d = K.datos(hoja), tipo = d.tipo, enUrg = !!(hoja.querySelector('[name=urgChk]') || {}).checked;
+            if (!rec && d.evId) { K.vincularSeguro(inf, r.s, d.evId, enUrg); K.guardar(); K.aviso('Combinado con el registro de Kine'); K.render(); return; }
             const detalle = tipo === 'examen' && d.exSel !== '__otro' ? d.exSel : (d.detalle || '').trim();
             const campos = { jugadorId: jid, seguroId: sid, tipo, fecha: d.fecha, detalle, nAsist: (d.nAsist || '').trim(), cantidad: tipo === 'kinesiologia' ? Math.max(1, Number(d.cantidad) || 1) : 1, hasta: tipo === 'hosp' ? d.hasta || '' : '', casoId: d.casoId || '', notas: d.notas };
             if (!campos.fecha) { K.aviso('Pon la fecha', true); return false; }
@@ -182,6 +243,7 @@
             const reg = rec ? inf.segEventos.find((x) => x.id === rec.id) : Object.assign({ id: K.uid() }, campos);
             if (rec) Object.assign(reg, campos); else inf.segEventos.push(reg);
             if (resultado) reg.resultado = resultado; else delete reg.resultado;
+            delete reg.urg; delete reg.deUrg; if (enUrg) { if (tipo === 'examen') reg.urg = true; else if (tipo === 'procedimiento' || tipo === 'hosp') reg.deUrg = true; }
             const dv = { centro: tipo === 'control' || tipo === 'examen' ? K.valorLista(d, 'centro') : '', medico: tipo === 'control' || tipo === 'examen' ? K.valorLista(d, 'medico') : '', centroKine: tipo === 'kinesiologia' ? K.valorLista(d, 'centroKine') : '' };
             Object.keys(dv).forEach((k) => { if (dv[k]) reg[k] = dv[k]; else delete reg[k]; });
             K.guardar(); K.aviso('Guardado'); K.render();
@@ -199,6 +261,8 @@
           q('centro').classList.toggle('oculto', t !== 'control' && t !== 'examen');
           q('centroKine').classList.toggle('oculto', t !== 'kinesiologia');
           q('hasta').classList.toggle('oculto', t !== 'hosp');
+          q('urg').classList.toggle('oculto', !(t === 'examen' || t === 'procedimiento' || t === 'hosp'));
+          const qv = q('vinc'); if (qv) { const ops = cand.filter((x) => x.tipo === t); qv.classList.toggle('oculto', !ops.length); const se = qv.querySelector('select'), v0 = se.value; se.innerHTML = '<option value="">No, es uno nuevo</option>' + ops.map((x) => `<option value="${e(x.id)}">${e((x.nombre || TIPO_VINC[x.tipo]) + ' · ' + fc(x.fecha) + (x.centro ? ' · ' + x.centro : ''))}</option>`).join(''); se.value = ops.some((x) => x.id === v0) ? v0 : ''; hoja.querySelector('[data-nuevo]').classList.toggle('oculto', !!se.value); }
           lbl.textContent = t === 'control' ? 'Con quién (especialidad)' : t === 'examen' ? 'Nombre del examen' : t === 'procedimiento' ? 'Procedimiento (se guarda para sugerirlo la próxima vez)' : t === 'cirugia' ? 'Cirugía' : t === 'hosp' ? 'Motivo' : 'Detalle (opcional)';
           const sug = t === 'procedimiento' ? procGuardados() : t === 'control' ? K.EV.control.sug : [];
           dl.innerHTML = sug.map((x) => `<option value="${e(x)}">`).join('');
@@ -274,7 +338,7 @@
       <dl class="seg-datos"><div style="grid-column:1/-1"><dt>Diagnóstico</dt><dd>${e(s.diagnostico || '—')}</dd></div><div><dt>RUT</dt><dd>${e(fmtRut(s.rut) || '—')}</dd></div><div><dt>Nacimiento</dt><dd>${s.fechaNac ? e(fc(s.fechaNac)) : '—'}</dd></div><div><dt>Comuna</dt><dd>${e(s.comuna || '—')}</dd></div>
         <div><dt>Activación</dt><dd>${s.activacion ? e(fc(s.activacion)) : '—'}</dd></div><div><dt>Clínica</dt><dd>${e(s.clinica || '—')}${s.nClinica ? ' · N.º ' + e(s.nClinica) : ''}</dd></div>${s.pais ? `<div><dt>Ciudad o país</dt><dd>${e(s.pais)}</dd></div>` : ''}${s.cobertura ? `<div><dt>Cobertura</dt><dd>${e(s.cobertura === 'Club' ? 'Seguro del club' : 'Seguro de viaje')}</dd></div>` : ''}${s.poliza ? `<div><dt>Póliza</dt><dd>${e(s.poliza)}</dd></div>` : ''}</dl>
       <div class="fila sb" style="margin:8px 0 2px"><b style="font-size:13.5px">Eventos (${nEv})</b><button class="btn chico" data-acc="segEvento" data-sid="${s.id}">${K.uiIco('mas', 16)} Evento</button></div>
-      <div class="lista">${evs.map((x) => `<div class="item seg-ev" data-acc="segEvEditar" data-id="${x.id}" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL[x.tipo]}"></span><div class="txt"><b>${e(TIPO_TXT[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'examen' && x.resultado ? ' — ' + e(x.resultado) : ''}${x.tipo === 'kinesiologia' && (Number(x.cantidad) || 1) > 1 ? ' (' + x.cantidad + ' sesiones)' : ''}</b><span>${e(fc(x.fecha))}${x.hasta ? ' al ' + e(fc(x.hasta)) : ''}${x.centro || x.centroKine ? ' · ' + e(x.centro || x.centroKine) : ''}${x.medico ? ' · ' + e(x.medico) : ''} · ${x.nAsist ? 'N.º asistencia ' + e(x.nAsist) : 'sin N.º de asistencia'}</span></div></div>`).join('')}${urgFila(s, exU)}</div>
+      <div class="lista">${evs.map((x) => `<div class="item seg-ev" data-acc="segEvEditar" data-id="${x.id}" data-sid="${s.id}"><span class="kc-pto" style="background:${TIPO_COL[x.tipo]}"></span><div class="txt"><b>${e(TIPO_TXT[x.tipo] || x.tipo)}${x.detalle ? ' · ' + e(x.detalle) : ''}${x.tipo === 'examen' && x.resultado ? ' — ' + e(x.resultado) : ''}${x.tipo === 'kinesiologia' && (Number(x.cantidad) || 1) > 1 ? ' (' + x.cantidad + ' sesiones)' : ''}</b><span>${x.deUrg ? 'De la urgencia · ' : ''}${x.evId ? 'Combinado con Kine · ' : ''}${e(fc(x.fecha))}${x.hasta ? ' al ' + e(fc(x.hasta)) : ''}${x.centro || x.centroKine ? ' · ' + e(x.centro || x.centroKine) : ''}${x.medico ? ' · ' + e(x.medico) : ''} · ${x.nAsist ? 'N.º asistencia ' + e(x.nAsist) : 'sin N.º de asistencia'}</span></div></div>`).join('')}${urgFila(s, exU)}</div>
     </div>`;
   }
 
@@ -315,6 +379,8 @@
       <p class="bd-nota">${conAsist} de ${pool.length} eventos tienen N.º de asistencia registrado.</p></div>`;
   }
 
+  K.seguroEditarEv = (sid, x) => formEvento(sid, x);
+  K.seguroEditar = (sid) => formIngreso(sid);
   K.seguroNuevo = (pre) => formIngreso('', pre); // desde la ficha de un torneo: país, cobertura y fecha ya puestos
   K.kineSeguroHTML = function () {
     const lista = todos('seguros').map((r) => ({ inf: r.inf, s: r.x, cat: (K.kineBuscarJ(r.x.jugadorId) || { cat: 0 }).cat }))
@@ -356,7 +422,7 @@
     inf.eventos.forEach((x) => { if (x.jugadorId === j.id && K.evRealizado(x)) { if (x.tipo === 'control') poner(x.fecha, 'control', 'Control: ' + (x.nombre || '')); if (x.tipo === 'examen') poner(x.fecha, 'examen', 'Examen: ' + (x.nombre || '')); if (x.tipo === 'cirugia') poner(x.fecha, 'cirugia', 'Cirugía: ' + (x.nombre || '')); } });
     (inf.seguros || []).forEach((s) => { if (s.jugadorId === j.id && s.activacion) poner(s.activacion, 'urg', 'Urgencia: activación del seguro' + (s.diagnostico ? ' · ' + s.diagnostico : '')); });
     (inf.segEventos || []).forEach((x) => {
-      if (x.jugadorId !== j.id || x.urg) return; // los exámenes de la urgencia ya van en el día de la urgencia
+      if (x.jugadorId !== j.id || x.urg || x.evId) return; // los exámenes de la urgencia ya van en el día de la urgencia
       const k = { control: 'control', examen: 'examen', procedimiento: 'proc', kinesiologia: 'kineext', cirugia: 'cirugia', hosp: 'hosp' }[x.tipo];
       const tx = (TIPO_TXT[x.tipo] || '') + (x.detalle ? ': ' + x.detalle : '') + ' (seguro)';
       if (x.tipo === 'hosp' && x.hasta && x.hasta > x.fecha) { for (let d = x.fecha, n = 0; d <= x.hasta && n < 120; d = suma(d, 1), n++) poner(d, k, tx); } else poner(x.fecha, k, tx);
@@ -426,9 +492,9 @@
       const ms = (a.motSeguro || []).map((k) => (K.MOTIVOS_SEGURO.find((m) => m[0] === k) || [0, k])[1]).join(', ');
       L.push(['Atención kinésica', [K.nombreClase(a.clase), tr, ms ? 'seguro: ' + ms : ''].filter(Boolean).join(' · ') || 'sin intervenciones anotadas', ['atencion', a]]);
     });
-    inf.eventos.forEach((x) => { if (x.jugadorId === j.id && x.fecha === iso && K.evRealizado(x)) L.push([(K.EV[x.tipo] || { t: x.tipo }).t, (x.nombre || '') + (Number(x.cantidad) > 1 ? ' ×' + x.cantidad : ''), ['evento', x]]); });
-    (inf.seguros || []).forEach((s) => { if (s.jugadorId === j.id && s.activacion === iso) { const ex = (inf.segEventos || []).filter((x) => x.urg && x.seguroId === s.id && x.tipo === 'examen').map((x) => x.detalle + (x.resultado ? ' (' + x.resultado + ')' : '')); L.push(['Urgencia · activación del seguro', [s.diagnostico, ex.length ? 'exámenes: ' + ex.join(', ') : ''].filter(Boolean).join(' · '), ['seguro', s]]); } });
-    (inf.segEventos || []).forEach((x) => { if (x.jugadorId === j.id && !x.urg && (x.fecha === iso || (x.tipo === 'hosp' && x.hasta && x.fecha < iso && iso <= x.hasta))) L.push(['Seguro · ' + (TIPO_TXT[x.tipo] || x.tipo), x.detalle || '', ['segEv', x]]); });
+    inf.eventos.forEach((x) => { if (x.jugadorId === j.id && x.fecha === iso && K.evRealizado(x)) L.push([(K.EV[x.tipo] || { t: x.tipo }).t, (x.nombre || '') + (Number(x.cantidad) > 1 ? ' ×' + x.cantidad : '') + ((inf.segEventos || []).some((q) => q.evId === x.id) ? ' · por el seguro' : ''), ['evento', x]]); });
+    (inf.seguros || []).forEach((s) => { if (s.jugadorId === j.id && s.activacion === iso) { const ex = (inf.segEventos || []).filter((x) => x.urg && !x.evId && x.seguroId === s.id && x.tipo === 'examen').map((x) => x.detalle + (x.resultado ? ' (' + x.resultado + ')' : '')); L.push(['Urgencia · activación del seguro', [s.diagnostico, ex.length ? 'exámenes: ' + ex.join(', ') : ''].filter(Boolean).join(' · '), ['seguro', s]]); } });
+    (inf.segEventos || []).forEach((x) => { if (x.jugadorId === j.id && !x.urg && !x.evId && (x.fecha === iso || (x.tipo === 'hosp' && x.hasta && x.fecha < iso && iso <= x.hasta))) L.push(['Seguro · ' + (TIPO_TXT[x.tipo] || x.tipo), x.detalle || '', ['segEv', x]]); });
     (inf.partidos || []).forEach((p) => { if (p.fecha === iso && (p.cat === undefined || p.cat === null || String(p.cat) === String(cat) || (p.minutos && p.minutos[j.id] !== undefined))) L.push(['Partido', 'vs ' + (p.rival || '') + (p.minutos && p.minutos[j.id] ? ` · ${p.minutos[j.id]} min` : '')]); });
     return L;
   }

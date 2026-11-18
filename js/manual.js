@@ -143,6 +143,14 @@
       <li><b>Seguro en el exterior:</b> al registrar una activación del seguro puedes anotar la ciudad o país, la cobertura (seguro del club o de viaje) y la póliza. En la pestaña Viaje del torneo se ven las activaciones de los inscritos durante el torneo.</li>
       <li><b>Renombrar o eliminar:</b> si cambias el nombre del torneo se actualiza en todos sus partidos. Al eliminarlo, los partidos <b>no se borran</b>: quedan sin torneo (hay un aviso para <b>Deshacer</b>).</li>
       <li><b>Lo que ya tenías:</b> los partidos que antes tenían un torneo escrito se ordenaron solos en fichas de torneo; los informes salen igual que antes.</li></ul>`],
+    ['Novedades de la versión 1.9.10', `<ul>
+      <li><b>Seguro y Kine sin duplicados:</b> un examen, control o procedimiento hecho por el seguro ya no se cuenta dos veces. Al crear o editar una <b>activación del seguro</b> aparece «Ya registrados en Kine que se hicieron por el seguro»: marca los que corresponden (y si fueron en la urgencia) y quedan combinados. También puedes combinar un examen de la urgencia con el de Kine con el botón «combinarlos».</li>
+      <li><b>Al registrar un control, examen o procedimiento</b> en Kine, si el jugador tiene una activación del seguro se pregunta <b>«¿Se hizo por el seguro?»</b> (y si fue en la urgencia). Se pregunta cada vez; no se combina nada solo.</li>
+      <li><b>Combinados:</b> los datos se editan en Kine y el seguro los muestra igual (se actualizan solos). En el historial y en el calendario sale una sola vez, con la nota «por el seguro». Si lo eliminas en Kine, se quita también del seguro.</li>
+      <li><b>¿Fue en la urgencia?</b> Los exámenes, procedimientos y hospitalizaciones del seguro ahora dicen si corresponden a la urgencia de la activación. Un examen de la urgencia sigue contando como examen y no como evento nuevo.</li>
+      <li><b>Ajustes → Listas desplegables:</b> corrige los médicos y centros que escribiste mal. <b>Cambiar o unir</b> lo cambia en todos los registros (por ejemplo, «D.Núñez» pasa a «Doctor Núñez» y queda uno solo); <b>Quitar</b> lo borra de los registros que lo usan, sin eliminar los registros.</li>
+      <li><b>Foto del jugador:</b> al subirla se abre un editor para moverla (con el dedo o con flechas), hacer zoom y dejar el <b>fondo en blanco</b>, así todas quedan parecidas. Con «Editar foto» puedes ajustar una foto ya subida. El fondo se procesa en el dispositivo y funciona mejor con fondos parejos.</li>
+    </ul>`],
     ['Novedades de la versión 1.9.9', `<ul>
       <li><b>Registrar molestia:</b> el botón ahora usa el triángulo amarillo de «Totales del período» (en Registrar y en la ficha del jugador).</li>
       <li><b>Calendario del mes:</b> los números de los días se achicaron un poco; el resto del calendario queda igual.</li>

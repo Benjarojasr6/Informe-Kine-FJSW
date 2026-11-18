@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.9.9';
+  K.version = '1.9.10';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -257,8 +257,23 @@
       try { localStorage.setItem('kine-sw-estado', JSON.stringify(copia)); } catch (e2) { K.aviso && K.aviso('No se pudo guardar en este dispositivo', true); }
     }
   };
+  // v1.9.10: un evento del seguro puede estar «vinculado» (evId) a un control, examen o procedimiento ya registrado en Kine: es el mismo hecho, no dos.
+  // Los datos del registro de Kine mandan; aquí se copian al evento del seguro para que las pantallas del seguro sigan igual.
+  K.sincSegEv = (inf) => {
+    if (!inf || !Array.isArray(inf.segEventos)) return;
+    const evs = new Map((inf.eventos || []).map((x) => [x.id, x])), segs = new Map((inf.seguros || []).map((x) => [x.id, x]));
+    inf.segEventos.forEach((x) => {
+      if (!x.evId) return;
+      const e = evs.get(x.evId), s = segs.get(x.seguroId);
+      if (!e || !s || e.jugadorId !== s.jugadorId || !['control', 'examen', 'procedimiento'].includes(e.tipo)) { delete x.evId; return; }
+      x.jugadorId = e.jugadorId; x.tipo = e.tipo; x.fecha = e.fecha; x.detalle = e.nombre || ''; x.cantidad = 1; x.casoId = e.casoId || ''; x.notas = e.notas || '';
+      ['resultado', 'centro', 'medico'].forEach((k) => { if (e[k]) x[k] = e[k]; else delete x[k]; });
+      if (e.tipo !== 'examen') delete x.urg; // solo un examen puede ir «dentro de la urgencia»
+    });
+  };
   K.guardar = function () {
-    K.mayusEstado(); // primera letra en mayúscula en los textos de registros y nombres de personas
+    K.mayusEstado();
+    if (K.state && Array.isArray(K.state.informes)) K.state.informes.forEach(K.sincSegEv); // primera letra en mayúscula en los textos de registros y nombres de personas
     K.state.cambios = (K.state.cambios || 0) + 1;
     clearTimeout(tmr);
     tmr = setTimeout(K.guardarYa, 250);
@@ -318,6 +333,7 @@
         vistos.add(it.id);
         // lo que va dentro de formularios y atributos HTML: solo fechas y números con forma de fecha/número
         ['fecha', 'inicio', 'alta', 'desde', 'hasta', 'nacimiento', 'fechaNac', 'activacion', 'altaMedica', 'retornoEntreno', 'retornoPartido', 'reintegroDesde'].forEach((f) => { if (it[f] != null && !(typeof it[f] === 'string' && /^[\d\-:T.Z+ ]{0,40}$/.test(it[f]))) it[f] = ''; });
+        if (k === 'segEventos' && it.evId !== undefined && !ID_OK(it.evId)) delete it.evId;
         ['cantidad', 'semanas', 'duracion'].forEach((f) => { if (it[f] != null && it[f] !== '' && !Number.isFinite(Number(it[f]))) it[f] = ''; });
       });
     });

@@ -34,6 +34,40 @@
     const s = ev.target && ev.target.closest && ev.target.closest('[data-lista-sel]'); if (!s) return;
     const n = s.closest('[data-lista]').querySelector('[data-lista-nuevo]'); n.classList.toggle('oculto', s.value !== '__otro'); if (s.value === '__otro') n.focus();
   });
+  /* v1.9.10 · Ajustes → Listas desplegables: corregir, unir o quitar un valor de las listas aprendidas (p. ej. «D.Núñez» → «Doctor Núñez»).
+     La lista sale de lo escrito en los registros, así que cambiar un valor es cambiarlo en todos los registros que lo usan. */
+  const NOMBRES_LISTA = [['medico', 'Médicos'], ['centro', 'Centros médicos'], ['centroKine', 'Centros kinésicos']];
+  const normL = (v) => String(v == null ? '' : v).trim().replace(/\s+/g, ' ');
+  K.listaCuenta = (campo, v) => { let n = 0; (K.state.informes || []).forEach((inf) => (FUENTES_LISTA[campo] || []).forEach(([arr, c]) => (inf[arr] || []).forEach((x) => { if (x && normL(x[c]).toLowerCase() === normL(v).toLowerCase()) n++; }))); return n; };
+  K.listaCambiar = (campo, de, a) => { // a vacío = quitar el valor de los registros (los registros se mantienen)
+    let n = 0; a = normL(a).slice(0, 80);
+    (K.state.informes || []).forEach((inf) => (FUENTES_LISTA[campo] || []).forEach(([arr, c]) => (inf[arr] || []).forEach((x) => { if (x && normL(x[c]).toLowerCase() === normL(de).toLowerCase()) { if (a) x[c] = a; else delete x[c]; n++; } })));
+    return n;
+  };
+  K.tarjetaListas = () => {
+    if (!K.puedeEditar()) return '';
+    const bloque = ([campo, tit]) => { const vs = K.valoresUsados(campo);
+      return `<h3 style="margin:12px 0 4px;font-size:15px">${e(tit)} <span class="suave" style="font-weight:400">(${vs.length})</span></h3>${vs.length ? `<div class="lista lista-edit">${vs.map((v) => `<div class="item"><div class="txt"><b>${e(v)}</b><span>${K.listaCuenta(campo, v)} ${K.listaCuenta(campo, v) === 1 ? 'registro' : 'registros'}</span></div><button type="button" class="btn sec chico" data-acc="listaCambiar" data-campo="${campo}" data-v="${e(v)}">Cambiar o unir</button><button type="button" class="btn peligro chico" data-acc="listaQuitar" data-campo="${campo}" data-v="${e(v)}">Quitar</button></div>`).join('')}</div>` : '<p class="suave" style="margin:0">Aún no hay valores: se van sumando al registrar controles y exámenes.</p>'}`; };
+    return `<div class="card"><h2>Listas desplegables</h2><p class="sub">Los médicos y centros que aparecen al registrar. Si escribiste uno mal (por ejemplo «D.Núñez» en vez de «Doctor Núñez»), usa <b>Cambiar o unir</b>: se corrige en todos los registros y queda un solo nombre. <b>Quitar</b> lo borra de los registros que lo usan (los registros no se eliminan).</p>${NOMBRES_LISTA.map(bloque).join('')}</div>`;
+  };
+  K.formListaCambiar = (campo, de) => {
+    const otros = K.valoresUsados(campo).filter((v) => v.toLowerCase() !== normL(de).toLowerCase()), n = K.listaCuenta(campo, de);
+    K.modal({
+      titulo: 'Cambiar o unir «' + de + '»',
+      cuerpo: `<p class="suave">Se cambia en ${n} ${n === 1 ? 'registro' : 'registros'}. Escribe el nombre correcto, o elige uno que ya exista para unirlos en uno solo.</p>
+        <label class="campo"><span>Nombre correcto</span><input type="text" name="nuevo" list="dl-lista-cambio" maxlength="80" value="${e(de)}" autocomplete="off"><datalist id="dl-lista-cambio">${otros.map((v) => `<option value="${e(v)}">`).join('')}</datalist></label>`,
+      botones: [{ txt: 'Cancelar', cls: 'sec' }, { txt: 'Cambiar', fn: (m, hoja) => {
+        const a = normL(K.datos(hoja).nuevo); if (!a) { K.aviso('Escribe el nombre correcto', true); return false; }
+        if (a === normL(de)) { K.aviso('Escribiste el mismo nombre', true); return false; }
+        const existe = otros.find((v) => v.toLowerCase() === a.toLowerCase()), final = existe || a, k = K.listaCambiar(campo, de, final);
+        K.guardar(); K.aviso(k + (k === 1 ? ' registro cambiado' : ' registros cambiados') + (existe ? ' (unidos con «' + final + '»)' : '')); K.render();
+      } }]
+    });
+  };
+  K.formListaQuitar = (campo, de) => {
+    const n = K.listaCuenta(campo, de);
+    K.confirmar(`¿Quitar «${de}»? Se borra de ${n} ${n === 1 ? 'registro' : 'registros'} (los registros se mantienen, solo queda ese dato en blanco).`, 'Quitar', () => { const k = K.listaCambiar(campo, de, ''); K.guardar(); K.aviso('Quitado de ' + k + (k === 1 ? ' registro' : ' registros')); K.render(); });
+  };
   // Lesiones anteriores del mismo jugador en la misma zona (o con el mismo nombre): sirven para sugerir «recidiva».
   K.casosPrevios = (inf, c) => (inf.casos || []).filter((x) => x.id !== c.id && x.jugadorId === c.jugadorId && x.tipo === 'lesion' && (x.inicio || '') < (c.inicio || '9999')
     && ((x.zonas || []).some((z) => (c.zonas || []).includes(z)) || (x.titulo || '').trim().toLowerCase() === (c.titulo || '').trim().toLowerCase()));
@@ -516,6 +550,7 @@
     if (!K.vivos(inf).length) return sinJugadores();
     const def = EV[tipo];
     const jid = rec ? rec.jugadorId : o.jugadorId || '';
+    const segOk = ['control', 'examen', 'procedimiento'].includes(tipo) && !!K.verPrivado && K.verPrivado() && !!K.activacionesJugador; // v1.9.10: ¿se hizo por el seguro?
     K.modal({
       titulo: (rec ? 'Editar ' : 'Nuevo registro: ') + def.t.toLowerCase(),
       cuerpo: `
@@ -530,10 +565,11 @@
         ${tipo === 'control' || tipo === 'examen' ? K.campoLista('centro', 'Centro médico donde fue', 'centro', rec ? rec.centro : '') + K.campoLista('medico', tipo === 'control' ? 'Médico con quien se vio' : 'Médico que lo vio o lo pidió', 'medico', rec ? rec.medico : '') : ''}
         ${tipo === 'cirugia' ? '' : `<label class="campo"><span>${tipo === 'medicamento' ? 'Unidades / dosis entregadas' : tipo === 'procedimiento' ? 'Sesiones' : 'Cantidad'}</span><input type="number" inputmode="numeric" min="1" name="cantidad" value="${e(rec ? rec.cantidad || 1 : 1)}"></label>`}
         <label class="campo"><span>Lesión o molestia asociada (opcional)</span><select name="casoId">${casosOpts(inf, jid, rec ? rec.casoId : o.casoId || ((K.casoActivo(jid) || {}).id || ''))}</select></label>
+        ${segOk ? `<div class="oculto" data-seg-bloque><label class="campo"><span>¿Se hizo por el seguro?</span><select name="segId"></select></label><label class="check oculto" data-seg-urg><input type="checkbox" name="segUrg"><span>Fue en la urgencia de esa activación</span></label></div>` : ''}
         ${tipo === 'medicamento' && !rec ? '<p class="suave" style="font-size:13px;margin:0 0 8px">Al guardar, cuenta también como 1 atención con Farmacología (1 intervención).</p>' : ''}
         <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>`,
       botones: [
-        rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.conDeshacer('Registro eliminado', () => { quitar(inf.eventos, rec.id); inf.atenciones.filter((a) => a.evMed === rec.id).forEach((a) => quitar(inf.atenciones, a.id)); }); } } : { txt: 'Cancelar', cls: 'sec' },
+        rec ? { txt: 'Eliminar', cls: 'peligro', fn: () => { K.conDeshacer('Registro eliminado', () => { quitar(inf.eventos, rec.id); if (K.desvincularSeguro) K.desvincularSeguro(inf, rec.id); inf.atenciones.filter((a) => a.evMed === rec.id).forEach((a) => quitar(inf.atenciones, a.id)); }); } } : { txt: 'Cancelar', cls: 'sec' },
         {
           txt: 'Guardar',
           fn: (m, hoja) => {
@@ -554,13 +590,29 @@
             if (resultado) reg.resultado = resultado; else delete reg.resultado;
             if (centro) reg.centro = centro; else delete reg.centro;
             if (medico) reg.medico = medico; else delete reg.medico;
+            if (segOk) { // vínculo con una activación del seguro (el registro de Kine manda; el seguro lo muestra combinado)
+              const act = d.segId ? (inf.seguros || []).find((x) => x.id === d.segId && x.jugadorId === reg.jugadorId) : null;
+              (inf.segEventos || []).filter((x) => x.evId === reg.id && (!act || x.seguroId !== act.id)).forEach((x) => { inf.segEventos = inf.segEventos.filter((q) => q !== x); });
+              if (act) K.vincularSeguro(inf, act, reg.id, !!(hoja.querySelector('[name=segUrg]') || {}).checked);
+            }
             hecho('Guardado');
           }
         }
       ],
       alMontar: (m, hoja) => {
         const selJ = hoja.querySelector('[name=jugadorId]'), selC = hoja.querySelector('[name=casoId]');
-        selJ.addEventListener('change', () => { selC.innerHTML = casosOpts(inf, selJ.value, rec ? '' : (K.casoActivo(selJ.value) || {}).id || ''); });
+        selJ.addEventListener('change', () => { selC.innerHTML = casosOpts(inf, selJ.value, rec ? '' : (K.casoActivo(selJ.value) || {}).id || ''); pintarSeg(); });
+        const bl = hoja.querySelector('[data-seg-bloque]'), segS = hoja.querySelector('[name=segId]'), segU = hoja.querySelector('[data-seg-urg]');
+        function pintarSeg() {
+          if (!bl) return;
+          const acts = K.activacionesJugador(inf, selJ.value), lig = rec ? (inf.segEventos || []).find((x) => x.evId === rec.id) : null, ya = segS.value || (lig && selJ.value === rec.jugadorId ? lig.seguroId : '');
+          bl.classList.toggle('oculto', !acts.length);
+          segS.innerHTML = '<option value="">No</option>' + acts.map((a) => `<option value="${e(a.id)}">Sí · ${e(a.diagnostico || 'Activación')}${a.activacion ? ' · ' + e(K.fechaCorta(a.activacion)) : ''}</option>`).join('');
+          segS.value = acts.some((a) => a.id === ya) ? ya : '';
+          if (lig && !segU.dataset.listo) { segU.querySelector('input').checked = !!(lig.urg || lig.deUrg); segU.dataset.listo = '1'; }
+          segU.classList.toggle('oculto', !segS.value || tipo === 'control');
+        }
+        if (bl) { segS.addEventListener('change', pintarSeg); pintarSeg(); }
       }
     });
   };
