@@ -93,6 +93,7 @@
   // Selector opcional de torneo (solo si el informe tiene torneos): para atenciones y lesiones ocurridas en un torneo.
   K.selTorneoHTML = (inf, sel, rotulo) => ((inf.torneos || []).length ? `<label class="campo"><span>${rotulo || 'Torneo (opcional)'}</span><select name="torneoId"><option value="">Ninguno</option>${(inf.torneos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map((t) => `<option value="${K.esc(t.id)}"${t.id === sel ? ' selected' : ''}>${K.esc(t.nombre)}</option>`).join('')}</select></label>` : '');
   const temporadaPorDefecto = (fecha) => K.ui.ultTemporada || (Number((fecha || K.hoy()).slice(5, 7)) <= 6 ? 'camp1' : 'camp2');
+  K.temporadaPorDefecto = temporadaPorDefecto;
   /* v1.9.1 · «¿En qué categoría pasó?»: solo aparece si el jugador tiene marcada alguna categoría en la que también juega.
      Sirve para entrenamientos y atenciones fuera de partido (en un partido la categoría es la del partido). Si pasó en la suya, se deja en blanco. */
   K.catJuegoCampo = () => '<label class="campo oculto" data-cat-juego><span>¿En qué categoría pasó?</span><select name="catJuego"></select><small class="suave" style="display:block;margin-top:4px">Solo aparece porque juega también en otra categoría. Si pasó en la suya, déjalo como está.</small></label>';

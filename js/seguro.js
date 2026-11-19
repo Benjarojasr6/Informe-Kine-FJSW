@@ -70,6 +70,30 @@
       <div class="lista lista-edit">${filas.map(({ inf, par, i }) => `<div class="item"><div class="txt"><b>${e(K.textoRepetido(inf, par))}</b><span>${par.k === 'seg' ? 'Repetido dentro del seguro (uno ya está vinculado a Kine)' : par.exacto ? 'En Kine y en el seguro con el mismo nombre' : 'En Kine figura como «' + e(par.e.nombre || '') + '»'}</span></div><button type="button" class="btn sec chico" data-acc="unirRepetido" data-rinf="${e(inf.id)}" data-i="${i}">Unir (cuenta 1)</button></div>`).join('')}</div>
       ${filas.filter((f) => f.par.k === 'seg' || f.par.exacto).length > 1 ? `<button type="button" class="btn chico" data-acc="unirRepetidosTodos" style="margin-top:8px">Unir todos los idénticos (${filas.filter((f) => f.par.k === 'seg' || f.par.exacto).length})</button><p class="suave" style="margin:6px 0 0">«Idénticos» = mismo nombre, tipo y fecha. Los que tienen otro nombre se unen uno por uno.</p>` : ''}</div>`;
   };
+  /* v1.9.16 · Derivación al seguro automática: cada activación (sala de urgencia) deja en la ficha 1 «Derivación al seguro» con motivo Urgencia.
+     Se crea como una atención con segDeriv = id de la activación; si cambia la fecha se ajusta y si se borra la activación se quita. Si el kinesiólogo ya la anotó
+     a mano (mismo jugador, el mismo día o el anterior/siguiente, con motivo Urgencia o sin motivo) no se duplica. */
+  const difDias = (a, b) => Math.abs((Date.parse(a) - Date.parse(b)) / 864e5);
+  const ISOok = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
+  K.derivSeguroExistente = (inf, s) => (inf.atenciones || []).find((a) => a.segDeriv === s.id)
+    || (inf.atenciones || []).find((a) => a.jugadorId === s.jugadorId && !a.segDeriv && (Number((a.trat || {}).seguro) || 0) > 0 && (!(a.motSeguro || []).length || a.motSeguro.includes('urgencia')) && ISOok(a.fecha) && difDias(a.fecha, s.activacion) <= 1);
+  K.derivarSeguro = (inf, s) => {
+    if (!ISOok(s.activacion) || K.derivSeguroExistente(inf, s)) return false;
+    inf.atenciones = inf.atenciones || [];
+    inf.atenciones.push({ id: K.uid(), fecha: s.activacion, jugadorId: s.jugadorId, casoId: '', trat: { seguro: 1 }, motSeguro: ['urgencia'], notas: '', clase: 'otras', origen: 'ssw', temporada: K.temporadaPorDefecto ? K.temporadaPorDefecto(s.activacion) : 'camp1', segDeriv: s.id });
+    return true;
+  };
+  K.derivFaltantes = (inf) => (inf.seguros || []).filter((s) => ISOok(s.activacion) && !K.derivSeguroExistente(inf, s));
+  K.tarjetaDerivSeguro = () => {
+    if (!K.verPrivado || !K.verPrivado() || !K.puedeEditar()) return '';
+    const filas = []; (K.state.informes || []).forEach((inf) => K.derivFaltantes(inf).forEach((s) => filas.push({ inf, s })));
+    const nom = (inf, s) => (K.jugador(inf, s.jugadorId) || { nombre: '—' }).nombre;
+    if (!filas.length) return `<div class="card"><h2>Derivaciones al seguro de las activaciones</h2><p class="suave" style="margin:0">Todas las activaciones del seguro ya tienen su «Derivación al seguro» en la ficha del jugador.</p></div>`;
+    filas.sort((a, b) => (a.s.activacion || '').localeCompare(b.s.activacion || ''));
+    return `<div class="card"><h2>Derivaciones al seguro de las activaciones</h2><p class="sub">Cada activación del seguro (sala de urgencia) debe dejar 1 «Derivación al seguro» en la ficha del jugador. Estas activaciones aún no la tienen (y no hay una anotada a mano el mismo día o el día anterior o siguiente). Al agregarlas, quedan con motivo «Urgencia» y la fecha de la activación.</p>
+      <div class="lista lista-edit">${filas.map(({ inf, s }) => `<div class="item"><div class="txt"><b>${e(nom(inf, s))}</b><span>${e(fc(s.activacion))} · ${e(s.diagnostico || 'Activación')}</span></div></div>`).join('')}</div>
+      <button type="button" class="btn chico" data-acc="derivAgregar" style="margin-top:8px">Agregar las ${filas.length} derivaciones</button></div>`;
+  };
   K.desvincularSeguro = (inf, evId) => { inf.segEventos = (inf.segEventos || []).filter((x) => x.evId !== evId); const ev = (inf.eventos || []).find((x) => x.id === evId); if (ev) delete ev.nAsist; };
   K.activacionesJugador = (inf, jid) => activacionesDe(inf, jid).slice().sort((a, b) => (b.activacion || '').localeCompare(a.activacion || ''));
   const evsDe = (inf, s) => { const primera = activacionesDe(inf, s.jugadorId)[0]; return (inf.segEventos || []).filter((x) => x.jugadorId === s.jugadorId && !x.sinAct && (x.seguroId ? x.seguroId === s.id : primera && primera.id === s.id)); };
@@ -145,12 +169,12 @@
             const campos = { diagnostico: (d.diagnostico || '').trim(), rut: fmtRut(d.rut), fechaNac: d.fechaNac || '', comuna: (d.comuna || '').trim(), activacion: d.activacion || '', clinica: (d.clinica || '').trim(), nClinica: (d.nClinica || '').trim(), prevision: d.prevision || '', previsionDetalle: d.prevision ? (d.previsionDetalle || '').trim() : '' };
             { const pa = (d.pais || '').trim().slice(0, 80), po = (d.poliza || '').trim().slice(0, 60); if (pa) campos.pais = pa; if (K.COBERTURAS_SEGURO.includes(d.cobertura)) campos.cobertura = d.cobertura; if (po) campos.poliza = po; }
             if (!campos.diagnostico) { K.aviso('Escribe el diagnóstico o motivo de esta activación', true); return false; }
-            let act = ya ? s : null;
+            let act = ya ? s : null, derivNueva = false;
             if (ya) { ['pais', 'cobertura', 'poliza'].forEach((k) => { if (!(k in campos)) delete s[k]; }); Object.assign(s, campos); }
             else {
               if (!d.jid) { K.aviso('Elige un jugador', true); return false; }
               const [iid, id] = d.jid.split('|'), inf = K.state.informes.find((i) => i.id === iid);
-              inf.seguros = inf.seguros || []; act = Object.assign({ id: K.uid(), jugadorId: id }, campos); inf.seguros.push(act);
+              inf.seguros = inf.seguros || []; act = Object.assign({ id: K.uid(), jugadorId: id }, campos); inf.seguros.push(act); derivNueva = K.derivarSeguro(inf, act);
             }
             // exámenes de la urgencia: uno por fila (los que ya existían se actualizan, los quitados se borran)
             { const infA = ya ? ya.inf : K.state.informes.find((i) => i.id === d.jid.split('|')[0]), fechaU = campos.activacion || K.hoy();
@@ -178,7 +202,7 @@
                 if (!a2.fechaNac && campos.fechaNac) a2.fechaNac = campos.fechaNac;
                 if (!a2.prevision && campos.prevision) { a2.prevision = campos.prevision; if (campos.previsionDetalle) a2.previsionDetalle = campos.previsionDetalle; }
               } }
-            K.guardar(); K.aviso('Guardado'); K.render();
+            K.guardar(); K.aviso(derivNueva ? 'Guardado. Se agregó 1 «Derivación al seguro» (urgencia) en la ficha' : 'Guardado'); K.render();
           }
         }
       ],
@@ -617,6 +641,7 @@
 
   Object.assign(K.acciones, {
     unirRepetido(el) { const inf = K.state.informes.find((i) => i.id === el.dataset.rinf), par = inf && K.repetidosSeguroKine(inf)[Number(el.dataset.i)]; if (!par) return; K.unirRepetido(inf, par); K.guardar(); K.aviso('Unidos: cuenta 1'); K.render(); },
+    derivAgregar() { let n = 0; K.state.informes.forEach((inf) => K.derivFaltantes(inf).forEach((s) => { if (K.derivarSeguro(inf, s)) n++; })); K.guardar(); K.aviso(n + (n === 1 ? ' derivación agregada' : ' derivaciones agregadas')); K.render(); },
     unirRepetidosTodos() {
       let n = 0; K.state.informes.forEach((inf) => { for (let g = 0; g < 500; g++) { const par = K.repetidosSeguroKine(inf).find((q) => q.k === 'seg' || q.exacto); if (!par) break; K.unirRepetido(inf, par); n++; } });
       K.guardar(); K.aviso(n + (n === 1 ? ' registro unido' : ' registros unidos') + ' (cuentan 1)'); K.render();

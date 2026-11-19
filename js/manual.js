@@ -143,6 +143,10 @@
       <li><b>Seguro en el exterior:</b> al registrar una activación del seguro puedes anotar la ciudad o país, la cobertura (seguro del club o de viaje) y la póliza. En la pestaña Viaje del torneo se ven las activaciones de los inscritos durante el torneo.</li>
       <li><b>Renombrar o eliminar:</b> si cambias el nombre del torneo se actualiza en todos sus partidos. Al eliminarlo, los partidos <b>no se borran</b>: quedan sin torneo (hay un aviso para <b>Deshacer</b>).</li>
       <li><b>Lo que ya tenías:</b> los partidos que antes tenían un torneo escrito se ordenaron solos en fichas de torneo; los informes salen igual que antes.</li></ul>`],
+    ['Novedades de la versión 1.9.16', `<ul>
+      <li><b>Cada activación del seguro deja una «Derivación al seguro» en la ficha:</b> al crear una activación (sala de urgencia), la app registra sola 1 derivación al seguro con motivo «Urgencia» y la fecha de la activación; suma en la ficha, los totales y el informe. Si ya la habías anotado a mano ese día (o el día anterior o siguiente), no se duplica. Si cambias la fecha de la activación, la derivación cambia con ella, y si borras la activación, se quita.</li>
+      <li><b>Activaciones que ya tenías:</b> en Ajustes → «Derivaciones al seguro de las activaciones» ves cuáles aún no tienen su derivación y puedes agregarlas todas de una vez.</li>
+    </ul>`],
     ['Novedades de la versión 1.9.15', `<ul>
       <li><b>«Interno (médico del club)»:</b> al registrar un control, examen, procedimiento o cirugía, la pregunta «¿Se hizo por el seguro o es particular?» ahora también tiene la opción <b>Interno (médico del club)</b>. Queda anotado en el historial y no se ofrece unirlo con el seguro.</li>
     </ul>`],

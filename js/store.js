@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.9.15';
+  K.version = '1.9.16';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -259,6 +259,17 @@
   };
   // v1.9.10: un evento del seguro puede estar «vinculado» (evId) a un control, examen o procedimiento ya registrado en Kine: es el mismo hecho, no dos.
   // Los datos del registro de Kine mandan; aquí se copian al evento del seguro para que las pantallas del seguro sigan igual.
+  // v1.9.16: la derivación al seguro que creó una activación sigue a la activación (fecha y jugador) y se quita si la activación se borra
+  K.sincDerivSeguro = (inf) => {
+    const at = inf.atenciones || [];
+    for (let i = at.length - 1; i >= 0; i--) {
+      const a = at[i]; if (!a || !a.segDeriv) continue;
+      const s = (inf.seguros || []).find((x) => x.id === a.segDeriv);
+      if (!s) { at.splice(i, 1); continue; }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s.activacion || '')) a.fecha = s.activacion;
+      a.jugadorId = s.jugadorId;
+    }
+  };
   K.sincSegEv = (inf) => {
     if (!inf || !Array.isArray(inf.segEventos)) return;
     const evs = new Map((inf.eventos || []).map((x) => [x.id, x])), segs = new Map((inf.seguros || []).map((x) => [x.id, x]));
@@ -274,7 +285,7 @@
   };
   K.guardar = function () {
     K.mayusEstado();
-    if (K.state && Array.isArray(K.state.informes)) K.state.informes.forEach(K.sincSegEv); // primera letra en mayúscula en los textos de registros y nombres de personas
+    if (K.state && Array.isArray(K.state.informes)) K.state.informes.forEach((i) => { K.sincSegEv(i); if (K.sincDerivSeguro) K.sincDerivSeguro(i); }); // primera letra en mayúscula en los textos de registros y nombres de personas
     K.state.cambios = (K.state.cambios || 0) + 1;
     clearTimeout(tmr);
     tmr = setTimeout(K.guardarYa, 250);
@@ -525,6 +536,7 @@
       // v1.9.6: motivos de las derivaciones al seguro y vínculo con el medicamento que la creó (todo opcional)
       if (a.motSeguro !== undefined) { if (Array.isArray(a.motSeguro)) { a.motSeguro = a.motSeguro.filter((x) => K.MOTIVOS_SEGURO.some((m) => m[0] === x)).slice(0, 20); if (!a.motSeguro.length) delete a.motSeguro; } else delete a.motSeguro; }
       if (a.evMed !== undefined && !ID_OK(a.evMed)) delete a.evMed;
+      if (a.segDeriv !== undefined && !ID_OK(a.segDeriv)) delete a.segDeriv; // v1.9.16: derivación al seguro creada por una activación
     });
     // conmoción cerebral (SCAT5, v1.6): incidencia.scat5 (enums, números en su rango, fecha ISO, textos) y caso.conmocion / caso.rtpConmocion (6 etapas). Todo opcional.
     if (K.conmocion) K.conmocion.normalizarInforme(inf);
