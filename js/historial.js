@@ -83,8 +83,10 @@
     (inf.eventos || []).forEach((x) => {
       if (x.jugadorId !== jid || !K.evRealizado(x)) return;
       const en = K.bit.entEvento(inf, x), c = x.casoId ? porId.get(x.casoId) : null;
-      const sub = [x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : '', priv && ((inf.segEventos || []).some((q) => q.evId === x.id) || x.porSeguro) ? 'por el seguro' : x.interno ? 'interno (médico del club)' : ''].filter(Boolean).join(' · ');
-      items.push(nuevo({ id: 'e' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: x.tipo, tag: en.tag, cls: 'ev', titulo: en.titulo, sub, det: en.det, notas: en.notas, raw: x, edit: 'evento' }, c ? { casoId: c.id, zonas: (c.zonas || []).slice() } : null));
+      const lig = priv ? (inf.segEventos || []).find((q) => q.evId === x.id) : null, porSeg = !!(lig || (priv && x.porSeguro));
+      const cont = porSeg && ['control', 'examen', 'procedimiento'].includes(x.tipo), enU = !!(lig && (lig.urg || lig.deUrg)); // v1.9.17: control, examen o procedimiento por el seguro = «Seguro · continuidad» (o «urgencia» si se hizo dentro de la sala de urgencia)
+      const sub = [cont ? en.tag : '', x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : '', porSeg && !cont ? 'por el seguro' : x.interno ? 'interno (médico del club)' : ''].filter(Boolean).join(' · ');
+      items.push(nuevo({ id: 'e' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: x.tipo, tag: cont ? (enU ? 'Seguro · urgencia' : 'Seguro · continuidad') : en.tag, cls: cont ? 'se' : 'ev', titulo: en.titulo, sub, det: en.det, notas: en.notas, raw: x, edit: 'evento' }, c ? { casoId: c.id, zonas: (c.zonas || []).slice() } : null));
     });
     // ---- seguro (solo si puede ver datos privados)
     if (priv) {
@@ -95,7 +97,8 @@
       (inf.segEventos || []).forEach((x) => {
         if (x.jugadorId !== jid || x.evId) return; // los vinculados a Kine ya salen como su registro de Kine («por el seguro»)
         const t = SEG_TIPO[x.tipo] || x.tipo || 'Evento';
-        items.push(nuevo({ id: 'v' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: 'seguro', tag: 'Seguro · ' + t, cls: 'se', titulo: x.detalle || t, sub: [x.tipo === 'examen' && x.resultado ? 'Resultado: ' + x.resultado : '', x.centro || x.centroKine || '', x.medico || '', x.nAsist ? 'N.º ' + x.nAsist : ''].filter(Boolean).join(' · '), det: [['Tipo', t], ['Detalle', x.detalle || '—']].concat(x.resultado ? [['Resultado', x.resultado]] : []) }));
+        const contS = ['control', 'examen', 'procedimiento'].includes(x.tipo), tagS = x.urg || x.deUrg ? 'Seguro · urgencia' : contS ? 'Seguro · continuidad' : 'Seguro · ' + t;
+        items.push(nuevo({ id: 'v' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: 'seguro', tag: tagS, cls: 'se', titulo: x.detalle || t, sub: [contS ? t : '', x.tipo === 'examen' && x.resultado ? 'Resultado: ' + x.resultado : '', x.centro || x.centroKine || '', x.medico || '', x.nAsist ? 'N.º ' + x.nAsist : ''].filter(Boolean).join(' · '), det: [['Tipo', t], ['Detalle', x.detalle || '—']].concat(x.resultado ? [['Resultado', x.resultado]] : []) }));
       });
     }
     // ---- partidos (de cualquier informe: un jugador puede jugar en otra categoría)

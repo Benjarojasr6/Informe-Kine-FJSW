@@ -109,6 +109,10 @@
   K.formatoRut = fmtRut;
   const ss = () => { const s = K.kineEstado(); if (s.segAnio === undefined) s.segAnio = 'todo'; if (s.segCat === undefined) s.segCat = ''; return s; };
   // v1.9.13: filtro por categoría de la pestaña Seguro ('' = todas). La categoría es la del jugador (Sub 15, 16, 18, 20).
+  // v1.9.17: período del seguro: 'todo', un año ('2026') o un semestre ('2026-s1' = enero a junio, '2026-s2' = julio a diciembre)
+  K.segPeriodoOk = (spec, iso) => { if (!spec || spec === 'todo') return true; iso = iso || ''; const m = /^(\d{4})-s([12])$/.exec(spec); if (!m) return iso.slice(0, 4) === spec; if (iso.slice(0, 4) !== m[1]) return false; const mes = Number(iso.slice(5, 7)); return m[2] === '1' ? mes >= 1 && mes <= 6 : mes >= 7; };
+  K.segPeriodoTxt = (spec) => { if (!spec || spec === 'todo') return 'Todo el historial'; const m = /^(\d{4})-s([12])$/.exec(spec); return m ? (m[2] === '1' ? '1.er semestre ' : '2.º semestre ') + m[1] : 'Año ' + spec; };
+  K.segPeriodoOpciones = (anios, sel) => '<option value="todo">Todo el historial</option>' + anios.map((a) => [a, a + '-s1', a + '-s2'].map((v) => `<option value="${v}"${sel === v ? ' selected' : ''}>${K.segPeriodoTxt(v)}</option>`).join('')).join('');
   const catJ = (jid) => String((K.kineBuscarJ(jid) || { cat: 0 }).cat || '');
   const catOk = (jid) => { const c = ss().segCat; return !c || catJ(jid) === c; };
 
@@ -147,6 +151,7 @@
         <div class="grid2">
           <label class="campo"><span>Clínica a la que asiste</span><input type="text" name="clinica" list="dl-clin" value="${e(s.clinica || '')}" autocomplete="off"><datalist id="dl-clin">${clinicasGuardadas().map((c) => `<option value="${e(c)}">`).join('')}</datalist></label>
           <label class="campo"><span>N.º de asistencia de la clínica</span><input type="text" name="nClinica" value="${e(s.nClinica || '')}" autocomplete="off"></label>
+          <label class="campo"><span>Valor de esta urgencia en el informe del seguro (opcional)</span><input type="text" inputmode="numeric" name="valor" data-miles value="${s.valor ? K.segMiles(s.valor) : ''}" placeholder="$ (vacío = usa el valor general de la urgencia)" autocomplete="off"></label>
         </div>
         <div class="grid2">
           <label class="campo"><span>Ciudad o país donde ocurrió (opcional)</span><input type="text" name="pais" maxlength="80" value="${e(s.pais || pre.pais || '')}" placeholder="Ej. Viña del Mar, Chile · Asunción, Paraguay" autocomplete="off"></label>
@@ -166,11 +171,12 @@
           txt: 'Guardar',
           fn: (m, hoja) => {
             const d = K.datos(hoja);
-            const campos = { diagnostico: (d.diagnostico || '').trim(), rut: fmtRut(d.rut), fechaNac: d.fechaNac || '', comuna: (d.comuna || '').trim(), activacion: d.activacion || '', clinica: (d.clinica || '').trim(), nClinica: (d.nClinica || '').trim(), prevision: d.prevision || '', previsionDetalle: d.prevision ? (d.previsionDetalle || '').trim() : '' };
+            const campos = { diagnostico: (d.diagnostico || '').trim(), rut: fmtRut(d.rut), fechaNac: d.fechaNac || '', comuna: (d.comuna || '').trim(), activacion: d.activacion || '', clinica: (d.clinica || '').trim(), nClinica: (d.nClinica || '').trim(), valor: Number(K.segDigitos(d.valor)) || 0, prevision: d.prevision || '', previsionDetalle: d.prevision ? (d.previsionDetalle || '').trim() : '' };
             { const pa = (d.pais || '').trim().slice(0, 80), po = (d.poliza || '').trim().slice(0, 60); if (pa) campos.pais = pa; if (K.COBERTURAS_SEGURO.includes(d.cobertura)) campos.cobertura = d.cobertura; if (po) campos.poliza = po; }
             if (!campos.diagnostico) { K.aviso('Escribe el diagnóstico o motivo de esta activación', true); return false; }
             let act = ya ? s : null, derivNueva = false;
-            if (ya) { ['pais', 'cobertura', 'poliza'].forEach((k) => { if (!(k in campos)) delete s[k]; }); Object.assign(s, campos); }
+            if (!(campos.valor > 0)) delete campos.valor;
+            if (ya) { ['pais', 'cobertura', 'poliza', 'valor'].forEach((k) => { if (!(k in campos)) delete s[k]; }); Object.assign(s, campos); }
             else {
               if (!d.jid) { K.aviso('Elige un jugador', true); return false; }
               const [iid, id] = d.jid.split('|'), inf = K.state.informes.find((i) => i.id === iid);
@@ -257,6 +263,7 @@
       cuerpo: `<p><b>${e(ev.nombre || TIPO_VINC[ev.tipo])}</b> · ${e(fc(ev.fecha))}${ev.centro ? ' · ' + e(ev.centro) : ''}${ev.medico ? ' · ' + e(ev.medico) : ''}${ev.tipo === 'examen' && ev.resultado ? '<br>Resultado: ' + e(ev.resultado) : ''}</p>
         <label class="campo"><span>N.º de asistencia del seguro para este ${e((TIPO_VINC[ev.tipo] || 'registro').toLowerCase())}</span><input type="text" name="nAsist" value="${e(x.nAsist || ev.nAsist || '')}" autocomplete="off" placeholder="El número que te dio el seguro"></label>
         <p class="suave" style="margin:0 0 8px">Este registro está en Kine y en el seguro a la vez: se cuenta <b>una sola vez</b>. El N.º de asistencia se escribe aquí (o al editarlo en Kine) y queda igual en los dos lados. Los demás datos (fecha, centro, médico, resultado) se cambian con «Editar en Kine».</p>
+        <label class="campo"><span>Valor de este registro en el informe del seguro (opcional)</span><input type="text" inputmode="numeric" name="valor" data-miles value="${x.valor ? K.segMiles(x.valor) : ''}" placeholder="$ (vacío = usa el valor por nombre o el general)" autocomplete="off"></label>
         ${ev.tipo === 'examen' || ev.tipo === 'procedimiento' ? `<label class="check"><input type="checkbox" name="urgChk"${x.urg || x.deUrg ? ' checked' : ''}><span>Fue en la sala de urgencia de esta activación${act && act.activacion ? ' (' + e(fc(act.activacion)) + ')' : ''}</span></label>` : ''}`,
       botones: [
         { txt: 'Quitar del seguro', cls: 'peligro', fn: () => { K.confirmar('¿Quitar este registro del seguro? El registro de Kine se mantiene.', 'Quitar', () => { K.desvincularSeguro(inf, ev.id); K.guardar(); K.aviso('Quitado del seguro'); K.render(); }); return true; } },
@@ -265,6 +272,7 @@
           const c = hoja.querySelector('[name=urgChk]'), n = (hoja.querySelector('[name=nAsist]').value || '').trim().slice(0, 40);
           if (c) { delete x.urg; delete x.deUrg; if (c.checked) { if (ev.tipo === 'examen') x.urg = true; else x.deUrg = true; } }
           x.nAsist = n; if (n) ev.nAsist = n; else delete ev.nAsist;
+          { const vN = Number(K.segDigitos(hoja.querySelector('[name=valor]').value)) || 0; if (vN > 0) x.valor = vN; else delete x.valor; }
           K.guardar(); K.aviso('Guardado'); K.render();
         } }
       ]
@@ -301,6 +309,7 @@
         <label class="campo"><span>Notas (opcional)</span><textarea name="notas">${e(rec ? rec.notas || '' : '')}</textarea></label>
         </div>
         <label class="campo"><span>N.º de asistencia del seguro</span><input type="text" name="nAsist" value="${e(rec ? rec.nAsist || '' : '')}" autocomplete="off" placeholder="El número que te dio el seguro"></label>
+        <label class="campo"><span>Valor de este registro en el informe del seguro (opcional)</span><input type="text" inputmode="numeric" name="valor" data-miles value="${rec && rec.valor ? K.segMiles(rec.valor) : ''}" placeholder="$ (vacío = usa el valor por nombre o el general)" autocomplete="off"></label>
         <p class="suave" style="margin:-4px 0 8px;font-size:13px">Si es por <b>continuidad de tratamiento</b>, el seguro te da un N.º de asistencia nuevo para este control, examen o procedimiento: anótalo aquí. Si aún no lo tienes, déjalo vacío y lo completas después.</p>
         <label class="check oculto" data-blq="urg"><input type="checkbox" name="urgChk"${rec && (rec.urg || rec.deUrg) || (!rec && opt.urg) ? ' checked' : ''}><span>Fue dentro de la sala de urgencia de esta activación (${e(fc(r.s.activacion || ''))}), sin N.º de asistencia propio</span></label>`,
       botones: [
@@ -309,7 +318,7 @@
           txt: 'Guardar',
           fn: (m, hoja) => {
             const d = K.datos(hoja), tipo = d.tipo, enUrg = !!(hoja.querySelector('[name=urgChk]') || {}).checked;
-            if (!rec && d.evId) { const rg = K.vincularSeguro(inf, r.s, d.evId, enUrg), nA = (d.nAsist || '').trim().slice(0, 40), evK = inf.eventos.find((q) => q.id === d.evId); if (rg && nA) { rg.nAsist = nA; if (evK) evK.nAsist = nA; } K.guardar(); K.aviso('Combinado con el registro de Kine'); K.render(); return; }
+            if (!rec && d.evId) { const rg = K.vincularSeguro(inf, r.s, d.evId, enUrg), nA = (d.nAsist || '').trim().slice(0, 40), evK = inf.eventos.find((q) => q.id === d.evId); if (rg && nA) { rg.nAsist = nA; if (evK) evK.nAsist = nA; } { const vN = Number(K.segDigitos(d.valor)) || 0; if (rg && vN > 0) rg.valor = vN; } K.guardar(); K.aviso('Combinado con el registro de Kine'); K.render(); return; }
             const detalle = tipo === 'examen' && d.exSel !== '__otro' ? d.exSel : (d.detalle || '').trim();
             const campos = { jugadorId: jid, seguroId: sid, tipo, fecha: d.fecha, detalle, nAsist: (d.nAsist || '').trim().slice(0, 40), cantidad: tipo === 'kinesiologia' ? Math.max(1, Number(d.cantidad) || 1) : 1, hasta: tipo === 'hosp' ? d.hasta || '' : '', casoId: d.casoId || '', notas: d.notas };
             if (!campos.fecha) { K.aviso('Pon la fecha', true); return false; }
@@ -318,6 +327,7 @@
             const reg = rec ? inf.segEventos.find((x) => x.id === rec.id) : Object.assign({ id: K.uid() }, campos);
             if (rec) Object.assign(reg, campos); else inf.segEventos.push(reg);
             if (resultado) reg.resultado = resultado; else delete reg.resultado;
+            { const vN = Number(K.segDigitos(d.valor)) || 0; if (vN > 0) reg.valor = vN; else delete reg.valor; }
             delete reg.urg; delete reg.deUrg; if (enUrg) { if (tipo === 'examen') reg.urg = true; else if (tipo === 'procedimiento' || tipo === 'hosp') reg.deUrg = true; }
             const dv = { centro: tipo === 'control' || tipo === 'examen' ? K.valorLista(d, 'centro') : '', medico: tipo === 'control' || tipo === 'examen' ? K.valorLista(d, 'medico') : '', centroKine: tipo === 'kinesiologia' ? K.valorLista(d, 'centroKine') : '' };
             Object.keys(dv).forEach((k) => { if (dv[k]) reg[k] = dv[k]; else delete reg[k]; });
@@ -425,12 +435,12 @@
   function estadisticas() {
     const { hbar, donut, panel, top, sumar, mensual } = K.bd;
     const s = ss(), anios = uniq(todos('segEventos').map((r) => (r.x.fecha || '').slice(0, 4))).sort();
-    const f = (x) => s.segAnio === 'todo' || (x.fecha || '').slice(0, 4) === s.segAnio;
+    const f = (x) => K.segPeriodoOk(s.segAnio, x.fecha);
     const evs = todos('segEventos').filter((r) => f(r.x) && catOk(r.x.jugadorId)).map((r) => r.x);
     const segs = todos('seguros').filter((r) => catOk(r.x.jugadorId)), nombre = (jid) => (K.kineBuscarJ(jid) || { j: { nombre: '—' } }).j.nombre;
-    const sel = `<label class="campo" style="max-width:240px"><span>Período</span><select data-acc-change="segAnio"><option value="todo">Todo el historial</option>${anios.map((a) => `<option value="${a}"${s.segAnio === a ? ' selected' : ''}>Año ${a}</option>`).join('')}</select></label>`;
+    const sel = `<label class="campo" style="max-width:240px"><span>Período</span><select data-acc-change="segAnio">${K.segPeriodoOpciones(anios, s.segAnio)}</select></label>`;
     if (!segs.length && !evs.length) return `<div class="card"><h2>Uso del seguro</h2><p class="vacio-msg">Cuando registres activaciones y eventos del seguro, aquí aparecerán las estadísticas.</p></div>`;
-    const segsP = segs.filter((r) => s.segAnio === 'todo' || (r.x.activacion || '').slice(0, 4) === s.segAnio), ini = segsP.length; // urgencias (activaciones) del período
+    const segsP = segs.filter((r) => K.segPeriodoOk(s.segAnio, r.x.activacion)), ini = segsP.length; // urgencias (activaciones) del período
     const evsE = evs.filter((x) => !(x.urg && x.tipo === 'examen')); // eventos propiamente tales (los exámenes de la urgencia van dentro de la urgencia)
     const pool = evsE.concat(segsP.map((r) => ({ tipo: 'urgencia', jugadorId: r.x.jugadorId, fecha: r.x.activacion, nAsist: r.x.nClinica }))); // la urgencia también es un evento
     const c = {}; evsE.forEach((x) => sumar(c, x.tipo)); const nExam = evs.filter((x) => x.tipo === 'examen').length;
@@ -638,6 +648,8 @@
   K.diaAsistencia = formDia;
   // los cuadritos del calendario no son botones (miden 8 px y no cumplirían los 44 px táctiles): se tocan, pero lo accesible es el selector de fecha
   document.addEventListener('click', (ev) => { const c = ev.target.closest && ev.target.closest('[data-adia]'); if (c) formDia(c.dataset.j, c.dataset.f); });
+
+  document.addEventListener('input', (ev) => { const i = ev.target.closest && ev.target.closest('[data-miles]'); if (i && K.segMiles) i.value = K.segMiles(i.value); });
 
   Object.assign(K.acciones, {
     unirRepetido(el) { const inf = K.state.informes.find((i) => i.id === el.dataset.rinf), par = inf && K.repetidosSeguroKine(inf)[Number(el.dataset.i)]; if (!par) return; K.unirRepetido(inf, par); K.guardar(); K.aviso('Unidos: cuenta 1'); K.render(); },

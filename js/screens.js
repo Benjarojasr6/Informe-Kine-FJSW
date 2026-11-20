@@ -734,6 +734,7 @@
       ${K.tarjetaListas ? K.tarjetaListas() : ''}
       ${K.tarjetaRepetidos ? K.tarjetaRepetidos() : ''}
       ${K.tarjetaDerivSeguro ? K.tarjetaDerivSeguro() : ''}
+      ${K.tarjetaValoresSeguro ? K.tarjetaValoresSeguro() : ''}
       <div class="card"><h2>Tipografía</h2>
         <p class="sub">Cambia la letra de toda la app y del informe en PDF. Se guarda para los dos kinesiólogos.</p>
         ${K.selectorFuentes()}</div>

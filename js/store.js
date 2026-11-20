@@ -1,7 +1,7 @@
 /* Estado, almacenamiento en el dispositivo (IndexedDB) y valores por defecto. */
 (function () {
   const K = (window.K = window.K || {});
-  K.version = '1.9.16';
+  K.version = '1.9.17';
 
   K.uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   K.pad = (n) => String(n).padStart(2, '0');
@@ -471,7 +471,9 @@
         if (s.poliza !== undefined) { s.poliza = txt(s.poliza, 60); if (!s.poliza) delete s.poliza; }
         if (s.prevision !== undefined && !K.PREVISIONES.includes(s.prevision)) s.prevision = '';
         if (s.previsionDetalle !== undefined) s.previsionDetalle = txt(s.previsionDetalle, 80);
+        if (s.valor !== undefined) { const n = Math.round(Number(s.valor)); if (Number.isFinite(n) && n > 0 && n <= 1e9) s.valor = n; else delete s.valor; } // v1.9.17: valor propio de esta urgencia para el informe del seguro
       });
+      (inf.segEventos || []).forEach((x) => { if (x.valor !== undefined) { const n = Math.round(Number(x.valor)); if (Number.isFinite(n) && n > 0 && n <= 1e9) x.valor = n; else delete x.valor; } }); // v1.9.17: valor propio del registro
     }
     // plantillas de intervenciones (uso diario): [{ id, nombre, trat: { idTratamiento: cantidad } }]
     if (inf.plantillas !== undefined) {
@@ -487,6 +489,8 @@
       ['urgencia', 'control', 'examen', 'procedimiento', 'kinesiologia', 'cirugia', 'hosp'].forEach((k) => { const n = num(sv[k]); if (n) out[k] = n; });
       const ex = {}; if (plano(sv.examenes)) Object.keys(sv.examenes).slice(0, 60).forEach((k) => { const n = num(sv.examenes[k]); if (n && k.trim() && k.length <= 80) ex[k] = n; });
       if (Object.keys(ex).length) out.examenes = ex;
+      const nm = {}; if (plano(sv.nombres)) Object.keys(sv.nombres).slice(0, 150).forEach((k) => { const n = num(sv.nombres[k]); if (n && /^(control|procedimiento|cirugia|kinesiologia|hosp)\|.{1,80}$/.test(k)) nm[k] = n; }); // v1.9.17: valor por nombre («procedimiento|Yeso / inmovilización»)
+      if (Object.keys(nm).length) out.nombres = nm;
       inf.seguroValores = out;
     }
     ['antecedentes', 'documentos'].forEach((k) => {

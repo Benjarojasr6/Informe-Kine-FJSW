@@ -18,12 +18,17 @@
   K.seguroInformeDatos = (o) => {
     o = o || {};
     const anio = o.anio && o.anio !== 'todo' ? String(o.anio) : '';
-    const en = (iso) => !anio || (iso || '').slice(0, 4) === anio;
+    const en = (iso) => K.segPeriodoOk(anio || 'todo', iso); // año o semestre
     const porJ = new Map(), vals = o.vals || {};
     const get = (inf, jid) => { let r = porJ.get(jid); if (!r) { const q = K.kineBuscarJ(jid) || { inf, j: { nombre: '—' }, cat: 0 }; r = { inf: q.inf || inf, j: q.j, cat: q.cat, acts: [], solas: [] }; porJ.set(jid, r); } return r; };
+    // v1.9.17: el valor de cada registro se busca en este orden: 1) el que se puso en el propio registro, 2) el de su nombre (ej. «Yeso / inmovilización», «Radiografía»), 3) el valor general del tipo
     const valor = (ev) => {
+      if (ev.valorProp > 0) { ev.fuente = 'registro'; return ev.valorProp; }
+      const nom = ev.k !== 'urgencia' && ev.k !== 'examen' && ev.detalle && vals.nombres && vals.nombres[ev.k + '|' + ev.detalle];
+      if (nom > 0) { ev.fuente = 'nombre'; return nom * (ev.k === 'kinesiologia' ? ev.cant || 1 : ev.k === 'hosp' ? ev.dias || 1 : 1); }
+      if (ev.k === 'examen' && ev.detalle && vals.examenes && vals.examenes[ev.detalle] > 0) { ev.fuente = 'nombre'; return vals.examenes[ev.detalle]; }
       if (ev.k === 'urgencia') return vals.urgencia || 0;
-      if (ev.k === 'examen') return (vals.examenes && vals.examenes[ev.detalle]) || vals.examen || 0;
+      if (ev.k === 'examen') return vals.examen || 0;
       if (ev.k === 'kinesiologia') return (vals.kinesiologia || 0) * (ev.cant || 1);
       if (ev.k === 'hosp') return (vals.hosp || 0) * (ev.dias || 1);
       return vals[ev.k] || 0;
@@ -36,8 +41,8 @@
         if (!urgEn && !mios.length) return;
         const r = get(inf, s.jugadorId);
         const fila = [];
-        if (urgEn) fila.push({ k: 'urgencia', fecha: s.activacion || '', titulo: 'Urgencia · activación del seguro', detalle: '', centro: s.clinica || '', medico: '', nAsist: s.nClinica || '', cant: 1 });
-        mios.forEach((x) => fila.push({ k: x.tipo, fecha: x.fecha, hasta: x.hasta || '', titulo: (TIPO_TXT[x.tipo] || x.tipo) + (x.urg || x.deUrg ? ' (urgencia)' : ''), detalle: x.detalle || '', resultado: x.tipo === 'examen' ? x.resultado || '' : '', centro: x.centro || x.centroKine || '', medico: x.medico || '', nAsist: x.nAsist || '', enUrg: !!(x.urg && x.tipo === 'examen'), cant: x.tipo === 'kinesiologia' ? Number(x.cantidad) || 1 : 1, dias: x.tipo === 'hosp' ? dias(x.fecha, x.hasta || x.fecha) : 1 }));
+        if (urgEn) fila.push({ k: 'urgencia', fecha: s.activacion || '', titulo: 'Urgencia · activación del seguro', detalle: '', centro: s.clinica || '', medico: '', nAsist: s.nClinica || '', cant: 1, valorProp: Number(s.valor) || 0 });
+        mios.forEach((x) => fila.push({ k: x.tipo, fecha: x.fecha, hasta: x.hasta || '', titulo: (TIPO_TXT[x.tipo] || x.tipo) + (x.urg || x.deUrg ? ' (urgencia)' : ''), detalle: x.detalle || '', resultado: x.tipo === 'examen' ? x.resultado || '' : '', centro: x.centro || x.centroKine || '', medico: x.medico || '', nAsist: x.nAsist || '', valorProp: Number(x.valor) || 0, enUrg: !!(x.urg && x.tipo === 'examen'), cant: x.tipo === 'kinesiologia' ? Number(x.cantidad) || 1 : 1, dias: x.tipo === 'hosp' ? dias(x.fecha, x.hasta || x.fecha) : 1 }));
         fila.forEach((f) => { f.valor = valor(f); });
         fila.sort((a, b) => (a.k === 'urgencia' ? -1 : b.k === 'urgencia' ? 1 : 0) || (a.fecha || '').localeCompare(b.fecha || ''));
         r.acts.push({ s, filas: fila });
@@ -72,7 +77,7 @@
     const c = d.c, tp = [['Urgencia', c.urgencia || 0, TIPO_COL.urgencia]].concat(Object.keys(TIPO_TXT).map((k) => [TIPO_TXT[k], c[k] || 0, TIPO_COL[k]]));
     const ex = {}, cen = {}, porJ = {}, cat = {};
     d.todas.forEach((f) => { if (f.k === 'examen') sumar(ex, f.detalle || 'Sin nombre'); if (f.enUrg) return; if (f.centro) sumar(cen, f.centro); const q = K.kineBuscarJ(f.jid); sumar(porJ, q ? q.j.nombre : '—'); sumar(cat, 'Sub ' + f.cat); });
-    const periodo = d.anio === 'todo' ? 'Todo el historial' : 'Año ' + d.anio;
+    const periodo = K.segPeriodoTxt(d.anio);
     const priv = (r) => {
       if (!(o.rut || o.fechaNac || o.prevision)) return '';
       const a = K.antecedentesDe && K.antecedentesDe(r.inf, r.j.id) || {}, sg = (r.acts[r.acts.length - 1] || {}).s || {};
@@ -86,11 +91,14 @@
     const bloquesJ = d.jugadores.map((r) => `<section class="sp-j"><h3>${e(r.j.nombre)} <small>Sub ${r.cat}</small></h3>${priv(r)}
       ${r.acts.map((a) => `<div class="sp-a"><p class="sp-ad"><b>${e(a.s.diagnostico || 'Sin diagnóstico')}</b>${a.s.activacion ? ` · activado el ${e(fc(a.s.activacion))}` : ''}${a.s.clinica ? ' · ' + e(a.s.clinica) : ''}${a.s.nClinica ? ' · N.º ' + e(a.s.nClinica) : ''}${a.s.pais ? ' · ' + e(a.s.pais) : ''}</p>${tabla(a.filas)}</div>`).join('')}
       ${r.solas.length ? `<div class="sp-a"><p class="sp-ad"><b>Hospitalizaciones sin activación</b></p>${tabla(r.solas)}</div>` : ''}</section>`).join('');
+    const porNombre = []; // v1.9.17: control, examen, procedimiento y cirugía agrupados por nombre (con el valor que tenga cada uno)
+    if (conValor) { const g = {}; d.todas.filter((f) => ['control', 'examen', 'procedimiento', 'cirugia'].includes(f.k) && f.valor > 0).forEach((f) => { const id = f.k + '|' + (f.detalle || 'Sin nombre'), q = g[id] || (g[id] = { k: f.k, n: f.detalle || 'Sin nombre', c: 0, v: 0, u: new Set() }); q.c++; q.v += f.valor; q.u.add(f.valor); }); Object.keys(g).forEach((id) => porNombre.push(g[id])); porNombre.sort((a, b) => b.v - a.v); }
     const ahorro = conValor ? `<h2 class="bit-h2">Dinero ahorrado (estimado)</h2>
       <p class="sp-nota">Estimación con los valores que ingresó el kinesiólogo; no es un cobro real ni un dato del seguro.</p>
       <table class="kn-t sp-t"><thead><tr><th>Concepto</th><th class="der">Cantidad</th><th class="der">Valor unitario</th><th class="der">Subtotal</th></tr></thead><tbody>
-      ${VAL_TIPOS.map(([k, t]) => { const n = k === 'urgencia' ? c.urgencia || 0 : k === 'examen' ? d.nExam : k === 'kinesiologia' ? d.sesiones : k === 'hosp' ? d.diasHosp : c[k] || 0; if (!n && !d.porTipo[k]) return ''; const v = (o.vals || {})[k]; return `<tr><td>${e(t)}</td><td class="der">${n}</td><td class="der">${v ? e(clp(v)) : '—'}</td><td class="der">${e(clp(d.porTipo[k] || 0))}</td></tr>`; }).join('')}
-      <tr class="sp-tot"><td colspan="3"><b>Total estimado</b></td><td class="der"><b>${e(clp(d.total))}</b></td></tr></tbody></table>` : '';
+      ${VAL_TIPOS.map(([k, t]) => { const n = k === 'urgencia' ? c.urgencia || 0 : k === 'examen' ? d.nExam : k === 'kinesiologia' ? d.sesiones : k === 'hosp' ? d.diasHosp : c[k] || 0; if (!n && !d.porTipo[k]) return ''; const v = (o.vals || {})[k], mixto = d.todas.some((f) => f.k === k && f.fuente); return `<tr><td>${e(t)}</td><td class="der">${n}</td><td class="der">${mixto ? 'varios' : v ? e(clp(v)) : '—'}</td><td class="der">${e(clp(d.porTipo[k] || 0))}</td></tr>`; }).join('')}
+      <tr class="sp-tot"><td colspan="3"><b>Total estimado</b></td><td class="der"><b>${e(clp(d.total))}</b></td></tr></tbody></table>
+      ${porNombre.length ? `<h3 class="sp-h3">Dinero ahorrado por nombre</h3><table class="kn-t sp-t"><thead><tr><th>Concepto</th><th class="der">Cantidad</th><th class="der">Valor unitario</th><th class="der">Subtotal</th></tr></thead><tbody>${porNombre.map((g) => `<tr><td>${e(TIPO_TXT[g.k] + ' · ' + g.n)}</td><td class="der">${g.c}</td><td class="der">${g.u.size === 1 ? e(clp(Array.from(g.u)[0])) : 'varios'}</td><td class="der">${e(clp(g.v))}</td></tr>`).join('')}</tbody></table>` : ''}` : '';
     return `<div class="bit-print seg-print"><header><img class="sw-vs" src="img/escudo-sw-vs.png" alt=""><div><h1>Informe del seguro</h1><p>Santiago Wanderers · Fútbol Joven · ${e(periodo)} · generado el ${e(fc(K.hoy()))}</p></div></header>
       <div class="bd-kpis">${kpi(d.activaciones, 'activaciones (urgencias)')}${kpi(d.eventos.length, 'eventos en total')}${kpi(c.control || 0, 'controles')}${kpi(d.nExam, 'exámenes (con los de urgencias)')}${kpi(d.sesiones, 'sesiones de kine externa')}${kpi(c.hosp || 0, 'hospitalizaciones')}${kpi(c.procedimiento || 0, 'procedimientos')}${kpi(c.cirugia || 0, 'cirugías')}${conValor ? kpi(clp(d.total), 'ahorro estimado') : ''}</div>
       <h2 class="bit-h2">Estadísticas</h2>
@@ -114,12 +122,53 @@
     try { await document.fonts.ready; } catch (x) { /* sigue */ }
     const d = K.seguroInformeDatos(o);
     if (!d.todas.length) { K.aviso('No hay activaciones ni eventos del seguro en ese período', true); return; }
-    return K.pdf.documento(K.seguroInformeHTML(o), `Informe del seguro - ${d.anio === 'todo' ? 'todo el historial' : d.anio} - ${K.hoy()}`);
+    return K.pdf.documento(K.seguroInformeHTML(o), `Informe del seguro - ${d.anio === 'todo' ? 'todo el historial' : K.segPeriodoTxt(d.anio).toLowerCase()} - ${K.hoy()}`);
   };
 
   /* ---------- Ventana de opciones ---------- */
   const soloDigitos = (v) => String(v || '').replace(/\D/g, '');
   const miles = (v) => { const t = soloDigitos(v).replace(/^0+/, ''); return t ? t.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''; };
+  // v1.9.17 · Editor de valores (se usa en el PDF y en Ajustes): valor general por tipo + valor por nombre (lo que ya registraste) + valor por registro (en el propio registro).
+  K.segMiles = miles; K.segDigitos = soloDigitos;
+  const nombresUsados = (infs) => {
+    const r = { examen: {}, control: {}, procedimiento: {}, cirugia: {} };
+    infs.forEach((inf) => (inf.segEventos || []).forEach((x) => { if (r[x.tipo] && x.detalle) r[x.tipo][x.detalle] = (r[x.tipo][x.detalle] || 0) + 1; }));
+    return r;
+  };
+  const camposValores = (vals, infs) => {
+    const us = nombresUsados(infs), grupo = (k, titulo, attr) => { const ns = Object.keys(us[k]).sort((a, b) => us[k][b] - us[k][a] || a.localeCompare(b, 'es')); if (!ns.length) return ''; return `<p class="suave" style="margin:10px 0 4px"><b>${titulo}</b> <span style="font-weight:400">(lo que dejes vacío usa el valor general)</span></p>${ns.map((n) => `<label class="campo"><span>${e(n)} <small class="suave">· ${us[k][n]} ${us[k][n] === 1 ? 'vez' : 'veces'}</small></span><input type="text" inputmode="numeric" ${attr}="${k === 'examen' ? e(n) : k + '|' + e(n)}" value="${k === 'examen' ? (vals.examenes && vals.examenes[n] ? miles(vals.examenes[n]) : '') : (vals.nombres && vals.nombres[k + '|' + n] ? miles(vals.nombres[k + '|' + n]) : '')}" placeholder="$" autocomplete="off"></label>`).join('')}`; };
+    return `<p class="suave" style="margin:4px 0 8px"><b>1) Valor general</b> por tipo. Lo que dejes vacío no suma.</p>
+      ${VAL_TIPOS.map(([k, t]) => `<label class="campo"><span>${e(t)}</span><input type="text" inputmode="numeric" data-val="${k}" value="${vals[k] ? miles(vals[k]) : ''}" placeholder="$" autocomplete="off"></label>`).join('')}
+      <p class="suave" style="margin:12px 0 0"><b>2) Valor por nombre</b>: lo que ya registraste este año, con las veces que aparece. Escribes el valor una sola vez y se aplica a todos los registros con ese nombre.</p>
+      ${grupo('procedimiento', 'Procedimientos', 'data-valnom')}${grupo('examen', 'Exámenes', 'data-valex')}${grupo('control', 'Controles', 'data-valnom')}${grupo('cirugia', 'Cirugías', 'data-valnom')}
+      <p class="suave" style="margin:12px 0 0"><b>3) Valor de un registro puntual</b>: se escribe en el propio registro (Kine → Seguro, tocando el evento → «Valor de este registro») y pesa más que los otros dos.</p>`;
+  };
+  const leerValores = (hoja) => {
+    const nuevos = {};
+    hoja.querySelectorAll('[data-val]').forEach((i) => { const n = Number(soloDigitos(i.value)); if (n > 0) nuevos[i.dataset.val] = n; });
+    const ex = {}; hoja.querySelectorAll('[data-valex]').forEach((i) => { const n = Number(soloDigitos(i.value)); if (n > 0) ex[i.dataset.valex] = n; });
+    if (Object.keys(ex).length) nuevos.examenes = ex;
+    const nm = {}; hoja.querySelectorAll('[data-valnom]').forEach((i) => { const n = Number(soloDigitos(i.value)); if (n > 0) nm[i.dataset.valnom] = n; });
+    if (Object.keys(nm).length) nuevos.nombres = nm;
+    return nuevos;
+  };
+  const alMontarValores = (hoja) => hoja.addEventListener('input', (ev) => { const i = ev.target.closest && ev.target.closest('[data-val],[data-valex],[data-valnom]'); if (i) i.value = miles(i.value); });
+  K.formValoresSeguro = () => {
+    if (!K.verPrivado() || !K.puedeEditar()) return;
+    const infs = K.kineInfs();
+    K.modal({
+      titulo: 'Valores del seguro (dinero ahorrado)',
+      cuerpo: `<p class="suave" style="margin:0 0 8px">Son estimaciones para el informe del seguro; no son un cobro real. Se guardan y se usan cada vez que saques el informe con «Calcular dinero ahorrado».</p>${camposValores(K.seguroValores(), infs)}`,
+      botones: [{ txt: 'Cancelar', cls: 'sec' }, { txt: 'Guardar valores', fn: (m, hoja) => { if (infs[0]) { infs[0].seguroValores = leerValores(hoja); K.guardar(); K.aviso('Valores guardados'); K.render(); } } }],
+      alMontar: (m, hoja) => alMontarValores(hoja)
+    });
+  };
+  K.tarjetaValoresSeguro = () => {
+    if (!K.verPrivado || !K.verPrivado() || !K.puedeEditar()) return '';
+    const v = K.seguroValores(), n = Object.keys(v).filter((k) => typeof v[k] === 'number').length + Object.keys(v.examenes || {}).length + Object.keys(v.nombres || {}).length;
+    return `<div class="card"><h2>Valores del seguro (dinero ahorrado)</h2><p class="sub">Cuánto costaría cada cosa, para estimar el dinero ahorrado en el informe del seguro: un valor general por tipo y, si quieres, uno por nombre (ej. «Férula termoplástica», «Radiografía»). ${n ? 'Tienes ' + n + ' valores guardados.' : 'Aún no hay valores guardados.'}</p>
+      <button type="button" class="btn chico" data-acc="segValores">Editar valores</button></div>`;
+  };
   K.formInformeSeguro = () => {
     if (!K.verPrivado()) return;
     const infs = K.kineInfs(), vals = K.seguroValores();
@@ -128,22 +177,16 @@
     K.modal({
       titulo: 'Informe del seguro (PDF)',
       cuerpo: `<p class="suave" style="margin:0 0 8px">Un PDF aparte con los totales, los gráficos y, por jugador, sus activaciones y eventos con fecha, centro y N.º de asistencia.</p>
-        <label class="campo"><span>Período</span><select name="anio"><option value="todo">Todo el historial</option>${anios.map((a) => `<option value="${a}">Año ${a}</option>`).join('')}</select></label>
+        <label class="campo"><span>Período</span><select name="anio">${K.segPeriodoOpciones(anios, 'todo')}</select></label>
         <fieldset class="sp-fs"><legend>Datos personales (no salen si no los marcas)</legend>
           <label class="check"><input type="checkbox" name="rut"><span>Incluir el RUT</span></label>
           <label class="check"><input type="checkbox" name="fechaNac"><span>Incluir la fecha de nacimiento</span></label>
           <label class="check"><input type="checkbox" name="prevision"><span>Incluir la previsión de salud</span></label></fieldset>
         <fieldset class="sp-fs"><legend>Dinero ahorrado (opcional)</legend>
           <label class="check"><input type="checkbox" name="valor" data-sp-valor><span>Calcular un estimado del dinero ahorrado</span></label>
-          <div data-sp-vals class="oculto"><p class="suave" style="margin:4px 0 8px">Pon cuánto costaría cada cosa en pesos. Lo que dejes vacío no suma. Los valores quedan guardados para la próxima vez.</p>
-            ${VAL_TIPOS.map(([k, t]) => `<label class="campo"><span>${e(t)}</span><input type="text" inputmode="numeric" data-val="${k}" value="${vals[k] ? miles(vals[k]) : ''}" placeholder="$" autocomplete="off"></label>`).join('')}
-            ${exNombres.length ? `<p class="suave" style="margin:8px 0 4px"><b>Valor por tipo de examen</b> (si lo dejas vacío se usa el valor general de examen)</p>${exNombres.map((n) => `<label class="campo"><span>${e(n)}</span><input type="text" inputmode="numeric" data-valex="${e(n)}" value="${vals.examenes && vals.examenes[n] ? miles(vals.examenes[n]) : ''}" placeholder="$" autocomplete="off"></label>`).join('')}` : ''}
-          </div></fieldset>`,
+          <div data-sp-vals class="oculto">${camposValores(vals, infs)}</div></fieldset>`,
       botones: [{ txt: 'Cancelar', cls: 'sec' }, { txt: 'Descargar PDF', fn: (m, hoja) => {
-        const d = K.datos(hoja), nuevos = {};
-        hoja.querySelectorAll('[data-val]').forEach((i) => { const n = Number(soloDigitos(i.value)); if (n > 0) nuevos[i.dataset.val] = n; });
-        const ex = {}; hoja.querySelectorAll('[data-valex]').forEach((i) => { const n = Number(soloDigitos(i.value)); if (n > 0) ex[i.dataset.valex] = n; });
-        if (Object.keys(ex).length) nuevos.examenes = ex;
+        const d = K.datos(hoja), nuevos = leerValores(hoja);
         const o = { anio: d.anio || 'todo', rut: !!d.rut, fechaNac: !!d.fechaNac, prevision: !!d.prevision, valor: !!d.valor, vals: d.valor ? nuevos : {} };
         if (d.valor && infs[0]) { infs[0].seguroValores = nuevos; K.guardar(); } // los valores se guardan solo cuando se usan
         setTimeout(() => K.seguroInformePdf(o), 250);
@@ -151,9 +194,9 @@
       alMontar: (m, hoja) => {
         const ch = hoja.querySelector('[data-sp-valor]'), bl = hoja.querySelector('[data-sp-vals]');
         ch.addEventListener('change', () => bl.classList.toggle('oculto', !ch.checked));
-        hoja.addEventListener('input', (ev) => { const i = ev.target.closest && ev.target.closest('[data-val],[data-valex]'); if (i) i.value = miles(i.value); });
+        alMontarValores(hoja);
       }
     });
   };
-  Object.assign(K.acciones, { segInforme() { K.formInformeSeguro(); } });
+  Object.assign(K.acciones, { segInforme() { K.formInformeSeguro(); }, segValores() { K.formValoresSeguro(); } });
 })();
