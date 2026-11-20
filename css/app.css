@@ -1451,3 +1451,8 @@ input.bl-sw[type=checkbox]:checked::after { transform: translateX(20px); }
 .seg-falta { font-style: normal; font-weight: 600; color: #b3202a; }
 .seg-cats { margin: 10px -2px 6px; }
 .seg-cats button { min-height: 44px; font-size: 14px; }
+
+/* v1.9.17: en el historial, el tipo de lo hecho por el seguro (control, examen, procedimiento) lleva su propio color */
+.bit-tag.tc-control { background: #e3e9f7; color: #243b7a; } .th-h b.tt-tc-control { color: #243b7a; }
+.bit-tag.tc-examen { background: #ffe8d0; color: #8a4300; } .th-h b.tt-tc-examen { color: #8a4300; }
+.bit-tag.tc-procedimiento { background: #dcf0e3; color: #0b5a24; } .th-h b.tt-tc-procedimiento { color: #0b5a24; }

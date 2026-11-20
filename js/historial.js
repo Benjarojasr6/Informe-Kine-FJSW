@@ -14,6 +14,7 @@
   const recorta = (t, n) => { t = String(t == null ? '' : t); return t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t; };
   const PAG = 30;                                   // registros por “página” en la línea de tiempo
   const TODO = { desde: '0000-01-01', hasta: '9999-12-31' };
+  const TIPO_CHIP = { control: 'Control', examen: 'Examen', procedimiento: 'Procedimiento' }; // v1.9.17: el tipo va en su propia etiqueta, con su color
   const SEG_TIPO = { control: 'Control médico', examen: 'Examen', procedimiento: 'Procedimiento', kinesiologia: 'Kinesiología', cirugia: 'Cirugía', hosp: 'Hospitalización' };
   const MOM = { pre: 'Pre partido', t1: '1.er tiempo', et: 'Entretiempo', t2: '2.º tiempo', post: 'Post partido' };
   // Tipos de registro (chips). Clave · rótulo · clase de color.
@@ -49,7 +50,7 @@
     const gl = K.jugadorGlobal(jid); if (!gl) return null;
     const { j, inf } = gl, priv = K.verPrivado(), items = [], hoy = K.hoy();
     const casos = (inf.casos || []).filter((c) => c.jugadorId === jid), porId = new Map(casos.map((c) => [c.id, c]));
-    const nuevo = (x, caso) => Object.assign({ id: '', f: '', k: '', tag: '', cls: '', titulo: '', sub: '', det: [], notas: '', casoId: '', zonas: [], temp: '', grav: '', recid: false, edit: '', raw: null }, x, caso || {});
+    const nuevo = (x, caso) => Object.assign({ id: '', f: '', k: '', tag: '', cls: '', tag2: '', cls2: '', titulo: '', sub: '', det: [], notas: '', casoId: '', zonas: [], temp: '', grav: '', recid: false, edit: '', raw: null }, x, caso || {});
     // ---- lesiones, molestias y sus altas / retornos
     casos.forEach((c) => {
       const en = K.bit.entCaso(c), les = c.tipo === 'lesion';
@@ -85,8 +86,8 @@
       const en = K.bit.entEvento(inf, x), c = x.casoId ? porId.get(x.casoId) : null;
       const lig = priv ? (inf.segEventos || []).find((q) => q.evId === x.id) : null, porSeg = !!(lig || (priv && x.porSeguro));
       const cont = porSeg && ['control', 'examen', 'procedimiento'].includes(x.tipo), enU = !!(lig && (lig.urg || lig.deUrg)); // v1.9.17: control, examen o procedimiento por el seguro = «Seguro · continuidad» (o «urgencia» si se hizo dentro de la sala de urgencia)
-      const sub = [cont ? en.tag : '', x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : '', porSeg && !cont ? 'por el seguro' : x.interno ? 'interno (médico del club)' : ''].filter(Boolean).join(' · ');
-      items.push(nuevo({ id: 'e' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: x.tipo, tag: cont ? (enU ? 'Seguro · urgencia' : 'Seguro · continuidad') : en.tag, cls: cont ? 'se' : 'ev', titulo: en.titulo, sub, det: en.det, notas: en.notas, raw: x, edit: 'evento' }, c ? { casoId: c.id, zonas: (c.zonas || []).slice() } : null));
+      const sub = [cont && K.norm(en.tag) !== K.norm(TIPO_CHIP[x.tipo]) ? en.tag : '', x.tipo === 'examen' && x.resultado ? 'resultado: ' + x.resultado : '', x.tipo === 'medicamento' ? `${Number(x.cantidad) || 1} ${(Number(x.cantidad) || 1) === 1 ? 'unidad' : 'unidades'}` : (Number(x.cantidad) > 1 ? '×' + x.cantidad : ''), c ? 'Lesión: ' + c.titulo : '', porSeg && !cont ? 'por el seguro' : x.interno ? 'interno (médico del club)' : ''].filter(Boolean).join(' · ');
+      items.push(nuevo({ id: 'e' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: x.tipo, tag: cont ? (enU ? 'Seguro · urgencia' : 'Seguro · continuidad') : en.tag, cls: cont ? 'se' : 'ev', tag2: cont ? TIPO_CHIP[x.tipo] : '', cls2: cont ? 'tc-' + x.tipo : '', titulo: en.titulo, sub, det: en.det, notas: en.notas, raw: x, edit: 'evento' }, c ? { casoId: c.id, zonas: (c.zonas || []).slice() } : null));
     });
     // ---- seguro (solo si puede ver datos privados)
     if (priv) {
@@ -98,7 +99,7 @@
         if (x.jugadorId !== jid || x.evId) return; // los vinculados a Kine ya salen como su registro de Kine («por el seguro»)
         const t = SEG_TIPO[x.tipo] || x.tipo || 'Evento';
         const contS = ['control', 'examen', 'procedimiento'].includes(x.tipo), tagS = x.urg || x.deUrg ? 'Seguro · urgencia' : contS ? 'Seguro · continuidad' : 'Seguro · ' + t;
-        items.push(nuevo({ id: 'v' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: 'seguro', tag: tagS, cls: 'se', titulo: x.detalle || t, sub: [contS ? t : '', x.tipo === 'examen' && x.resultado ? 'Resultado: ' + x.resultado : '', x.centro || x.centroKine || '', x.medico || '', x.nAsist ? 'N.º ' + x.nAsist : ''].filter(Boolean).join(' · '), det: [['Tipo', t], ['Detalle', x.detalle || '—']].concat(x.resultado ? [['Resultado', x.resultado]] : []) }));
+        items.push(nuevo({ id: 'v' + x.id, f: FECHA.test(x.fecha || '') ? x.fecha : '', k: 'seguro', tag: tagS, cls: 'se', tag2: contS ? TIPO_CHIP[x.tipo] : '', cls2: contS ? 'tc-' + x.tipo : '', titulo: x.detalle || t, sub: [x.tipo === 'examen' && x.resultado ? 'Resultado: ' + x.resultado : '', x.centro || x.centroKine || '', x.medico || '', x.nAsist ? 'N.º ' + x.nAsist : ''].filter(Boolean).join(' · '), det: [['Tipo', t], ['Detalle', x.detalle || '—']].concat(x.resultado ? [['Resultado', x.resultado]] : []) }));
       });
     }
     // ---- partidos (de cualquier informe: un jugador puede jugar en otra categoría)
@@ -124,7 +125,7 @@
     // ---- texto de búsqueda, orden y listas de los selectores
     items.forEach((it) => {
       it.zn = zn(it.zonas);
-      it.q = K.norm([it.tag, it.titulo, it.sub, it.notas, it.zn.join(' '), K.nombreTemporada(it.temp)].concat(it.det.map((d) => d[0] + ' ' + d[1])).join(' '));
+      it.q = K.norm([it.tag, it.tag2, it.titulo, it.sub, it.notas, it.zn.join(' '), K.nombreTemporada(it.temp)].concat(it.det.map((d) => d[0] + ' ' + d[1])).join(' '));
     });
     const ORD = { club: 0, caso: 1, scat: 1.5, hito: 2, atencion: 3, control: 4, examen: 5, procedimiento: 5.5, medicamento: 6, cirugia: 7, partido: 8, seguro: 9 };
     items.sort((a, b) => b.f.localeCompare(a.f) || (ORD[b.k] || 0) - (ORD[a.k] || 0));
@@ -162,11 +163,11 @@
   const agrupar = (arr) => { const out = []; arr.forEach((it, i) => { const u = out[out.length - 1]; if (it.k === 'hito' && it.f && u && u.it.k === 'hito' && u.it.f === it.f && u.it.casoId === it.casoId) u.mas.push(it); else out.push({ it, i, mas: [] }); }); return out; };
   // v1.9.3: además, todo lo de una misma fecha va en un solo cuadro (días sin fecha: cada registro aparte)
   const agruparDias = (arr) => { const out = []; agrupar(arr).forEach((x) => { const u = out[out.length - 1]; if (x.it.f && u && u.f === x.it.f) u.secs.push(x); else out.push({ f: x.it.f, secs: [x] }); }); return out; };
-  const tagsHTML = (it, mas, cls) => (mas && mas.length ? `<span class="${cls}">${[it].concat(mas).map((x) => `<span class="bit-tag t-${x.cls}${cls === 'fj-tgs' ? ' fj-tg' : ''}">${e(x.tag)}</span>`).join('')}</span>` : `<span class="bit-tag${cls === 'fj-tgs' ? ' fj-tg' : ''} t-${it.cls}">${e(it.tag)}</span>`);
+  const tagsHTML = (it, mas, cls) => (mas && mas.length ? `<span class="${cls}">${[it].concat(mas).map((x) => `<span class="bit-tag t-${x.cls}${cls === 'fj-tgs' ? ' fj-tg' : ''}">${e(x.tag)}</span>`).join('')}</span>` : `<span class="bit-tag${cls === 'fj-tgs' ? ' fj-tg' : ''} t-${it.cls}">${e(it.tag)}</span>${it.tag2 ? `<span class="bit-tag${cls === 'fj-tgs' ? ' fj-tg' : ''} ${it.cls2}">${e(it.tag2)}</span>` : ''}`);
   function cuerpoItem(it, i, edit, mas) {
     const lesion = it.k === 'caso' || it.k === 'hito';
     const det = it.det.length || it.notas ? `<details class="th-det"><summary>Ver detalle</summary><dl>${it.det.map(([l, v]) => `<div><dt>${e(l)}</dt><dd>${e(v)}</dd></div>`).join('')}</dl>${it.notas ? `<p class="bit-n"><b>Notas:</b> ${e(it.notas).replace(/\n/g, '<br>')}</p>` : ''}</details>` : '';
-    return `<div class="th-c"><div class="th-h${mas && mas.length ? ' th-h-g' : ''}">${tagsHTML(it, mas, 'th-tags')}<b>${e(it.titulo)}</b></div>
+    return `<div class="th-c"><div class="th-h${mas && mas.length ? ' th-h-g' : ''}">${tagsHTML(it, mas, 'th-tags')}<b${it.cls2 ? ` class="tt-${it.cls2}"` : ''}>${e(it.titulo)}</b></div>
         ${lesion ? `<div class="th-ch">${chipsCaso(it)}</div>` : ''}${it.sub ? `<p class="th-s">${e(it.sub)}</p>` : ''}${det}${it.k === 'caso' && it.raw && it.raw.conmocion === true && K.scat5 && K.scat5.deCaso(it.raw) ? `<button type="button" class="btn sec chico sc-pdf-btn" data-scat-pdf-tl="${e(it.raw.id)}">${K.uiIco('pdf', 16)} Ficha SCAT5 (PDF)</button>` : ''}</div>
       ${edit && it.edit ? `<button type="button" class="btn ghost chico th-ed" data-acc="histAbrir" data-i="${i}" aria-label="Abrir para editar" title="Abrir para editar">${K.uiIco('editar', 18)}</button>` : ''}`;
   }
@@ -296,7 +297,7 @@
     const s = estado(jid), lista = (usarFiltros === false ? data.items : K.histFiltrar(data, s)).slice().sort((a, b) => a.f.localeCompare(b.f));
     const filas = [['Fecha', 'Tipo', 'Título', 'Detalle', 'Gravedad', 'Recidiva', 'Zona', 'Lesión asociada', 'Período de la temporada', 'Notas']].concat(lista.map((it) => {
       const c = it.casoId ? data.casos.find((x) => x.id === it.casoId) : null, lesion = it.k === 'caso' || it.k === 'hito';
-      return [it.f ? K.fechaCorta(it.f) : '', it.tag, it.titulo, it.det.map(([l, v]) => `${l}: ${v}`).join(' | ') || it.sub, lesion ? K.GRAVEDADES[it.grav] : '', lesion ? (it.recid ? 'Sí' : 'No') : '', it.zn.join(', '), c && it.k !== 'caso' ? c.titulo : '', K.nombreTemporada(it.temp), it.notas];
+      return [it.f ? K.fechaCorta(it.f) : '', it.tag + (it.tag2 ? ' · ' + it.tag2 : ''), it.titulo, it.det.map(([l, v]) => `${l}: ${v}`).join(' | ') || it.sub, lesion ? K.GRAVEDADES[it.grav] : '', lesion ? (it.recid ? 'Sí' : 'No') : '', it.zn.join(', '), c && it.k !== 'caso' ? c.titulo : '', K.nombreTemporada(it.temp), it.notas];
     }));
     return { filas, n: lista.length, total: data.items.length, j: data.j };
   };
